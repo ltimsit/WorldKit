@@ -1,0 +1,5 @@
+# INVALIDE (R-SCH-01) : héritage d'un type non déclaré.
+schema: invalid-unknown-parent
+types:
+  MonasticOrder: { extends: Faction, attributes: { vows: { type: "list[text]" } } }
+relations: {}

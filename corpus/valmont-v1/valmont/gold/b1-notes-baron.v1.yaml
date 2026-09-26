@@ -1,0 +1,64 @@
+# Annotations de référence (gold) — sert au calcul des métriques (T2) et à l'extracteur oracle (T-ING-19).
+# Convention : les passages sont les paragraphes du corps, titres exclus, numérotés à partir de 1.
+# outcome : ce que le NOYAU doit conclure une fois le changement extrait et résolu (contre @base).
+document: notes-baron
+version: 1
+batch: b1
+axes: { mode: source, nature: diegetic, voice: author, visibility: unqualified }
+
+passages:
+  - index: 1
+    starts_with: "Odon de Brume est le baron de Brume"
+    mentions: { "Odon de Brume": odon, "Brume": brume, "la Chute": la-chute }
+    changes:
+      - { op: set_attribute, entity: odon, attribute: title, value: "baron", outcome: support }
+      - { op: add_relation, from: odon, relation: rules, to: brume, outcome: support }
+
+  - index: 2
+    starts_with: "Odon est le vassal du roi Mervin"
+    mentions: { "Odon": odon, "roi Mervin": mervin, "Hautval": hautval }
+    changes:
+      - { op: add_relation, from: odon, relation: vassal_of, to: mervin, outcome: out_of_schema }
+    rules: [R-SCH-06, R-SCH-10]
+
+  - index: 3
+    starts_with: "Dans les faits, c'est le conseil des marchands"
+    mentions: { "conseil des marchands": "new:conseil-marchands", "Brume": brume }
+    changes:
+      - { op: create_entity, entity: "new:conseil-marchands", type: Faction, outcome: enrichment }
+      - { op: set_attribute, entity: "new:conseil-marchands", attribute: name, value: "le conseil des marchands", outcome: enrichment }
+      - { op: add_relation, from: "new:conseil-marchands", relation: rules, to: brume, outcome: anomaly, collides_with: "odon rules brume (clé (rules, brume))" }
+    rules: [R-FAI-05, R-PRI-01, T-ING-03]
+
+  - index: 4
+    starts_with: "Odon siège lui-même au conseil des marchands"
+    mentions: { "Odon": odon, "conseil des marchands": "new:conseil-marchands", "Brume": brume }
+    changes:
+      - { op: add_relation, from: odon, relation: member_of, to: "new:conseil-marchands", outcome: enrichment, depends_on: "création du conseil (passage 3)" }
+      - { op: add_relation, from: "new:conseil-marchands", relation: based_in, to: brume, outcome: batch_conflict, conflicts_with: "lieux-de-valmont p2 (based_in hautval)" }
+    rules: [T-ING-05, T-ING-07, R-PRI-03]
+
+  - index: 5
+    starts_with: "En secret, Odon est membre du Cercle des Cendres"
+    mentions: { "Odon": odon, "Cercle des Cendres": cercle-des-cendres }
+    changes:
+      - { op: add_relation, from: odon, relation: member_of, to: cercle-des-cendres, outcome: enrichment }
+      - { op: set_visibility, target: "odon member_of cercle-des-cendres", value: secret, outcome: hint_visibility, hint: "En secret" }
+    note: "Même sans l'indice, le fait est secret par propagation (R-NOT-04). L'indice produit une proposition distincte (T-ING-15)."
+    rules: [R-NOT-04, R-DEC-02, T-ING-15]
+
+  - index: 6
+    starts_with: "« Le baron est un traître »"
+    mentions: { "le baron": odon }
+    changes: []
+    outcome: attribution
+    note: "Guillemets = attribution, pas fausseté (R-DEC-03). Locuteur non identifié ; les rumeurs sont hors périmètre : aucun fait attendu."
+    must_not:
+      - { op: set_attribute, entity: odon, attribute: condition, value: "traître" }
+
+  - index: 7
+    starts_with: "Depuis la Chute, Odon porte le titre de régent"
+    mentions: { "Odon": odon, "Brume": brume }
+    changes:
+      - { op: set_attribute, entity: odon, attribute: title, value: "régent", outcome: anomaly, collides_with: "odon.title = baron (état) ; et passage 1 du même document", internal_contradiction: true }
+    rules: [R-ING-02, R-PRI-01]

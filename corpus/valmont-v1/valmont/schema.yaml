@@ -1,0 +1,82 @@
+# Schéma du monde Valmont — copie adaptée de schemas/fantasy-default.yaml (R-SCH-05).
+# Ajouts : MonasticOrder (héritage, attribut à valeurs multiples), death_cause, flame_bearer.
+# Volontairement ABSENT : la relation vassal_of (test du hors schéma, R-SCH-06 / W09).
+schema: valmont
+copied_from: fantasy-default
+version: 1
+
+types:
+  Character:
+    labels: { fr: "Personnage" }
+    attributes:
+      name:      { type: text, required: true, labels: { fr: "nom" } }
+      aliases:   { type: "list[text]", labels: { fr: "autres noms" } }
+      title:     { type: text, labels: { fr: "titre" } }
+      condition: { type: text, labels: { fr: "état" } }
+      death_cause: { type: text, labels: { fr: "cause de la mort" } }
+
+  Place:
+    labels: { fr: "Lieu" }
+    attributes:
+      name:     { type: text, required: true, labels: { fr: "nom" } }
+      aliases:  { type: "list[text]", labels: { fr: "autres noms" } }
+      category: { type: text, labels: { fr: "catégorie" } }
+
+  Faction:
+    labels: { fr: "Faction" }
+    attributes:
+      name:    { type: text, required: true, labels: { fr: "nom" } }
+      aliases: { type: "list[text]", labels: { fr: "autres noms" } }
+
+  MonasticOrder:
+    extends: Faction
+    labels: { fr: "Ordre monastique" }
+    attributes:
+      vows: { type: "list[text]", labels: { fr: "vœux" } }
+
+  Creature:
+    labels: { fr: "Créature" }
+    attributes:
+      name:         { type: text, required: true, labels: { fr: "nom" } }
+      aliases:      { type: "list[text]", labels: { fr: "autres noms" } }
+      weaknesses:   { type: "list[text]", labels: { fr: "faiblesses" } }
+      flame_bearer: { type: boolean, labels: { fr: "porteur de la flamme" } }
+
+  Item:
+    labels: { fr: "Objet" }
+    attributes:
+      name:   { type: text, required: true, labels: { fr: "nom" } }
+      origin: { type: text, labels: { fr: "origine" } }
+
+  Event:
+    labels: { fr: "Événement" }
+    attributes:
+      name: { type: text, required: true, labels: { fr: "nom" } }
+      date: { type: text, labels: { fr: "date" } }
+
+  Concept:
+    labels: { fr: "Concept" }
+    attributes:
+      name: { type: text, required: true, labels: { fr: "nom" } }
+
+  Text:
+    labels: { fr: "Écrit du monde" }
+    attributes:
+      name:        { type: text, required: true, labels: { fr: "titre" } }
+      author_name: { type: text, labels: { fr: "auteur" } }
+      date:        { type: text, labels: { fr: "date" } }
+
+relations:
+  located_in:   { from: Place, to: Place, cardinality: many_to_one, labels: { fr: "situé dans" } }
+  rules:        { from: [Character, Faction], to: Place, cardinality: one_to_many, labels: { fr: "gouverne" } }
+  member_of:    { from: Character, to: Faction, labels: { fr: "membre de" } }
+  based_in:     { from: Faction, to: Place, cardinality: many_to_one, labels: { fr: "siège à" } }
+  sibling_of:   { from: Character, to: Character, symmetric: true, labels: { fr: "frère ou sœur de" } }
+  spouse_of:    { from: Character, to: Character, symmetric: true, cardinality: one_to_one, labels: { fr: "époux ou épouse de" } }
+  parent_of:    { from: Character, to: Character, labels: { fr: "parent de" } }
+  owns:         { from: [Character, Faction], to: Item, cardinality: one_to_many, labels: { fr: "possède" } }
+  involved_in:  { from: [Character, Faction, Creature], to: Event, labels: { fr: "impliqué dans" } }
+  haunts:       { from: Creature, to: Place, labels: { fr: "hante" } }
+  killed:       { from: [Character, Creature], to: Character, cardinality: one_to_many, labels: { fr: "a tué" } }
+  worships:     { from: [Character, Faction], to: [Concept, Creature], labels: { fr: "vénère" } }
+  commissioned: { from: [Character, Faction], to: Text, cardinality: one_to_many, labels: { fr: "a commandé" } }

@@ -1,0 +1,35 @@
+# Lots d'ingestion (R-DOC-01). L'ordre d'ingestion effectif est fixé par les parcours (walkthroughs/).
+# Tous les lots visent la branche de référence sauf mention contraire (T-ING-16).
+batches:
+  - id: b1
+    target_branch: reference
+    documents: [b1/notes-baron.v1.md, b1/lieux-de-valmont.md]
+    purpose: "Premier lot : corroboration, collision, hors schéma, contradiction interne, contradiction symétrique dans le lot, dépendances, indice de notoriété, attribution, pièges de résolution."
+  - id: b2
+    target_branch: reference
+    documents: [b2/chronique-de-la-chute.md]
+    purpose: "Document in-world : affirmations et qualification suggérée (vraie, fausse, non établie)."
+  - id: b3
+    target_branch: reference
+    documents: [b3/les-veilleurs.md]
+    purpose: "Attribut à valeurs multiples, marqueur in_world de niveau 2, indice « nul ne sait »."
+  - id: b4
+    target_branch: reference
+    documents: [b4/bestiaire-loup-de-cendre.md]
+    purpose: "Nature mixte : fiche, règle de système, attribut inconnu du système, passage méta non balisé (détection), attribution."
+  - id: b5
+    target_branch: reference
+    documents: [b5/notes-conseil.md]
+    purpose: "Ingéré pendant que b1 est en attente : propositions concurrentes entre lots, résolution contre une entité proposée non encore créée."
+  - id: b6
+    target_branch: reference
+    documents: [b6/notes-baron.v2.md]
+    purpose: "Ré-ingestion de notes-baron : cache, mémoire des décisions, passage modifié, passages supprimés, fait orphelin, nouveau passage."
+  - id: b7
+    target_branch: reference
+    documents: [b7/apres-le-siege.md]
+    purpose: "Mode edit : contradictions traitées comme intentions, présentées en diff."
+  - id: b8
+    target_branch: reference
+    documents: [b8/vieilles-notes.md]
+    purpose: "Document périmé : anomalies, puis statut obsolète et levée du statut."

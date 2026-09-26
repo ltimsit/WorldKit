@@ -1,0 +1,25 @@
+# Ingéré alors que les propositions du lot b1 sont encore en attente (parcours W04).
+# Les outcomes ci-dessous supposent cet ordre.
+document: notes-conseil
+version: 1
+batch: b5
+axes: { mode: source, nature: diegetic, voice: author, visibility: unqualified }
+
+passages:
+  - index: 1
+    starts_with: "Le conseil des marchands se réunit à Brume"
+    mentions: { "conseil des marchands": "pending:conseil-marchands", "Brume": brume }
+    changes:
+      - { op: add_relation, from: "pending:conseil-marchands", relation: based_in, to: brume, outcome: competing, competes_with: "b1 lieux p2 (based_in hautval)", same_value_as: "b1 notes-baron p4" }
+    note: >
+      Le conseil n'existe pas dans l'état de base ; seule sa création est proposée par b1 (en attente).
+      La résolution voit les créations en attente (T-ING-07) : « pending:conseil-marchands » reprend
+      l'identifiant proposé par b1, et la proposition dépend de cette création (T-ING-05).
+
+  - index: 2
+    starts_with: "Odon y siège avec le titre de gouverneur"
+    mentions: { "Odon": odon, "y": "pending:conseil-marchands", "Brume": brume }
+    changes:
+      - { op: add_relation, from: odon, relation: member_of, to: "pending:conseil-marchands", outcome: enrichment, same_fingerprint_as: "b1 notes-baron p4" }
+      - { op: set_attribute, entity: odon, attribute: title, value: "gouverneur", outcome: competing, competes_with: "b1 notes-baron p7 (régent)", collides_with: "odon.title = baron (état)" }
+    rules: [R-PRI-07, R-PRI-02]

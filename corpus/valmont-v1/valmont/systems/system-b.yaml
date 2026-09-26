@@ -1,0 +1,15 @@
+# Système de règles B — un second système en parallèle (R-MET-02).
+# Le Loup de cendre n'a PAS de fiche dans ce système à l'état de base :
+# test de la fiche manquante (R-MET-06), puis de sa création depuis un passage méta non balisé (b4, p6).
+schema: system-b
+kind: rule_system
+version: 1
+
+types:
+  Monster:
+    labels: { fr: "Monstre" }
+    attributes:
+      level:  { type: integer, required: true, min: 1, max: 20, labels: { fr: "niveau" } }
+      threat: { type: integer, min: 1, max: 10, labels: { fr: "niveau de menace" } }
+
+relations: {}

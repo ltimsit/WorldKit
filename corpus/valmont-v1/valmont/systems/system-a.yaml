@@ -1,0 +1,25 @@
+# Système de règles A — même langage et même validateur que le schéma de monde (R-SCH-02).
+# Sert à tester : fiche conforme, attribut inconnu (« Constitution », hors schéma, R-SCH-06),
+# non-conformité après modification du système (R-SCH-10, R-MET-06, parcours W08),
+# élément à double face « Flamme d'azur » (R-MET-04).
+schema: system-a
+kind: rule_system
+version: 1
+
+types:
+  Creature:
+    labels: { fr: "Créature" }
+    attributes:
+      hp:           { type: integer, required: true, min: 1, max: 10, labels: { fr: "PV" } }
+      strength:     { type: integer, required: true, min: 10, max: 20, labels: { fr: "Force" } }
+      dexterity:    { type: integer, required: true, min: 10, max: 20, labels: { fr: "Dextérité" } }
+      intelligence: { type: integer, required: true, min: 10, max: 20, labels: { fr: "Intelligence" } }
+      abilities:    { type: "list[ref[Ability]]", labels: { fr: "capacités" } }
+
+  Ability:
+    labels: { fr: "Capacité" }
+    attributes:
+      name:   { type: text, required: true, labels: { fr: "nom" } }
+      damage: { type: text, labels: { fr: "dégâts" } }
+
+relations: {}

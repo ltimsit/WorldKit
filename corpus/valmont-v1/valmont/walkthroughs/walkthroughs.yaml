@@ -1,0 +1,335 @@
+# Parcours de test : séquences d'actions et résultats attendus, rejouables de bout en bout.
+# Chaque parcours indique le jalon où il devient exécutable et les règles qu'il exerce.
+# Les parcours W01 à W12, W14 et W16 s'enchaînent sur la branche « reference » ; W13, W15 et W17 créent des branches.
+# Points nommés : @base, @after-b1, @after-b4, @after-siege (utilisés par scenarios/ et questions.yaml).
+
+walkthroughs:
+
+  - id: W00
+    title: "Validateur de schéma"
+    milestone: J1
+    rules: [R-SCH-01, R-SCH-02, R-SCH-07, R-NOY-01, T-SCH-01]
+    steps:
+      - { do: validate_schema, files: [schemas/fantasy-default.yaml, valmont/schema.yaml, valmont/systems/system-a.yaml, valmont/systems/system-b.yaml] }
+      - { do: validate_schema, files: "schemas/invalid/*.yaml", expect_rejected: true }
+    expect:
+      - "Les quatre schémas valides passent avec le MÊME validateur (monde et systèmes)."
+      - "Chaque schéma de schemas/invalid/ est rejeté avec un message qui cite la règle en cause."
+      - "Clés calculées : rules → (rules, cible) ; located_in → (source, located_in) ; sibling_of (symétrique) → extrémités ordonnées ; spouse_of (one_to_one) → deux clés ; vows → une clé par valeur."
+
+  - id: W01
+    title: "État de base et vues"
+    milestone: J2
+    rules: [R-FAI-03, R-LLM-01, R-HIS-02, R-VUE-01, R-VUE-02, R-NOT-03, R-NOT-04, R-IDT-03, R-IDT-05, R-MET-06, R-FAI-05]
+    steps:
+      - { do: load_world, file: world.yaml }
+      - { do: apply_edits, file: edits/base.yaml }
+      - { do: checkpoint, name: "@base" }
+    expect:
+      - "Projection déterministe : rejouer e000–e006 deux fois donne deux états identiques (T1)."
+      - "Wiki d'auteur, page Brume : gouvernée par Odon de Brume."
+      - "Wiki d'auteur, page Aldren II : entité close ; cause de la mort « poison » ; tué par Mervin."
+      - "Wiki joueur, page Aldren II : close ; ni cause de la mort ni meurtrier (secrets)."
+      - "Wiki joueur, page Mervin : aucune appartenance au Cercle des Cendres (fait non qualifié + propagation depuis une entité secrète)."
+      - "Wiki joueur : aucune page « Cercle des Cendres »."
+      - "Wiki joueur : Corvin et Frère Cendre sont deux entités distinctes (révélation secrète)."
+      - "Wiki d'auteur : page consolidée Corvin / Frère Cendre, avec provenance de chaque fait."
+      - "Signalement : fiche système B manquante pour le Loup de cendre ; fiche système A conforme."
+      - "Clés : (rules, brume) occupée par odon ; (veilleurs, vows, silence) est une clé à part entière."
+      - "Champ préparé diegetic_window (mervin gouverne Valmont) : conservé dans le journal, sans effet sur les vues (R-FAI-03)."
+      - "Export pour un LLM (vue joueur, @base) : aucun fait secret ni non qualifié dans le JSON (R-LLM-01, R-NOT-03)."
+
+  - id: W02
+    title: "Ingestion du premier lot (b1)"
+    milestone: J3
+    rules: [R-DOC-01, T-ING-01, T-ING-02, T-ING-03, T-ING-05, T-ING-07, R-PRI-03, R-ING-02, R-SCH-06, R-DEC-02, R-DEC-03]
+    steps:
+      - { do: ingest_batch, batch: b1, extractor: oracle }
+    expect:
+      - "Toutes les propositions ont pour base (reference, e006, schema_rev e000)."
+      - "Les supports (notes p1, lieux p1/p2/p5) ne produisent aucune question ; ils sont enregistrés hors journal."
+      - "Une seule entité nouvelle « conseil des marchands » pour les deux documents du lot (résolution au niveau du lot)."
+      - "notes p3 : collision sur (rules, brume), qualifiée anomalie (mode source)."
+      - "notes p4 (member_of) dépend de la création du conseil (lecture de sa clé d'existence)."
+      - "notes p4 vs lieux p2 : contradiction symétrique interne au lot sur (conseil, based_in) ; aucune ne l'emporte."
+      - "notes p2 : vassal_of hors schéma ; proposition non applicable en l'état."
+      - "notes p7 : anomalie ET contradiction interne au document (p1 dit « baron »)."
+      - "notes p5 : deux propositions distinctes : la relation, et set_visibility secret (indice « En secret »)."
+      - "notes p6 : passage signalé comme attribution ; aucun fait proposé."
+      - "Pièges : aucune entité « Brume-sur-Mer », « Roi Gris » ou « collines » créée par l'oracle."
+
+  - id: W03
+    title: "Lot b5 ingéré pendant que b1 est en attente"
+    milestone: J3
+    rules: [R-PRI-02, R-PRI-07, T-ING-08, T-ING-18]
+    steps:
+      - { do: ingest_batch, batch: b5, extractor: oracle }
+    expect:
+      - "(odon, title) : propositions concurrentes « régent » (b1) et « gouverneur » (b5), présentées ensemble ; priorité suggérée à b1."
+      - "(conseil, based_in) : b5 (brume) concurrent de b1/lieux (hautval) ; même valeur que b1/notes p4, donc pas concurrent de celle-ci."
+      - "b5 member_of : même empreinte que b1/notes p4."
+      - "« conseil des marchands » dans b5 : résolu vers la création proposée par b1 (même identifiant) ; aucune seconde proposition de création ; les propositions de b5 qui le citent dépendent de cette création (T-ING-07, T-ING-05)."
+
+  - id: W04
+    title: "Péremption : une édition structurée pendant la revue"
+    milestone: J3
+    rules: [T-ING-06, R-HIS-05]
+    steps:
+      - do: apply_edit
+        edit:
+          id: e101
+          branch: reference
+          origin: enrichment
+          changes:
+            - { op: add_value, entity: brume, attribute: aliases, value: "Brume-sur-Mer", visibility: public }
+    expect:
+      - "La proposition lieux p1 (alias Brume-sur-Mer) croise l'écriture de e101 : elle passe à revérifier, puis est requalifiée en support."
+      - "Toutes les autres propositions en attente sont rebasées silencieusement sur e101."
+
+  - id: W05
+    title: "Revue des lots b1 et b5"
+    milestone: J3
+    rules: [R-EDI-08, R-CYC-02, R-PRI-04, R-PRI-07, T-ING-04, T-ING-06]
+    steps:
+      - do: decide
+        decisions:
+          - { proposal: "b1/notes p3", action: confirm_partial, keep: [create_entity, set_attribute name], refuse: [add_relation rules brume] }
+          - { proposal: "b1/notes p4 member_of", action: accept }
+          - { proposal: "based_in (conflit de lot + concurrence)", action: choose, value: brume }
+          - { proposal: "b1/notes p5", action: accept, include_visibility: secret }
+          - { proposal: "b1/notes p6", action: dismiss }
+          - { proposal: "title (régent / gouverneur)", action: refuse_all }
+          - { proposal: "b1/lieux p3 taverne", action: accept, drop_optional: [contrebandiers] }
+          - { proposal: "b1/lieux p4 alias Roi Gris", action: accept }
+          - { proposal: "b1/notes p2 vassal_of", action: leave_pending }
+      - { do: checkpoint, name: "@after-b1" }
+    expect:
+      - "Édition appliquée pour le conseil : création + nom seulement, derived_from = proposition notes p3 ; la relation rules refusée a une décision tracée."
+      - "La proposition b5 member_of devient un support après l'acceptation de b1 notes p4 (même clé, même valeur)."
+      - "Les propositions « based_in hautval » sont refusées et tracées."
+      - "Odon reste « baron » ; les deux refus sont tracés par empreinte."
+      - "Wiki joueur : ni la taverne ni le conseil (non qualifiés) ; Odon n'apparaît pas membre du Cercle."
+      - "Wiki d'auteur, page Aldren II : autre nom « le Roi Gris »."
+
+  - id: W06
+    title: "Chronique de la Chute : affirmations et qualification"
+    milestone: J3
+    rules: [R-DOC-06, R-DOC-07, R-DOC-08, R-NOT-05, T-ING-12]
+    steps:
+      - { do: ingest_batch, batch: b2, extractor: oracle }
+      - do: decide
+        decisions:
+          - { claim: "mort au combat", action: qualify, value: false }
+          - { claim: "Chute en 1492", action: qualify, value: true }
+          - { claim: "Mervin règne", action: qualify, value: true }
+          - { claim: "Corvin mort dans l'incendie", action: qualify, value: false }
+          - { claim: "le Loup hante les plaines", action: qualify, value: true }
+          - { claim: "achevée en 1493", action: promote, visibility: public }
+          - { claim: "commandée par Mervin", action: qualify, value: true }
+    expect:
+      - "Aucun fait créé par l'ingestion elle-même ; uniquement des add_claim, publics par héritage du document."
+      - "Suggestions du noyau conformes au gold (false, true, true, false, true, undetermined, undetermined, undetermined, true)."
+      - "Promotion : une édition combine qualify_claim(true) et set_attribute(chronique-de-la-chute, date, an 1493)."
+      - "Wiki joueur, page de la Chronique : les affirmations sont visibles ; leurs qualifications (non qualifiées en notoriété) ne le sont pas."
+      - "Chaque qualification a sa propre notoriété (sous-clé (claim, qualification)), non qualifiée par défaut (R-DOC-07, R-NOT-02)."
+      - "Variante : rendre publique la qualification « Corvin mort dans l'incendie : fausse » ; le wiki joueur affiche alors que la Chronique se trompe sur ce point, sans révéler où est Corvin."
+
+  - id: W07
+    title: "Les Veilleurs : valeurs multiples, marqueur, indice"
+    milestone: J3
+    rules: [R-FAI-05, R-DEC-01, T-ING-15]
+    steps:
+      - { do: ingest_batch, batch: b3, extractor: oracle }
+      - { do: decide, decisions: [ { all: accept } ] }
+    expect:
+      - "add_value vows « pauvreté » : enrichissement, aucune collision avec « silence »."
+      - "p4 : le segment balisé produit une affirmation de la Chronique, le reste du passage rien."
+      - "p5 : origine du Cœur de braise, secrète après acceptation de l'indice « Nul ne sait »."
+      - "Wiki joueur, Veilleurs : vœu « silence » visible, vœu « pauvreté » masqué (non qualifié) — notoriété par valeur."
+
+  - id: W08
+    title: "Bestiaire : fiche, système, détection de nature"
+    milestone: J8
+    rules: [R-MET-01, R-MET-02, R-MET-06, R-SCH-02, R-SCH-06, R-SCH-10, R-DEC-02, R-DEC-03]
+    steps:
+      - { do: ingest_batch, batch: b4, extractor: oracle }
+      - { do: decide, decisions: [ { passage: 6, action: accept_nature, nature: meta_sheet }, { passage: 6, action: accept }, { passage: 2, action: accept } ] }
+      - { do: checkpoint, name: "@after-b4" }
+      - do: apply_edit
+        edit:
+          id: e102
+          branch: reference
+          origin: enrichment
+          changes:
+            - { op: schema_set_type, scope: system-a, type: Creature, attribute: hp, constraint: { min: 6, max: 10 } }
+    expect:
+      - "Avant J8 : les passages 3, 4 et 6 sont découpés et conservés sans produire de propositions."
+      - "p3 : supports pour la fiche A ; « Constitution 13 » hors schéma (système A)."
+      - "p6 : nature méta PROPOSÉE (détection), jamais décidée ; après acceptation, fiche B créée et le signalement de fiche manquante disparaît."
+      - "Après e102 : la fiche A du Loup (PV 5) est signalée non conforme, sans être modifiée."
+
+  - id: W09
+    title: "Hors schéma : étendre le schéma dans la même édition"
+    milestone: J3
+    rules: [R-SCH-03, R-SCH-06, R-SCH-10, R-MET-05, R-EDI-08]
+    steps:
+      - { do: decide, decisions: [ { proposal: "b1/notes p2 vassal_of", action: accept } ] }
+      - do: decide
+        decisions:
+          - proposal: "b1/notes p2 vassal_of"
+            action: confirm_adapted
+            prepend:
+              - { op: schema_set_relation, scope: world, relation: vassal_of, definition: { from: Character, to: Character, cardinality: many_to_one, labels: { fr: "vassal de" } } }
+    expect:
+      - "Première tentative refusée : changement hors schéma (R-SCH-06)."
+      - "Seconde : une édition contient schema_set_relation puis add_relation ; le validateur vérifie contre le schéma obtenu après ses propres changements de schéma ; appliquée, derived_from = la proposition."
+
+  - id: W10
+    title: "Ré-ingestion de notes-baron (v2)"
+    milestone: J3
+    rules: [R-DOC-04, R-PRI-04, R-FAI-01, R-FAI-06, T-ING-08, T-ING-09, T-ING-10, T-ING-11]
+    steps:
+      - { do: ingest_batch, batch: b6, extractor: oracle }
+      - do: decide
+        decisions:
+          - { proposal: "régent par intérim", action: refuse }
+          - { proposal: "Maëlle", action: accept, refuse: [ward_of] }
+    expect:
+      - "Passages 1 à 4 inchangés : aucune extraction, aucune question."
+      - "Le fait « Odon membre du Cercle des Cendres » devient orphelin et reste dans l'état."
+      - "« régent par intérim » : nouvelle question (empreinte différente de « régent »)."
+      - "Maëlle créée, fille d'Odon ; « confiée aux Veilleurs » hors schéma, refusé et tracé."
+
+  - id: W11
+    title: "Mode edit : diff présenté, puis abandonné"
+    milestone: J3
+    rules: [R-ING-01, R-PRI-01, R-CYC-02, R-CYC-04]
+    steps:
+      - { do: ingest_batch, batch: b7, extractor: oracle }
+      - { do: decide, decisions: [ { all: abandon, reason: "le siège sera joué en scénario" } ] }
+    expect:
+      - "Les deux changements sont présentés comme intentions, en diff (odon → conseil sur (rules, brume) ; titre baron → vide)."
+      - "Rien n'est appliqué sans confirmation ; l'abandon est tracé (statut abandoned)."
+
+  - id: W12
+    title: "Scénarios, pistes et déroulés"
+    milestone: J6
+    rules: [R-SCN-01, R-SCN-03, R-SCN-04, R-SCN-05, R-SCN-06, R-SCN-07, R-SCN-08, R-SCN-09, R-CYC-03, R-MET-05, R-VUE-02]
+    steps:
+      - { do: load_scenarios, files: [scenarios/eveil-du-loup.yaml, scenarios/siege-de-brume.yaml] }
+      - { do: load_drafts, file: scenarios/author-drafts.yaml }
+      - { do: play, playthrough: pt-1 }
+      - { do: play, playthrough: pt-2 }
+      - { do: checkpoint, name: "@after-siege" }
+    expect:
+      - "Wiki d'auteur, page Odon (avant pt-2) : deux pistes ouvertes (ad-1, ad-2) et trois pistes du scénario X."
+      - "x-d1 et x-d2 coexistent sans contradiction (alternatives)."
+      - "pt-1 : une seule édition modifie le lore (Cœur de braise clos, flame_bearer) et la fiche A (PV 8) ; la fiche redevient conforme."
+      - "pt-2 : dépendance « X suppose Y » satisfaite ; x-d3 applicable (lit (rules, brume) = odon)."
+      - "Après pt-2 : Brume gouvernée par le conseil ; Odon sans titre, « rescapé du siège, mais a perdu un bras » ; la piste x-d1 du scénario reste intacte."
+      - "Taverne du Héron close (édition libre du déroulé)."
+      - "Wiki joueur : le gouvernant de Brume n'est pas affiché (conseil non qualifié, R-NOT-04) ; le fait figure dans la liste des faits publics masqués (R-NOT-07)."
+      - "Après set_visibility avec propagation_lifted sur ce fait : wiki joueur « Brume est gouvernée par une entité non publique », sans le nom du conseil."
+
+  - id: W13
+    title: "Variante : redéfinition ponctuelle puis transposition"
+    milestone: J5
+    rules: [R-HIS-03, R-HIS-05, R-MON-04, R-SCN-08, R-VUE-03, §6.3]
+    steps:
+      - { do: create_branch, name: variante-mj, from: "@base" }
+      - do: apply_edit
+        edit:
+          id: e201
+          branch: variante-mj
+          origin: redefinition
+          redefinition: point
+          changes:
+            - { op: add_relation, from: mervin, relation: rules, to: brume, visibility: public }
+      - { do: transpose, scenario: siege-de-brume, version: latest, to: variante-mj, playthrough_like: pt-2 }
+    expect:
+      - "e201 remplace Odon par Mervin sur la clé (rules, brume) de la variante uniquement."
+      - "Vue de la variante au point @base : « gouvernement de Brume redéfini plus tard »."
+      - "Transposition de X v2 : dépendance « X suppose Y » non satisfaite sur la variante (signalée, pas bloquante)."
+      - "x-d3 : le conseil n'existe pas sur la variante (créé sur reference après la bifurcation) → conflit de dépendance ; (rules, brume) vaut mervin et non odon → conflit d'applicabilité."
+      - "x-d1 (v2, exil) : indépendante, transposée sans intervention."
+      - "La branche reference n'est pas modifiée."
+
+  - id: W14
+    title: "Document obsolète"
+    milestone: J3
+    rules: [R-DOC-05, R-PRI-01, R-EDI-09]
+    steps:
+      - { do: ingest_batch, batch: b8, extractor: oracle }
+      - do: apply_edit
+        edit: { id: e103, branch: reference, origin: curation, changes: [ { op: set_document_obsolete, document: vieilles-notes, value: true } ] }
+      - { do: ingest_batch, batch: b8, extractor: oracle, as: re_ingestion }
+      - do: apply_edit
+        edit: { id: e104, branch: reference, origin: curation, changes: [ { op: set_document_obsolete, document: vieilles-notes, value: false } ] }
+    expect:
+      - "Première ingestion : deux anomalies (Aldren règne ; Hugues gouverne Brume)."
+      - "Après e103 : les propositions issues du document sont bloquées ; la ré-ingestion n'en produit aucune."
+      - "Après e104 : le document est de nouveau ré-ingérable ; sort des décisions passées : point ouvert du cadre (§10.1)."
+      - "Une édition qui mêlerait set_document_obsolete et un changement du monde, ou qui porterait une autre origine que curation, est refusée (R-EDI-09)."
+
+  - id: W15
+    title: "Redéfinition rétroactive : Aldren est mort de fièvre"
+    milestone: J7
+    rules: [R-RED-01, R-RED-02, R-RED-03, R-RED-04, R-HIS-01, R-HIS-04, R-MON-02]
+    steps:
+      - do: retroactive_redefinition
+        on: reference
+        anchor_after: e003
+        changes:
+          - { op: set_attribute, entity: aldren-ii, attribute: death_cause, value: "fièvre", visibility: secret }
+          - { op: remove_relation, from: mervin, relation: killed, to: aldren-ii }
+    expect:
+      - "Aperçu d'impact avant confirmation : les éditions ultérieures qui lisent (aldren-ii, death_cause) ou (killed, aldren-ii) sont comptées (la qualification « mort au combat : fausse » de W06)."
+      - "Rejeu : toutes les autres éditions passent sans intervention ; la qualification de W06 est présentée à l'humain, qui la garde (« combat » reste faux)."
+      - "La piste ad-2 (retirer le meurtre) passe à revérifier ; ad-1 non concernée."
+      - "La nouvelle branche devient la branche de référence ; l'ancienne est archivée et consultable."
+      - "La variante variante-mj est notifiée, pas modifiée."
+      - "Vues antérieures de la nouvelle branche : Aldren mort de fièvre depuis l'ancrage."
+
+  - id: W16
+    title: "Corrections : doublon et entité inventée"
+    milestone: J3
+    rules: [R-IDT-01, R-IDT-02, R-IDT-04, R-EDI-07, R-HIS-04]
+    steps:
+      - do: apply_edit
+        edit:
+          id: e301
+          branch: reference
+          origin: enrichment
+          note: "simule une mauvaise résolution acceptée par erreur"
+          changes:
+            - { op: create_entity, entity: roi-gris, type: Character, visibility: public }
+            - { op: set_attribute, entity: roi-gris, attribute: name, value: "le Roi Gris", visibility: public }
+            - { op: create_entity, entity: collines, type: Place }
+            - { op: set_attribute, entity: collines, attribute: name, value: "les collines" }
+      - do: apply_edit
+        edit:
+          id: e302
+          branch: reference
+          origin: correction
+          changes:
+            - { op: add_relation, from: roi-gris, relation: same_as, to: aldren-ii, kind: duplicate, visibility: public }
+            - { op: delete_entity, entity: collines }
+      - do: apply_edit
+        expect_rejected: true
+        edit: { id: e303, branch: reference, origin: enrichment, changes: [ { op: delete_entity, entity: odon } ] }
+    expect:
+      - "Doublon : « le Roi Gris » et Aldren II affichés comme une seule entité dans TOUTES les vues."
+      - "« les collines » disparaît des états postérieurs à e302 et reste visible dans les états antérieurs."
+      - "e303 refusée : delete_entity hors d'une édition de correction."
+
+  - id: W17
+    title: "Changer l'ordre des scénarios"
+    milestone: J6
+    rules: [R-HIS-06, R-SCN-07, R-SCN-08]
+    steps:
+      - { do: create_branch, name: ordre-inverse, from: "@after-b4" }
+      - { do: play, playthrough: pt-2, on: ordre-inverse }
+      - { do: play, playthrough: pt-1, on: ordre-inverse }
+    expect:
+      - "Au moment de pt-2 : « X suppose Y » non satisfaite, signalée, non bloquante."
+      - "État final identique à @after-siege sur les clés touchées par X et Y (éditions indépendantes : elles commutent)."

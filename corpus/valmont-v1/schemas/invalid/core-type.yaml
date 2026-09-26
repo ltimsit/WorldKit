@@ -1,0 +1,6 @@
+# INVALIDE (R-NOY-01) : un schéma de monde ne peut déclarer que des types diégétiques ;
+# « Proposal » est un type noyau de la plateforme.
+schema: invalid-core-type
+types:
+  Proposal: { attributes: { name: { type: text, required: true } } }
+relations: {}

@@ -1,0 +1,62 @@
+document: bestiaire-loup-de-cendre
+version: 1
+batch: b4
+axes: { mode: source, nature: mixed, voice: author, visibility: public }
+
+passages:
+  - index: 1
+    starts_with: "Le Loup de cendre est une bête de braise"
+    nature: diegetic
+    mentions: { "Loup de cendre": loup-de-cendre, "Cendrelande": cendrelande }
+    changes:
+      - { op: add_relation, from: loup-de-cendre, relation: haunts, to: cendrelande, outcome: support }
+
+  - index: 2
+    starts_with: "Il craint l'eau courante"
+    nature: diegetic
+    mentions: { "Il": loup-de-cendre }
+    changes:
+      - { op: add_value, entity: loup-de-cendre, attribute: weaknesses, value: "eau courante", outcome: enrichment }
+
+  - index: 3
+    starts_with: "[meta]Loup de cendre (système A)"
+    nature: meta_sheet
+    declared_by: marker
+    mentions: { "Loup de cendre": loup-de-cendre, "système A": system-a, "Morsure": "system-a:bite" }
+    changes:
+      - { op: set_attribute, entity: "loup-de-cendre@system-a", attribute: hp, value: 5, outcome: support }
+      - { op: set_attribute, entity: "loup-de-cendre@system-a", attribute: strength, value: 12, outcome: support }
+      - { op: set_attribute, entity: "loup-de-cendre@system-a", attribute: dexterity, value: 14, outcome: support }
+      - { op: set_attribute, entity: "loup-de-cendre@system-a", attribute: intelligence, value: 10, outcome: support }
+      - { op: add_value, entity: "loup-de-cendre@system-a", attribute: abilities, value: "system-a:bite", outcome: support }
+      - { op: set_attribute, entity: "loup-de-cendre@system-a", attribute: constitution, value: 13, outcome: out_of_schema }
+    note: "« Constitution » n'existe pas dans le système A : hors schéma, non applicable sans extension du système (R-SCH-06, R-SCH-02)."
+
+  - index: 4
+    starts_with: "[meta]Dans le système A, toute créature"
+    nature: meta_system
+    declared_by: marker
+    changes:
+      - { op: schema_set_type, scope: system-a, type: Creature, attribute: hp, constraint: { min: 1, max: 10 }, outcome: support }
+    note: "Corrobore la définition du système ; aucune édition produite."
+
+  - index: 5
+    starts_with: "Certains disent que la Flamme d'azur"
+    nature: diegetic
+    mentions: { "Flamme d'azur": flamme-azur, "Veilleurs": veilleurs, "le": loup-de-cendre }
+    changes: []
+    outcome: attribution
+    note: "« Certains disent » : attribution d'un locuteur non identifié ; aucun fait (R-DEC-03)."
+    must_not:
+      - { op: add_value, entity: loup-de-cendre, attribute: weaknesses, value: "la Flamme d'azur" }
+
+  - index: 6
+    starts_with: "Système B : niveau 7, menace 8."
+    nature: meta_sheet
+    declared_by: detection
+    note: "Aucun marqueur : la nature méta est DÉTECTÉE (chiffres, nom de système) et donc proposée, jamais décidée (R-DEC-02). Le sujet (le Loup) vient du contexte du document."
+    mentions: { "Système B": system-b }
+    changes:
+      - { op: create_entity, entity: "loup-de-cendre@system-b", type: Sheet, sheet: { of: loup-de-cendre, system: system-b, category: Monster }, outcome: enrichment }
+      - { op: set_attribute, entity: "loup-de-cendre@system-b", attribute: level, value: 7, outcome: enrichment }
+      - { op: set_attribute, entity: "loup-de-cendre@system-b", attribute: threat, value: 8, outcome: enrichment }

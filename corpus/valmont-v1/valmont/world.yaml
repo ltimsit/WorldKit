@@ -1,0 +1,11 @@
+# Déclaration du monde de démonstration (R-MON-01 à R-MON-03).
+world: valmont
+schema: schema.yaml                 # chargé par l'édition e000, générée par le chargeur
+rule_systems:
+  - systems/system-a.yaml
+  - systems/system-b.yaml
+reference_branch: reference         # R-MON-02
+branches:
+  - id: reference
+    parent: null
+validation_policy: manual           # R-PRI-05

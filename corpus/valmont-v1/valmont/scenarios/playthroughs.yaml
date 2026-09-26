@@ -1,0 +1,24 @@
+# Déroulés : appartiennent à une branche, référencent la version jouée (R-SCN-05, R-SCN-06).
+playthroughs:
+  - id: pt-1
+    branch: reference
+    scenario: eveil-du-loup
+    version: 1
+    confirmed:
+      - { draft: y-d1, adapted: false }
+    free_edits: []
+
+  - id: pt-2
+    branch: reference
+    scenario: siege-de-brume
+    version: 1
+    confirmed:
+      - draft: x-d1
+        adapted: true               # l'adaptation appartient au déroulé ; la piste reste intacte (R-EDI-08)
+        changes:
+          - { op: set_attribute, entity: odon, attribute: condition, value: "rescapé du siège, mais a perdu un bras", visibility: public }
+      - { draft: x-d3, adapted: false }
+    free_edits:
+      - title: "Les joueurs brûlent la taverne du Héron"
+        changes:
+          - { op: close_entity, entity: taverne-du-heron }

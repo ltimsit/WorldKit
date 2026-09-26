@@ -1,0 +1,9 @@
+# INVALIDE (T-SCH-01) : type d'attribut hors du méta-schéma, et bornes incohérentes.
+schema: invalid-attribute-type
+types:
+  Creature:
+    attributes:
+      name: { type: text, required: true }
+      mood: { type: emotion }
+      hp:   { type: integer, min: 10, max: 1 }
+relations: {}

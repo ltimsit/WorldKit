@@ -1,0 +1,22 @@
+document: vieilles-notes
+version: 1
+batch: b8
+axes: { mode: source, nature: diegetic, voice: author, visibility: unqualified }
+
+passages:
+  - index: 1
+    starts_with: "Le roi Aldren règne sur Valmont"
+    mentions: { "roi Aldren": aldren-ii, "Valmont": valmont, "Hautval": hautval }
+    changes:
+      - { op: add_relation, from: aldren-ii, relation: rules, to: valmont, outcome: anomaly, collides_with: "mervin rules valmont" }
+
+  - index: 2
+    starts_with: "Brume est gouvernée par le vieux baron Hugues"
+    mentions: { "Brume": brume, "baron Hugues": "new:hugues" }
+    changes:
+      - { op: create_entity, entity: "new:hugues", type: Character, outcome: enrichment }
+      - { op: set_attribute, entity: "new:hugues", attribute: name, value: "Hugues", outcome: enrichment }
+      - { op: set_attribute, entity: "new:hugues", attribute: title, value: "baron", outcome: enrichment }
+      - { op: add_relation, from: "new:hugues", relation: rules, to: brume, outcome: anomaly, collides_with: "clé (rules, brume) occupée" }
+
+after_obsolete: "Une fois le document déclaré obsolète (W14), la ré-ingestion ne produit AUCUNE proposition (R-DOC-05)."

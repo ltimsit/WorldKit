@@ -1,0 +1,6 @@
+# INVALIDE (R-SCH-01) : valeur de cardinalité inconnue.
+schema: invalid-cardinality
+types:
+  Place: { attributes: { name: { type: text, required: true } } }
+relations:
+  located_in: { from: Place, to: Place, cardinality: some_to_few }

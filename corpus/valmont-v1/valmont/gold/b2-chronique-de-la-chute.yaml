@@ -1,0 +1,66 @@
+# Document in-world : le contenu produit des affirmations, jamais des faits (R-DOC-06, invariant 8).
+# « claimed » = changement revendiqué sous forme structurée (T-ING-12) ; « suggested » = qualification
+# suggérée par le noyau par comparaison à l'état @base, jamais appliquée seule (R-DEC-02).
+document: chronique-de-la-chute-extraits
+version: 1
+batch: b2
+axes: { mode: source, nature: diegetic, voice: in_world, speaker: chronique-de-la-chute, visibility: public }
+
+passages:
+  - index: 1
+    starts_with: "En l'an 1492, le roi Aldren tomba"
+    mentions: { "le roi Aldren": aldren-ii, "Cendrelande": cendrelande }
+    claims:
+      - text: "Aldren est mort en combattant les pillards de Cendrelande."
+        claimed: { op: set_attribute, entity: aldren-ii, attribute: death_cause, value: "combat" }
+        suggested: false
+        note: "Contredit un fait SECRET (poison) : coexistence sans contradiction (R-DOC-08)."
+      - text: "La Chute a eu lieu en l'an 1492."
+        claimed: { op: set_attribute, entity: la-chute, attribute: date, value: "an 1492" }
+        suggested: true
+
+  - index: 2
+    starts_with: "Son frère Mervin fut couronné"
+    mentions: { "Mervin": mervin }
+    claims:
+      - text: "Mervin règne sur Valmont."
+        claimed: { op: add_relation, from: mervin, relation: rules, to: valmont }
+        suggested: true
+      - text: "Mervin fut couronné par le conseil du royaume et règne avec sagesse."
+        claimed: null
+        suggested: undetermined
+
+  - index: 3
+    starts_with: "Le jeune prince Corvin périt"
+    mentions: { "prince Corvin": corvin }
+    claims:
+      - text: "Corvin est mort dans l'incendie du palais."
+        claimed: { op: close_entity, entity: corvin }
+        suggested: false
+
+  - index: 4
+    starts_with: "Depuis ce jour, le Loup de cendre hante les plaines"
+    mentions: { "Loup de cendre": loup-de-cendre, "les plaines": cendrelande }
+    claims:
+      - text: "Le Loup de cendre hante les plaines de Cendrelande."
+        claimed: { op: add_relation, from: loup-de-cendre, relation: haunts, to: cendrelande }
+        suggested: true
+      - text: "Le Loup est né des cendres du roi."
+        claimed: null
+        suggested: undetermined
+        note: "« dit-on » : attribution interne au document ; l'énonciateur reste la Chronique."
+
+  - index: 5
+    starts_with: "Moi, Elric, j'achevai cette chronique"
+    mentions: { "cette chronique": chronique-de-la-chute, "notre roi": mervin }
+    claims:
+      - text: "La Chronique a été achevée en l'an 1493."
+        claimed: { op: set_attribute, entity: chronique-de-la-chute, attribute: date, value: "an 1493" }
+        suggested: undetermined
+        note: "Clé absente de l'état : ni vraie ni fausse. Candidate à la PROMOTION en fait (R-DOC-07, parcours W06)."
+      - text: "La Chronique a été commandée par le roi Mervin."
+        claimed: { op: add_relation, from: mervin, relation: commissioned, to: chronique-de-la-chute }
+        suggested: true
+
+must_not_globally:
+  - "Aucun changement de fait (set_attribute, add_relation, close_entity…) hors add_claim."

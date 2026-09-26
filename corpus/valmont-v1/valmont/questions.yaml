@@ -1,0 +1,118 @@
+# Questions de compétence (T3 et régression). Chaque réponse est donnée pour une VUE :
+# branche + point + filtre (R-VUE-01). filter: author = tout ; player = public seulement (R-NOT-03).
+# Première série, rédigée pour le corpus synthétique v1 ; à relire et compléter par l'auteur.
+
+questions:
+  - id: Q01
+    question: "Qui gouverne Brume ?"
+    answers:
+      - { view: { branch: reference, point: "@base", filter: player }, answer: "Odon de Brume." }
+      - { view: { branch: reference, point: "@after-siege", filter: author }, answer: "Le conseil des marchands (piste x-d3, déroulé pt-2)." }
+      - { view: { branch: reference, point: "@after-siege", filter: player }, answer: "Aucun gouvernant affiché : le fait est déclaré public, mais le conseil n'est pas qualifié, ce qui plafonne sa notoriété (R-NOT-04) ; l'auteur voit le fait signalé comme masqué (R-NOT-07)." }
+      - { view: { branch: reference, point: "@after-siege + levée de propagation", filter: player }, answer: "Brume est gouvernée par une entité non publique." }
+      - { view: { branch: variante-mj, point: head, filter: author }, answer: "Le roi Mervin (redéfinition ponctuelle e201)." }
+
+  - id: Q02
+    question: "Comment Aldren II est-il mort ?"
+    answers:
+      - { view: { branch: reference, point: "@base", filter: author }, answer: "Empoisonné ; tué par son frère Mervin." }
+      - { view: { branch: reference, point: "@base", filter: player }, answer: "Il est mort (la cause n'est pas connue publiquement)." }
+      - { view: { branch: "reference (après W15)", point: head, filter: author }, answer: "De fièvre ; Mervin ne l'a pas tué." }
+
+  - id: Q03
+    question: "Que dit la Chronique de la Chute de la mort d'Aldren, et qu'est-ce qui est vrai ?"
+    answers:
+      - { view: { branch: reference, point: "@after-b1+W06", filter: author }, answer: "Elle affirme qu'il est mort au combat contre les pillards ; affirmation qualifiée fausse ; il a été empoisonné." }
+      - { view: { branch: reference, point: "@after-b1+W06", filter: player }, answer: "Elle affirme qu'il est mort au combat ; rien n'indique que c'est faux." }
+
+  - id: Q04
+    question: "Frère Cendre et le prince Corvin sont-ils la même personne ?"
+    answers:
+      - { view: { branch: reference, point: "@base", filter: author }, answer: "Oui (révélation secrète) ; page consolidée." }
+      - { view: { branch: reference, point: "@base", filter: player }, answer: "Deux personnes distinctes ; Corvin est disparu." }
+
+  - id: Q05
+    question: "Quels sont les vœux des Veilleurs ?"
+    answers:
+      - { view: { branch: reference, point: "@after-b4", filter: author }, answer: "Silence et pauvreté." }
+      - { view: { branch: reference, point: "@after-b4", filter: player }, answer: "Silence (la pauvreté n'est pas qualifiée publique)." }
+
+  - id: Q06
+    question: "Que voit un joueur sur la page d'Odon de Brume ?"
+    answers:
+      - { view: { branch: reference, point: "@after-b1", filter: player }, answer: "Nom, titre « baron », gouverne Brume. Ni le conseil (non qualifié), ni le Cercle (secret), ni les pistes." }
+
+  - id: Q07
+    question: "À quelles organisations Odon appartient-il ?"
+    answers:
+      - { view: { branch: reference, point: "@after-b1", filter: author }, answer: "Le conseil des marchands et le Cercle des Cendres (ce dernier, secret)." }
+
+  - id: Q08
+    question: "D'où vient l'information « Odon est membre du Cercle des Cendres », et est-elle toujours soutenue par un texte ?"
+    answers:
+      - { view: { branch: reference, point: "@after-b1", filter: author }, answer: "notes-baron v1, passage 5 (lot b1)." }
+      - { view: { branch: reference, point: "après W10", filter: author }, answer: "Même édition d'origine ; plus aucun support documentaire : fait orphelin." }
+
+  - id: Q09
+    question: "Où siège le conseil des marchands ?"
+    answers:
+      - { view: { branch: reference, point: "@after-b1", filter: author }, answer: "À Brume (Hautval proposé par lieux-de-valmont, refusé)." }
+
+  - id: Q10
+    question: "Quelles fiches de règles le Loup de cendre a-t-il, et sont-elles conformes ?"
+    answers:
+      - { view: { branch: reference, point: "@base", filter: author }, answer: "Système A, conforme (PV 5) ; fiche système B manquante." }
+      - { view: { branch: reference, point: "après e102", filter: author }, answer: "Système A non conforme (PV 5 < 6) ; système B niveau 7, menace 8." }
+      - { view: { branch: reference, point: "@after-siege", filter: author }, answer: "Système A conforme (PV 8) ; système B niveau 7." }
+
+  - id: Q11
+    question: "Qu'est-ce que la Flamme d'azur ?"
+    answers:
+      - { view: { branch: reference, point: "@base", filter: author }, answer: "Un concept du monde, relié à la capacité « Flamme d'azur » du système A." }
+
+  - id: Q12
+    question: "Qu'est devenu le Cœur de braise ?"
+    answers:
+      - { view: { branch: reference, point: "@after-b4", filter: author }, answer: "Relique des Veilleurs ; c'est une braise du bûcher d'Aldren (secret)." }
+      - { view: { branch: reference, point: "@after-siege", filter: player }, answer: "Dévoré par le Loup de cendre (clos) ; le Loup porte la flamme." }
+
+  - id: Q13
+    question: "Quelles pistes restent ouvertes sur Odon ?"
+    answers:
+      - { view: { branch: reference, point: "@after-siege", filter: author }, answer: "ad-1 (frère caché d'Isabeau) ; x-d2 (mort pendant le siège) reste une alternative envisagée du scénario X." }
+
+  - id: Q14
+    question: "Qu'est-il arrivé à la taverne du Héron ?"
+    answers:
+      - { view: { branch: reference, point: "@after-siege", filter: author }, answer: "Brûlée par les joueurs pendant le déroulé pt-2 (entité close)." }
+      - { view: { branch: reference, point: "@after-siege", filter: player }, answer: "Rien : la taverne n'a jamais été qualifiée publique." }
+
+  - id: Q15
+    question: "Le siège de Brume peut-il être joué sur la variante du MJ ?"
+    answers:
+      - { view: { branch: variante-mj, point: head, filter: author }, answer: "Partiellement : l'éveil du Loup n'y a pas été joué ; le conseil n'y existe pas ; Brume y est gouvernée par Mervin. x-d1 est applicable." }
+
+  - id: Q16
+    question: "Quel est le statut du document « vieilles-notes » ?"
+    answers:
+      - { view: { branch: reference, point: "après e103", filter: author }, answer: "Obsolète ; aucune proposition ne peut en être tirée." }
+
+  - id: Q17
+    question: "Le Roi Gris et Aldren II sont-ils deux personnages ?"
+    answers:
+      - { view: { branch: reference, point: "après e302", filter: player }, answer: "Non : une seule entité (doublon)." }
+
+  - id: Q18
+    question: "Quand la Chronique a-t-elle été écrite, et par qui a-t-elle été commandée ?"
+    answers:
+      - { view: { branch: reference, point: "après W06", filter: player }, answer: "Achevée en 1493 (fait promu) ; commandée par le roi Mervin." }
+
+  - id: Q19
+    question: "Le Loup de cendre a-t-il une faiblesse connue ?"
+    answers:
+      - { view: { branch: reference, point: "@after-b4", filter: player }, answer: "L'eau courante. (La Flamme d'azur n'est qu'une rumeur : aucun fait.)" }
+
+  - id: Q20
+    question: "Qui est Maëlle ?"
+    answers:
+      - { view: { branch: reference, point: "après W10", filter: author }, answer: "La fille d'Odon de Brume (non qualifiée)." }

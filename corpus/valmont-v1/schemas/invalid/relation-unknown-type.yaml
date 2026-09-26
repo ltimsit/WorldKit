@@ -1,0 +1,6 @@
+# INVALIDE (R-SCH-01) : relation vers un type non déclaré.
+schema: invalid-relation-target
+types:
+  Character: { attributes: { name: { type: text, required: true } } }
+relations:
+  rules: { from: Character, to: Place, cardinality: one_to_many }

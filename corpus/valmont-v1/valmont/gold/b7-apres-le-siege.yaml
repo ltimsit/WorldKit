@@ -1,0 +1,19 @@
+# Mode edit : une contradiction avec l'état est une INTENTION, présentée en diff (§5.2 du cadre).
+# Suppose que le conseil des marchands existe (création acceptée en W03).
+document: apres-le-siege
+version: 1
+batch: b7
+axes: { mode: edit, nature: diegetic, voice: author, visibility: public }
+
+passages:
+  - index: 1
+    starts_with: "Le conseil des marchands gouverne désormais Brume"
+    mentions: { "conseil des marchands": conseil-marchands, "Brume": brume }
+    changes:
+      - { op: add_relation, from: conseil-marchands, relation: rules, to: brume, outcome: intention, diff: "clé (rules, brume) : odon → conseil-marchands" }
+
+  - index: 2
+    starts_with: "Odon n'est plus baron"
+    mentions: { "Odon": odon }
+    changes:
+      - { op: unset_attribute, entity: odon, attribute: title, outcome: intention, diff: "odon.title : baron → (vide)" }

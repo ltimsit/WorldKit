@@ -1,0 +1,40 @@
+# Ré-ingestion de notes-baron (version 2), après les décisions du parcours W03.
+# Alignement des passages avec la version 1 par empreinte, puis par similarité (T-ING-10).
+document: notes-baron
+version: 2
+batch: b6
+axes: { mode: source, nature: diegetic, voice: author, visibility: unqualified }
+
+alignment:
+  - { v2: 1, v1: 1, status: unchanged }
+  - { v2: 2, v1: 2, status: unchanged }
+  - { v2: 3, v1: 3, status: unchanged }
+  - { v2: 4, v1: 4, status: unchanged }
+  - { v2: null, v1: 5, status: removed }
+  - { v2: null, v1: 6, status: removed }
+  - { v2: 5, v1: 7, status: modified }
+  - { v2: 6, v1: null, status: added }
+
+expectations:
+  unchanged: "Aucun appel à l'extracteur (cache, T-ING-09) ; aucune question reposée (empreintes, T-ING-08, R-PRI-04) ; supports conservés."
+  removed_v1_5: "Le support de « Odon est membre du Cercle des Cendres » disparaît ; ce fait, accepté en W03 et sans autre support, devient ORPHELIN (R-FAI-06) ; il n'est pas retiré (R-PRI-01)."
+  removed_v1_6: "Rien : ce passage n'avait produit aucun fait."
+
+passages:
+  - index: 5
+    starts_with: "Depuis la Chute, Odon porte le titre de régent par intérim"
+    mentions: { "Odon": odon }
+    changes:
+      - { op: set_attribute, entity: odon, attribute: title, value: "régent par intérim", outcome: anomaly, collides_with: "odon.title = baron (état)" }
+    note: "Valeur différente de la v1 (« régent ») : nouvelle empreinte, donc nouvelle question — la décision de refus de W03 ne s'applique pas."
+
+  - index: 6
+    starts_with: "Odon a une fille, Maëlle"
+    mentions: { "Odon": odon, "Maëlle": "new:maelle", "Veilleurs": veilleurs }
+    changes:
+      - { op: create_entity, entity: "new:maelle", type: Character, outcome: enrichment }
+      - { op: set_attribute, entity: "new:maelle", attribute: name, value: "Maëlle", outcome: enrichment }
+      - { op: add_relation, from: odon, relation: parent_of, to: "new:maelle", outcome: enrichment }
+      - { op: add_relation, from: "new:maelle", relation: ward_of, to: veilleurs, outcome: out_of_schema, note: "« confiée aux » : aucune relation de tutelle dans le schéma" }
+    must_not:
+      - { op: add_relation, from: "new:maelle", relation: member_of, to: veilleurs, note: "confiée ≠ membre" }

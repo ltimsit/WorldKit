@@ -1,0 +1,16 @@
+# Scénario Y — rattaché au monde, visible de toutes les branches (R-SCN-03).
+scenario: eveil-du-loup
+name: "L'éveil du Loup"
+depends_on: []
+versions:
+  - version: 1
+    written_against: "@after-b4"      # point nommé défini dans les parcours
+    drafts:
+      - id: y-d1
+        title: "Le Loup dévore le Cœur de braise"
+        concerns: [loup-de-cendre, coeur-de-braise]
+        # Une seule édition touche lore ET fiche (R-MET-05, invariant 9)
+        changes:
+          - { op: close_entity, entity: coeur-de-braise }
+          - { op: set_attribute, entity: loup-de-cendre, attribute: flame_bearer, value: true, visibility: public }
+          - { op: set_attribute, entity: "loup-de-cendre@system-a", attribute: hp, value: 8 }

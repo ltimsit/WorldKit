@@ -1,0 +1,51 @@
+# Scénario X — ensemble organisé de pistes, versionné (R-SCN-01, R-SCN-04).
+scenario: siege-de-brume
+name: "Le siège de Brume"
+depends_on: [eveil-du-loup]          # « X suppose Y » (R-SCN-07) ; l'ordre effectif est celui de la branche
+versions:
+  - version: 1
+    written_against: "@after-b4"
+    drafts:
+      - id: x-d1
+        title: "Le baron survit au siège"
+        concerns: [odon]
+        alternatives: [x-d2]          # deux pistes alternatives : pas une contradiction (R-CYC-03)
+        changes:
+          - { op: set_attribute, entity: odon, attribute: condition, value: "rescapé du siège", visibility: public }
+      - id: x-d2
+        title: "Le baron meurt pendant le siège"
+        concerns: [odon]
+        alternatives: [x-d1]
+        changes:
+          - { op: close_entity, entity: odon }
+      - id: x-d3
+        title: "Le conseil des marchands prend Brume"
+        concerns: [conseil-marchands, brume, odon]
+        # Écrite contre un état où Odon gouverne Brume et où le conseil existe.
+        # Lit : (rules, brume) = odon ; (conseil-marchands) existe.
+        changes:
+          - { op: add_relation, from: conseil-marchands, relation: rules, to: brume, visibility: public }
+          - { op: unset_attribute, entity: odon, attribute: title }
+
+  - version: 2
+    written_against: "@after-b4"
+    changelog: "x-d1 modifiée : le baron survit mais est exilé à Hautval."
+    drafts:
+      - id: x-d1
+        title: "Le baron survit, mais part en exil"
+        concerns: [odon]
+        alternatives: [x-d2]
+        changes:
+          - { op: set_attribute, entity: odon, attribute: condition, value: "exilé à Hautval", visibility: public }
+      - id: x-d2
+        title: "Le baron meurt pendant le siège"
+        concerns: [odon]
+        alternatives: [x-d1]
+        changes:
+          - { op: close_entity, entity: odon }
+      - id: x-d3
+        title: "Le conseil des marchands prend Brume"
+        concerns: [conseil-marchands, brume, odon]
+        changes:
+          - { op: add_relation, from: conseil-marchands, relation: rules, to: brume, visibility: public }
+          - { op: unset_attribute, entity: odon, attribute: title }

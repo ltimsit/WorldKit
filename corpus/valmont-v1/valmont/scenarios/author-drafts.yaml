@@ -1,0 +1,15 @@
+# Pistes d'auteur, hors scénario : nœuds reliés par concerns (R-SCN-09).
+drafts:
+  - id: ad-1
+    title: "Et si Odon était le frère caché d'Isabeau ?"
+    written_against: "@after-b4"
+    concerns: [odon, isabeau]
+    changes:
+      - { op: add_relation, from: odon, relation: sibling_of, to: isabeau, visibility: secret }
+  - id: ad-2
+    title: "Et si Mervin n'avait pas tué Aldren ?"
+    written_against: "@after-b4"
+    concerns: [mervin, aldren-ii]
+    note: "Lit la clé (killed, aldren-ii) : sera « à revérifier » après la redéfinition rétroactive de W15 (R-RED-03)."
+    changes:
+      - { op: remove_relation, from: mervin, relation: killed, to: aldren-ii }

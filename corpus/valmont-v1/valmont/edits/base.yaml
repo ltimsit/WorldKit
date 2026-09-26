@@ -1,0 +1,140 @@
+# Vérité structurée de Valmont — état de base (point nommé « @base » dans les parcours).
+# Saisie par édition structurée (R-ALI-01, voie 2). Ordre = ordre du journal sur la branche « reference ».
+# Notoriété absente = unqualified (R-NOT-01). Les éléments laissés non qualifiés le sont exprès.
+#
+# Ce que l'état de base contient exprès, pour les tests :
+#  - rules en one_to_many : Odon gouverne Brume (collision avec « le conseil gouverne Brume »).
+#  - un secret simple (poison), un secret relationnel (Mervin a tué Aldren).
+#  - une entité secrète (Cercle des Cendres) et un fait NON qualifié qui la mentionne (propagation, R-NOT-04).
+#  - une révélation same_as secrète (Frère Cendre = Corvin) (R-IDT-02, R-IDT-03).
+#  - un attribut à valeurs multiples (vœux des Veilleurs) (R-FAI-05).
+#  - une fiche système A conforme, pas de fiche système B (R-MET-06).
+#  - un élément à double face : Flamme d'azur (R-MET-04).
+#  - AUCUN conseil des marchands : il sera créé par l'ingestion (dépendances, T-ING-05).
+#  - AUCUN alias « le Roi Gris » pour Aldren : piège de résolution d'entités (b1/lieux, p4).
+
+edits:
+  - id: e001
+    branch: reference
+    origin: enrichment
+    tags: [base, lieux]
+    changes:
+      - { op: create_entity, entity: valmont, type: Place, visibility: public }
+      - { op: set_attribute, entity: valmont, attribute: name, value: "Valmont", visibility: public }
+      - { op: set_attribute, entity: valmont, attribute: category, value: "royaume", visibility: public }
+      - { op: create_entity, entity: hautval, type: Place, visibility: public }
+      - { op: set_attribute, entity: hautval, attribute: name, value: "Hautval", visibility: public }
+      - { op: set_attribute, entity: hautval, attribute: category, value: "capitale", visibility: public }
+      - { op: add_relation, from: hautval, relation: located_in, to: valmont, visibility: public }
+      - { op: create_entity, entity: brume, type: Place, visibility: public }
+      - { op: set_attribute, entity: brume, attribute: name, value: "Brume", visibility: public }
+      - { op: set_attribute, entity: brume, attribute: category, value: "port", visibility: public }
+      - { op: add_relation, from: brume, relation: located_in, to: valmont, visibility: public }
+      - { op: create_entity, entity: cendrelande, type: Place, visibility: public }
+      - { op: set_attribute, entity: cendrelande, attribute: name, value: "Cendrelande", visibility: public }
+      - { op: set_attribute, entity: cendrelande, attribute: category, value: "plaines", visibility: public }
+      - { op: add_relation, from: cendrelande, relation: located_in, to: valmont, visibility: public }
+
+  - id: e002
+    branch: reference
+    origin: enrichment
+    tags: [base, personnages]
+    changes:
+      - { op: create_entity, entity: aldren-ii, type: Character, visibility: public }
+      - { op: set_attribute, entity: aldren-ii, attribute: name, value: "Aldren II", visibility: public }
+      - { op: set_attribute, entity: aldren-ii, attribute: title, value: "roi", visibility: public }
+      - { op: create_entity, entity: mervin, type: Character, visibility: public }
+      - { op: set_attribute, entity: mervin, attribute: name, value: "Mervin", visibility: public }
+      - { op: set_attribute, entity: mervin, attribute: title, value: "roi", visibility: public }
+      - { op: create_entity, entity: isabeau, type: Character, visibility: public }
+      - { op: set_attribute, entity: isabeau, attribute: name, value: "Isabeau", visibility: public }
+      - { op: set_attribute, entity: isabeau, attribute: title, value: "reine", visibility: public }
+      - { op: create_entity, entity: corvin, type: Character, visibility: public }
+      - { op: set_attribute, entity: corvin, attribute: name, value: "Corvin", visibility: public }
+      - { op: set_attribute, entity: corvin, attribute: title, value: "prince", visibility: public }
+      - { op: set_attribute, entity: corvin, attribute: condition, value: "disparu", visibility: public }
+      - { op: create_entity, entity: odon, type: Character, visibility: public }
+      - { op: set_attribute, entity: odon, attribute: name, value: "Odon de Brume", visibility: public }
+      - { op: set_attribute, entity: odon, attribute: title, value: "baron", visibility: public }
+      - { op: create_entity, entity: frere-cendre, type: Character, visibility: public }
+      - { op: set_attribute, entity: frere-cendre, attribute: name, value: "Frère Cendre", visibility: public }
+
+  - id: e003
+    branch: reference
+    origin: enrichment
+    tags: [base, la-chute]
+    changes:
+      - { op: add_relation, from: aldren-ii, relation: sibling_of, to: mervin, visibility: public }
+      - { op: add_relation, from: mervin, relation: spouse_of, to: isabeau, visibility: public }
+      - { op: add_relation, from: aldren-ii, relation: parent_of, to: corvin, visibility: public }
+      # Champ préparé (R-FAI-03, invariant 10) : accepté, conservé, ignoré par la fondation
+      - { op: add_relation, from: mervin, relation: rules, to: valmont, visibility: public, diegetic_window: { from: "an 1492" } }
+      - { op: add_relation, from: odon, relation: rules, to: brume, visibility: public }
+      - { op: set_attribute, entity: aldren-ii, attribute: death_cause, value: "poison", visibility: secret }
+      - { op: add_relation, from: mervin, relation: killed, to: aldren-ii, visibility: secret }
+      - { op: create_entity, entity: la-chute, type: Event, visibility: public }
+      - { op: set_attribute, entity: la-chute, attribute: name, value: "la Chute", visibility: public }
+      - { op: set_attribute, entity: la-chute, attribute: date, value: "an 1492", visibility: public }
+      - { op: add_relation, from: aldren-ii, relation: involved_in, to: la-chute, visibility: public }
+      - { op: add_relation, from: mervin, relation: involved_in, to: la-chute, visibility: public }
+      - { op: close_entity, entity: aldren-ii }        # Aldren est mort ; clore ≠ supprimer
+
+  - id: e004
+    branch: reference
+    origin: enrichment
+    tags: [base, factions]
+    changes:
+      - { op: create_entity, entity: veilleurs, type: MonasticOrder, visibility: public }
+      - { op: set_attribute, entity: veilleurs, attribute: name, value: "les Veilleurs", visibility: public }
+      - { op: add_value, entity: veilleurs, attribute: vows, value: "silence", visibility: public }
+      - { op: add_relation, from: veilleurs, relation: based_in, to: cendrelande, visibility: public }
+      - { op: add_relation, from: frere-cendre, relation: member_of, to: veilleurs, visibility: public }
+      - { op: create_entity, entity: cercle-des-cendres, type: Faction, visibility: secret }
+      - { op: set_attribute, entity: cercle-des-cendres, attribute: name, value: "le Cercle des Cendres", visibility: secret }
+      # Non qualifié exprès : secret par propagation depuis une entité secrète (R-NOT-04)
+      - { op: add_relation, from: mervin, relation: member_of, to: cercle-des-cendres }
+      # Révélation secrète : deux entités distinctes en vue publique (R-IDT-03)
+      - { op: add_relation, from: corvin, relation: same_as, to: frere-cendre, kind: revelation, visibility: secret }
+
+  - id: e005
+    branch: reference
+    origin: enrichment
+    tags: [base, bestiaire, objets]
+    changes:
+      - { op: create_entity, entity: loup-de-cendre, type: Creature, visibility: public }
+      - { op: set_attribute, entity: loup-de-cendre, attribute: name, value: "le Loup de cendre", visibility: public }
+      - { op: add_relation, from: loup-de-cendre, relation: haunts, to: cendrelande, visibility: public }
+      - { op: add_relation, from: cercle-des-cendres, relation: worships, to: loup-de-cendre, visibility: secret }
+      - { op: create_entity, entity: flamme-azur, type: Concept, visibility: public }
+      - { op: set_attribute, entity: flamme-azur, attribute: name, value: "la Flamme d'azur", visibility: public }
+      - { op: create_entity, entity: coeur-de-braise, type: Item, visibility: public }
+      - { op: set_attribute, entity: coeur-de-braise, attribute: name, value: "le Cœur de braise", visibility: public }
+      - { op: add_relation, from: veilleurs, relation: owns, to: coeur-de-braise, visibility: public }
+      # Écrit du monde : la Chronique est une entité de l'univers (R-DOC-06)
+      - { op: create_entity, entity: chronique-de-la-chute, type: Text, visibility: public }
+      - { op: set_attribute, entity: chronique-de-la-chute, attribute: name, value: "Chronique de la Chute", visibility: public }
+      - { op: set_attribute, entity: chronique-de-la-chute, attribute: author_name, value: "Maître Elric, chroniqueur royal", visibility: public }
+      - { op: add_relation, from: mervin, relation: commissioned, to: chronique-de-la-chute, visibility: public }
+
+  - id: e006
+    branch: reference
+    origin: enrichment
+    tags: [base, meta]
+    changes:
+      # Éléments du système A (portée = système, R-SCH-02)
+      - { op: create_entity, scope: system-a, entity: bite, type: Ability }
+      - { op: set_attribute, scope: system-a, entity: bite, attribute: name, value: "Morsure" }
+      - { op: set_attribute, scope: system-a, entity: bite, attribute: damage, value: "1d6" }
+      - { op: create_entity, scope: system-a, entity: azure-flame, type: Ability }
+      - { op: set_attribute, scope: system-a, entity: azure-flame, attribute: name, value: "Flamme d'azur" }
+      # Élément à double face : lien entre le concept du monde et la capacité du système (R-MET-04).
+      # LACUNE : le cadre ne nomme pas cette relation ; « counterpart_of » est provisoire (voir README).
+      - { op: add_relation, from: flamme-azur, relation: counterpart_of, to: "system-a:azure-flame" }
+      # Fiche du Loup dans le système A (R-MET-01, R-MET-02)
+      - { op: create_entity, entity: "loup-de-cendre@system-a", type: Sheet, sheet: { of: loup-de-cendre, system: system-a, category: Creature } }
+      - { op: set_attribute, entity: "loup-de-cendre@system-a", attribute: hp, value: 5 }
+      - { op: set_attribute, entity: "loup-de-cendre@system-a", attribute: strength, value: 12 }
+      - { op: set_attribute, entity: "loup-de-cendre@system-a", attribute: dexterity, value: 14 }
+      - { op: set_attribute, entity: "loup-de-cendre@system-a", attribute: intelligence, value: 10 }
+      - { op: add_value, entity: "loup-de-cendre@system-a", attribute: abilities, value: "system-a:bite" }
+      # Pas de fiche système B : fiche manquante signalée (R-MET-06)

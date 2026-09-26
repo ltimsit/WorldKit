@@ -1,0 +1,55 @@
+document: les-veilleurs
+version: 1
+batch: b3
+axes: { mode: source, nature: diegetic, voice: author, visibility: unqualified }
+
+passages:
+  - index: 1
+    starts_with: "Les Veilleurs sont un ordre monastique"
+    mentions: { "Les Veilleurs": veilleurs, "Cendrelande": cendrelande }
+    changes:
+      - { op: add_relation, from: veilleurs, relation: based_in, to: cendrelande, outcome: support }
+      - { op: add_value, entity: veilleurs, attribute: vows, value: "silence", outcome: support }
+
+  - index: 2
+    starts_with: "Depuis la Chute, les Veilleurs ont aussi fait vœu de pauvreté"
+    mentions: { "les Veilleurs": veilleurs }
+    changes:
+      - { op: add_value, entity: veilleurs, attribute: vows, value: "pauvreté", outcome: enrichment }
+    note: "Une clé par valeur : pas de collision avec « silence » (R-FAI-05)."
+
+  - index: 3
+    starts_with: "Ils gardent le Cœur de braise"
+    mentions: { "Ils": veilleurs, "Cœur de braise": coeur-de-braise }
+    changes:
+      - { op: add_relation, from: veilleurs, relation: owns, to: coeur-de-braise, outcome: support }
+
+  - index: 4
+    starts_with: "La Chronique de la Chute les mentionne"
+    segments:
+      - voice: author
+        text: "La Chronique de la Chute les mentionne en ces termes :"
+        changes: []
+      - voice: in_world
+        speaker: chronique-de-la-chute
+        declared_by: marker
+        claims:
+          - text: "Les Veilleurs ont juré fidélité au roi Mervin."
+            claimed: null
+            suggested: undetermined
+    note: "Le marqueur de niveau 2 l'emporte sur l'en-tête (R-DEC-01) : affirmation, pas fait."
+
+  - index: 5
+    starts_with: "Nul ne sait que le Cœur de braise"
+    mentions: { "Cœur de braise": coeur-de-braise, "Aldren": aldren-ii }
+    changes:
+      - { op: set_attribute, entity: coeur-de-braise, attribute: origin, value: "braise tirée du bûcher d'Aldren", outcome: enrichment }
+      - { op: set_visibility, target: "coeur-de-braise.origin", value: secret, outcome: hint_visibility, hint: "Nul ne sait" }
+
+  - index: 6
+    starts_with: "Frère Cendre, le plus jeune des Veilleurs"
+    mentions: { "Frère Cendre": frere-cendre, "Veilleurs": veilleurs }
+    changes:
+      - { op: add_relation, from: frere-cendre, relation: member_of, to: veilleurs, outcome: support }
+    must_not:
+      - { op: add_relation, from: corvin, relation: same_as, to: frere-cendre, note: "rien dans le texte ne le dit ; la révélation existe déjà, secrète" }
