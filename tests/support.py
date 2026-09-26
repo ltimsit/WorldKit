@@ -35,13 +35,14 @@ GOLD_FIELDS = {
 
 
 def empty_context() -> SchemaContext:
-    return SchemaContext(
-        world=load_schema(VALMONT / "schema.yaml"),
-        systems={
-            "system-a": load_schema(VALMONT / "systems" / "system-a.yaml"),
-            "system-b": load_schema(VALMONT / "systems" / "system-b.yaml"),
-        },
-    )
+    """Schémas et fiches exigées déclarés par `world.yaml` (le chargeur de monde viendra en J2)."""
+    world = read_yaml(VALMONT / "world.yaml")
+    systems, requirements = {}, {}
+    for declared in world["rule_systems"]:
+        schema = load_schema(VALMONT / declared["schema"])
+        systems[schema.id] = schema
+        requirements[schema.id] = declared.get("sheets", {})
+    return SchemaContext(load_schema(VALMONT / world["schema"]), systems, sheet_requirements=requirements)
 
 
 def base_edits() -> list[dict[str, Any]]:

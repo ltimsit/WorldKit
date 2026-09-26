@@ -34,6 +34,8 @@ class SchemaContext:
     world: Schema
     systems: Mapping[str, Schema] = field(default_factory=dict)
     entities: Mapping[str, EntityInfo] = field(default_factory=dict)
+    # Fiches exigées (R-MET-06), déclarées par le monde : système → {type du monde → catégorie}.
+    sheet_requirements: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
 
     def schema_for(self, scope: str) -> Schema | None:
         return self.world if scope == WORLD_SCOPE else self.systems.get(scope)

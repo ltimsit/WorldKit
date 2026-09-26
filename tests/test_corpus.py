@@ -29,10 +29,36 @@ def test_base_state_has_no_key_collision_R_FAI_05():
     assert len(written) == len(set(written))
 
 
-def test_base_state_conforms():
+def test_w01_base_state_conforms_and_wolf_misses_its_system_b_sheet_R_MET_06():
+    """W01 : fiche système A du Loup conforme ; fiche système B manquante, signalée."""
     ctx = base_context()
     found = check_conformity(naive_snapshot(base_changes(), ctx), ctx)
-    assert [i for i in found if i.code == IssueCode.NON_CONFORMING] == []
+    assert [(i.code, i.path, i.rule, i.severity) for i in found] == \
+        [(IssueCode.MISSING_SHEET, "loup-de-cendre@system-b", "R-MET-06", Severity.WARNING)]
+
+
+def test_missing_sheet_signal_disappears_once_created_b4_p6():
+    ctx = base_context()
+    sheet = [
+        parse_change({"op": "create_entity", "entity": "loup-de-cendre@system-b", "type": "Sheet",
+                      "sheet": {"of": "loup-de-cendre", "system": "system-b", "category": "Monster"}}),
+        parse_change({"op": "set_attribute", "entity": "loup-de-cendre@system-b", "attribute": "level", "value": 4}),
+    ]
+    result = check_edit(sheet, ctx)
+    assert result.applicable
+    assert check_conformity(naive_snapshot(base_changes() + sheet, result.context), result.context) == []
+
+
+def test_sheet_requirement_follows_subtypes_and_flags_stale_mapping():
+    """Une exigence sur Faction vaut pour MonasticOrder ; une catégorie inconnue est signalée."""
+    from dataclasses import replace
+    ctx = base_context()
+    ctx = replace(ctx, sheet_requirements={"system-b": {"Faction": "Guild"}})
+    found = check_conformity(naive_snapshot(base_changes(), ctx), ctx)
+    assert {i.path for i in found if i.code == IssueCode.MISSING_SHEET} == \
+        {"veilleurs@system-b", "cercle-des-cendres@system-b"}
+    assert [(i.code, i.path) for i in found if i.code == IssueCode.NON_CONFORMING] == \
+        [(IssueCode.NON_CONFORMING, "rule_systems.system-b.sheets.Faction")]
 
 
 def test_w08_sheet_becomes_non_conforming_after_e102_R_SCH_10():

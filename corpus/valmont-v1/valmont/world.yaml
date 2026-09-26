@@ -1,9 +1,11 @@
 # Déclaration du monde de démonstration (R-MON-01 à R-MON-03).
 world: valmont
 schema: schema.yaml                 # chargé par l'édition e000, générée par le chargeur
+# Fiches exigées (R-MET-06) : type du monde (sous-types compris) → catégorie du système.
+# La correspondance vit côté monde : un système reste réutilisable d'un monde à l'autre.
 rule_systems:
-  - systems/system-a.yaml
-  - systems/system-b.yaml
+  - { schema: systems/system-a.yaml, sheets: { Creature: Creature } }
+  - { schema: systems/system-b.yaml, sheets: { Creature: Monster } }
 reference_branch: reference         # R-MON-02
 branches:
   - id: reference

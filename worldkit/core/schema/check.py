@@ -13,7 +13,7 @@ Trois verdicts distincts (R-SCH-10) :
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from .changes import (
     WORLD_SCOPE, AddRelation, AddValue, Change, CloseEntity, CreateEntity, DeleteEntity,
@@ -345,8 +345,9 @@ def _nc(msg: str, path: str = "") -> Issue:
 
 
 def check_conformity(state: StateSnapshot, ctx: SchemaContext) -> list[Issue]:
-    """Signale les éléments de l'état que les schémas actuels ne valident plus. Ne modifie rien."""
-    ctx = SchemaContext(ctx.world, ctx.systems, state.entities)
+    """Signale les éléments de l'état que les schémas actuels ne valident plus, et les fiches
+    manquantes (R-MET-06). Ne modifie rien."""
+    ctx = replace(ctx, entities=state.entities)
     issues: list[Issue] = []
 
     for entity, info in sorted(state.entities.items()):
@@ -385,6 +386,46 @@ def check_conformity(state: StateSnapshot, ctx: SchemaContext) -> list[Issue]:
                     issues.append(_nc(f"{owner_type}.{name} de « {entity} » : {problem}", path))
 
     issues.extend(_relation_conformity(state, ctx))
+    issues.extend(check_sheet_requirements(ctx))
+    issues.extend(_missing_sheets(ctx))
+    return issues
+
+
+def check_sheet_requirements(ctx: SchemaContext) -> list[Issue]:
+    """La correspondance type du monde → catégorie ne cite que des éléments déclarés.
+
+    Signalement non bloquant : une modification de schéma peut la rendre caduque (R-SCH-04).
+    """
+    issues: list[Issue] = []
+    for system_id, mapping in sorted(ctx.sheet_requirements.items()):
+        system = ctx.systems.get(system_id)
+        for world_type, category in sorted(mapping.items()):
+            path = f"rule_systems.{system_id}.sheets.{world_type}"
+            if world_type not in ctx.world.types:
+                issues.append(_nc(f"fiches exigées pour le type « {world_type} », non déclaré par le monde", path))
+            if system is None:
+                issues.append(_nc(f"fiches exigées dans le système « {system_id} », non déclaré", path))
+            elif category not in system.types:
+                issues.append(_nc(f"catégorie « {category} » non déclarée par le système « {system_id} »", path))
+    return issues
+
+
+def _missing_sheets(ctx: SchemaContext) -> list[Issue]:
+    """R-MET-06 : une entité du monde dont le type (ou un parent) exige une fiche dans un système, sans fiche."""
+    have = {(i.sheet.of, i.sheet.system) for i in ctx.entities.values() if i.sheet is not None}
+    issues: list[Issue] = []
+    for entity, info in sorted(ctx.entities.items()):
+        if info.sheet is not None or info.scope != WORLD_SCOPE:
+            continue
+        lineage = ctx.world.ancestors(info.type)
+        for system_id, mapping in sorted(ctx.sheet_requirements.items()):
+            required = next((mapping[t] for t in lineage if t in mapping), None)
+            if required is not None and (entity, system_id) not in have:
+                issues.append(Issue(
+                    IssueCode.MISSING_SHEET,
+                    f"« {entity} » ({info.type}) n'a pas de fiche dans le système « {system_id} » "
+                    f"(catégorie attendue : {required})",
+                    "R-MET-06", Severity.WARNING, f"{entity}@{system_id}"))
     return issues
 
 
