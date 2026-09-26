@@ -31,10 +31,28 @@ class Extraction:
     nature: str | None = None                # nature détectée du passage (R-DEC-02 : proposée)
 
 
+@dataclass(frozen=True)
+class KnownEntity:
+    id: str
+    type: str
+    names: tuple[str, ...]  # nom, puis autres noms (aliases)
+
+
+@dataclass(frozen=True)
+class ExtractionContext:
+    """Ce que l'extracteur voit de l'état de base du lot. Ce n'est pas une lecture au sens des
+    dépendances (T-ING-02) : le contexte fourni au LLM ne rend pas les propositions dépendantes."""
+
+    schema: Any
+    entities: tuple[KnownEntity, ...] = ()
+    voice: str = "author"
+    speaker: str | None = None
+
+
 class Extractor(Protocol):
     version: str
 
-    def extract(self, doc_id: str, passage_text: str) -> Extraction: ...
+    def extract(self, doc_id: str, passage_text: str, context: ExtractionContext | None = None) -> Extraction: ...
 
 
 @dataclass
@@ -49,7 +67,7 @@ class OracleExtractor:
             for passage in doc.get("passages", []):
                 self._index.setdefault(doc["document"], []).append(passage)
 
-    def extract(self, doc_id: str, passage_text: str) -> Extraction:
+    def extract(self, doc_id: str, passage_text: str, context: ExtractionContext | None = None) -> Extraction:
         # Le passage annoté le plus spécifique (préfixe le plus long) : « régent par intérim »
         # (v2) l'emporte sur « régent » (v1) quand les deux préfixes conviennent.
         matches = [p for p in self._index.get(doc_id, []) if passage_text.startswith(p["starts_with"])]

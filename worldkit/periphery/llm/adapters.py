@@ -1,0 +1,184 @@
+"""Adaptateurs LLM (T-LLM-01) : une seule interface, un adaptateur par fournisseur.
+
+`complete(system, prompt, schema) → dict` : un appel, une réponse JSON conforme à `schema`.
+La périphérie ne décide rien : la sortie est ensuite validée par le noyau (T-ING-17).
+
+| Adaptateur | Accès | Usage |
+|---|---|---|
+| `claude-code` | abonnement Claude, via `claude -p` (Claude Code en mode non interactif) | usage personnel |
+| `anthropic-api` | clé d'API (SDK officiel `anthropic`, sorties structurées) | facturé à l'usage |
+| `ollama` | modèle local (`http://localhost:11434`) | rien ne quitte la machine |
+"""
+
+from __future__ import annotations
+
+import glob
+import json
+import os
+import shutil
+import subprocess
+import urllib.error
+import urllib.request
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Protocol
+
+
+class LLMError(RuntimeError):
+    """Échec d'un appel : réseau, refus, sortie absente ou non conforme."""
+
+
+class LLMAdapter(Protocol):
+    def complete(self, system: str, prompt: str, schema: dict[str, Any]) -> dict[str, Any]: ...
+
+
+@dataclass(frozen=True)
+class Profile:
+    """Un modèle précis derrière un adaptateur, choisi par tâche (routage, configuration)."""
+
+    name: str
+    adapter: str
+    model: str
+    effort: str | None = None
+    options: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def signature(self) -> str:
+        return f"{self.adapter}:{self.model}" + (f":{self.effort}" if self.effort else "")
+
+
+# ---------------------------------------------------------------------------
+# Claude Code (abonnement)
+# ---------------------------------------------------------------------------
+
+def find_claude_code() -> list[str]:
+    """Commande `claude` : variable WORLDKIT_CLAUDE_BIN, sinon le PATH, sinon le binaire de l'extension VS Code."""
+    explicit = os.environ.get("WORLDKIT_CLAUDE_BIN")
+    if explicit:
+        return [explicit]
+    on_path = shutil.which("claude")
+    if on_path:
+        return [on_path]
+    pattern = str(Path.home() / ".vscode" / "extensions" / "anthropic.claude-code-*" / "resources" / "native-binary"
+                  / ("claude.exe" if os.name == "nt" else "claude"))
+    found = sorted(glob.glob(pattern))
+    if found:
+        return [found[-1]]
+    raise LLMError("Claude Code introuvable : l'installer, ou indiquer son chemin dans WORLDKIT_CLAUDE_BIN")
+
+
+@dataclass
+class ClaudeCodeAdapter:
+    """`claude -p` en mode non interactif, avec la connexion de l'utilisateur (abonnement).
+
+    Aucun outil, aucune session conservée, notre prompt système à la place de celui de Claude Code ;
+    la réponse structurée est lue dans le champ `structured_output`.
+    """
+
+    model: str
+    command: list[str] | None = None
+    timeout: float = 300.0
+
+    def complete(self, system: str, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
+        command = (self.command or find_claude_code()) + [
+            "-p", "--output-format", "json", "--json-schema", json.dumps(schema, ensure_ascii=False),
+            "--model", self.model, "--system-prompt", system, "--tools", "", "--no-session-persistence"]
+        try:
+            run = subprocess.run(command, input=prompt, capture_output=True, text=True, encoding="utf-8",
+                                 timeout=self.timeout)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            raise LLMError(f"claude -p : {e}") from e
+        if run.returncode != 0:
+            raise LLMError(f"claude -p a échoué ({run.returncode}) : {(run.stderr or run.stdout)[:300]}")
+        try:
+            result = json.loads(run.stdout)
+        except json.JSONDecodeError as e:
+            raise LLMError(f"claude -p : sortie illisible ({e})") from e
+        if result.get("is_error") or not isinstance(result.get("structured_output"), dict):
+            raise LLMError(f"claude -p : pas de sortie structurée ({result.get('subtype')}, "
+                           f"{str(result.get('result'))[:200]})")
+        return result["structured_output"]
+
+
+# ---------------------------------------------------------------------------
+# API Anthropic (clé)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class AnthropicApiAdapter:
+    """SDK officiel, sorties structurées (`output_config.format`) ; prompt système mis en cache."""
+
+    model: str
+    effort: str | None = None
+    client: Any = None
+    max_tokens: int = 16000
+
+    def complete(self, system: str, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
+        client = self.client
+        if client is None:
+            try:
+                import anthropic
+            except ImportError as e:
+                raise LLMError("le paquet « anthropic » n'est pas installé (pip install anthropic)") from e
+            client = self.client = anthropic.Anthropic()
+        output_config: dict[str, Any] = {"format": {"type": "json_schema", "schema": schema}}
+        if self.effort:
+            output_config["effort"] = self.effort
+        try:
+            response = client.messages.create(
+                model=self.model, max_tokens=self.max_tokens,
+                system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+                messages=[{"role": "user", "content": prompt}], output_config=output_config)
+        except Exception as e:  # erreurs typées du SDK : réseau, 4xx, 5xx (déjà relancées par le SDK)
+            raise LLMError(f"API Anthropic : {e}") from e
+        if response.stop_reason in ("refusal", "max_tokens"):
+            raise LLMError(f"API Anthropic : réponse interrompue ({response.stop_reason})")
+        text = next((b.text for b in response.content if b.type == "text"), None)
+        if text is None:
+            raise LLMError("API Anthropic : aucune réponse texte")
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as e:
+            raise LLMError(f"API Anthropic : JSON illisible ({e})") from e
+
+
+# ---------------------------------------------------------------------------
+# Ollama (local)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class OllamaAdapter:
+    """Modèle local via l'API HTTP d'Ollama ; sortie contrainte par le schéma (`format`)."""
+
+    model: str
+    base_url: str = "http://localhost:11434"
+    timeout: float = 600.0
+
+    def complete(self, system: str, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
+        body = json.dumps({"model": self.model, "stream": False, "format": schema, "options": {"temperature": 0},
+                           "messages": [{"role": "system", "content": system},
+                                        {"role": "user", "content": prompt}]}).encode("utf-8")
+        request = urllib.request.Request(f"{self.base_url.rstrip('/')}/api/chat", data=body,
+                                         headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
+            raise LLMError(f"Ollama ({self.base_url}) : {e}") from e
+        try:
+            return json.loads(payload["message"]["content"])
+        except (KeyError, TypeError, json.JSONDecodeError) as e:
+            raise LLMError(f"Ollama : réponse inattendue ({e})") from e
+
+
+ADAPTERS = {"claude-code", "anthropic-api", "ollama"}
+
+
+def make_adapter(profile: Profile) -> LLMAdapter:
+    if profile.adapter == "claude-code":
+        return ClaudeCodeAdapter(profile.model, command=profile.options.get("command"))
+    if profile.adapter == "anthropic-api":
+        return AnthropicApiAdapter(profile.model, profile.effort)
+    if profile.adapter == "ollama":
+        return OllamaAdapter(profile.model, profile.options.get("base_url", "http://localhost:11434"))
+    raise LLMError(f"adaptateur inconnu : {profile.adapter} (attendu : {', '.join(sorted(ADAPTERS))})")

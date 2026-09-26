@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +22,8 @@ from worldkit.core.journal.models import BaseState, Edit, EditStatus
 from worldkit.core.projection.serialize import state_to_dict
 from worldkit.core.schema.changes import CloseEntity, DeleteEntity, SetVisibility, parse_change
 from worldkit.core.world import World
-from worldkit.periphery.extraction import Extraction, Extractor
+from worldkit.periphery.extraction import Extraction, ExtractionContext, Extractor, KnownEntity
+from worldkit.periphery.llm.adapters import LLMError
 
 from .declaration import DocumentVersion, Nature, Voice, read_document
 from .declaration import normalize
@@ -52,6 +53,7 @@ class BatchReport:
     obsolete: list[str] = field(default_factory=list)  # documents obsolètes : rien d'ingéré (R-DOC-05)
     removed: int = 0     # passages disparus depuis la version précédente : supports retirés (T-ING-11)
     remembered: int = 0  # changements dont la décision passée est reprise sans question (R-PRI-04)
+    errors: dict[str, str] = field(default_factory=dict)  # erreurs d'extraction par passage (T-ING-17)
 
 
 def schema_fingerprint(state: Any) -> str:
@@ -74,8 +76,23 @@ def _known_passages(world: World, branch: str, doc_id: str) -> dict[str, list[tu
     return out
 
 
+def extraction_context(world: World, head: Any) -> ExtractionContext:
+    """Entités du monde connues de l'état de base, et créations proposées par les lots en attente (T-ING-07)."""
+    entities = []
+    for eid, rec in sorted(head.entities.items()):
+        if rec.scope != "world" or rec.sheet is not None:
+            continue
+        name = head.facts.get(("attr", eid, "name"))
+        aliases = sorted(str(f.value) for f in head.facts.values()
+                         if f.kind == "value" and f.subject == eid and f.name == "aliases")
+        entities.append(KnownEntity(eid, rec.type, tuple([str(name.value)] if name else []) + tuple(aliases)))
+    for e in pending_new_entities(world, head).values():
+        entities.append(KnownEntity(e.id, e.type, (e.name,) if e.name else ()))
+    return ExtractionContext(head.world, tuple(entities))
+
+
 def _extract(world: World, extractor: Extractor, doc: DocumentVersion, schema_fp: str,
-             report: BatchReport, skip: set[str]) -> list[tuple[int, Extraction]]:
+             report: BatchReport, skip: set[str], context: ExtractionContext) -> list[tuple[int, Extraction]]:
     out = []
     conn = world.store.conn
     for p in doc.passages:
@@ -90,7 +107,15 @@ def _extract(world: World, extractor: Extractor, doc: DocumentVersion, schema_fp
                             d["nature"])
             report.cached += 1
         else:
-            ex = extractor.extract(doc.doc_id, p.text)
+            speakers = p.speakers()
+            ctx = replace(context, voice="in_world" if speakers or doc.axes.voice == "in_world" else "author",
+                          speaker=speakers[0] if speakers else doc.axes.speaker)
+            try:
+                ex = extractor.extract(doc.doc_id, p.text, ctx)
+            except LLMError as e:  # T-ING-17 : erreur d'extraction, jamais une proposition ; non mise en cache
+                report.errors[f"{doc.doc_id} p{p.index}"] = str(e)
+                out.append((p.index, Extraction(flags=("extraction_error",))))
+                continue
             conn.execute("INSERT INTO extraction_cache VALUES (?, ?, ?, ?)",
                          (p.fingerprint, schema_fp, extractor.version,
                           dumps({**asdict(ex), "optional": sorted(ex.optional)})))
@@ -110,6 +135,7 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
     head = world.state(branch)
     base = BaseState(branch=branch, seq=head.seq, schema_rev=head.schema_rev)
     schema_fp = schema_fingerprint(head)
+    context = extraction_context(world, head)
     docs = [read_document(p) for p in paths]
     if len({d.doc_id for d in docs}) != len(docs):
         raise BatchError("un même document figure deux fois dans le lot")
@@ -131,7 +157,7 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
                 if fp not in current:  # passage supprimé ou modifié : ses supports sont retirés (T-ING-10, T-ING-11)
                     retracted += [(doc.doc_id, vfp, idx) for vfp, idx in places]
                     report.removed += 1
-            for index, ex in _extract(world, extractor, doc, schema_fp, report, set(known)):
+            for index, ex in _extract(world, extractor, doc, schema_fp, report, set(known), context):
                 flags = list(ex.flags)
                 nature = Nature(ex.nature) if ex.nature in Nature._value2member_map_ else None
                 passage = doc.passages[index - 1]
