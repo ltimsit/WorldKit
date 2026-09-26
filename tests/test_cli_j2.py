@@ -14,8 +14,8 @@ def test_cli_world_edit_wiki_export_check(tmp_path, capsys):
     assert run("world", "init", str(VALMONT / "world.yaml")) == 0
     assert run("world", "init", str(VALMONT / "world.yaml")) == 2  # le monde existe déjà
     assert run("edit", "apply", str(VALMONT / "edits" / "base.yaml")) == 0
-    assert run("point", "set", "@base") == 0
-    capsys.readouterr()
+    assert run("point", "set", "base") == 0  # sans @ : PowerShell avale « @base » non entre guillemets
+    assert "@base = rang 7" in capsys.readouterr().out
 
     assert run("wiki", "page", "aldren-ii", "--filter", "player", "--point", "@base") == 0
     out = capsys.readouterr().out

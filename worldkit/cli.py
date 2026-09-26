@@ -108,8 +108,9 @@ def _run_world(args: argparse.Namespace) -> int:
 
         if args.command == "point":
             if args.point_command == "set":
+                from worldkit.core.world import point_name
                 seq = world.set_point(args.name, args.at, args.branch)
-                print(f"{args.name} = rang {seq}")
+                print(f"{point_name(args.name)} = rang {seq}")
             else:
                 for name, seq in world.store.named_points(args.branch or world.reference_branch).items():
                     print(f"{name} = rang {seq}")
@@ -186,7 +187,7 @@ def build_parser() -> argparse.ArgumentParser:
     point = commands.add_parser("point", help="points nommés de l'historique")
     point_cmds = point.add_subparsers(dest="point_command", required=True)
     pset = point_cmds.add_parser("set")
-    pset.add_argument("name")
+    pset.add_argument("name", help="nom du point, avec ou sans @ (base ou '@base')")
     pset.add_argument("--at", default=None, help="rang ou point nommé (défaut : tête)")
     pset.add_argument("--branch", default=None)
     point_cmds.add_parser("list").add_argument("--branch", default=None)

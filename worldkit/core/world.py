@@ -23,6 +23,12 @@ from worldkit.core.schema.changes import SchemaSetRelation, SchemaSetType, WORLD
 SCHEMA_EDIT_ID = "e000"
 
 
+def point_name(name: str) -> str:
+    """Les points nommés s'écrivent `@base` ; le `@` est facultatif à la saisie
+    (en PowerShell, `@base` non entre guillemets est avalé par l'opérateur de splatting)."""
+    return name if name.startswith("@") else f"@{name}"
+
+
 @dataclass(frozen=True)
 class Outcome:
     edit_id: str
@@ -108,7 +114,7 @@ class World:
         if isinstance(point, int) or (isinstance(point, str) and point.isdigit()):
             seq = int(point)
         else:
-            found = self.store.named_point(branch, point)
+            found = self.store.named_point(branch, point_name(point))
             if found is None:
                 raise KeyError(f"point inconnu sur la branche {branch} : {point}")
             seq = found
@@ -142,7 +148,7 @@ class World:
         branch = branch or self.reference_branch
         seq = self.resolve_point(point, branch)
         with self.store.conn:
-            self.store.set_named_point(branch, name, seq)
+            self.store.set_named_point(branch, point_name(name), seq)
         return seq
 
     # --- Écriture ---
