@@ -56,14 +56,24 @@ class CreateEntity(_Change):
     sheet: SheetBinding | None = None
 
 
-class CloseEntity(_Change):
+class _EntityEnd(_Change):
+    """Clore ou supprimer : pas de notoriété propre, la clôture suit celle de l'entité (R-NOT-02)."""
+
+    entity: str
+
+    @model_validator(mode="after")
+    def _no_visibility(self) -> _EntityEnd:
+        if self.visibility is not None:
+            raise ValueError("la clôture suit la notoriété de l'entité : « visibility » n'est pas admise ici")
+        return self
+
+
+class CloseEntity(_EntityEnd):
     op: Literal["close_entity"]
-    entity: str
 
 
-class DeleteEntity(_Change):
+class DeleteEntity(_EntityEnd):
     op: Literal["delete_entity"]
-    entity: str
 
 
 # --- Faits ---
@@ -141,6 +151,8 @@ class SetVisibility(_Change):
     op: Literal["set_visibility"]
     target: FactTarget
     value: Visibility
+    # Levée de la propagation (R-NOT-04) : le fait s'affiche en vue publique sans révéler l'entité.
+    propagation_lifted: bool | None = None
 
     @field_validator("target", mode="before")
     @classmethod

@@ -24,7 +24,7 @@ walkthroughs:
     steps:
       - { do: load_world, file: world.yaml }
       - { do: apply_edits, file: edits/base.yaml }
-      - { do: checkpoint, name: "@base" }
+      - { do: set_point, name: "@base" }
     expect:
       - "Projection déterministe : rejouer e000–e006 deux fois donne deux états identiques (T1)."
       - "Wiki d'auteur, page Brume : gouvernée par Odon de Brume."
@@ -102,7 +102,7 @@ walkthroughs:
           - { proposal: "b1/lieux p3 taverne", action: accept, drop_optional: [contrebandiers] }
           - { proposal: "b1/lieux p4 alias Roi Gris", action: accept }
           - { proposal: "b1/notes p2 vassal_of", action: leave_pending }
-      - { do: checkpoint, name: "@after-b1" }
+      - { do: set_point, name: "@after-b1" }
     expect:
       - "Édition appliquée pour le conseil : création + nom seulement, derived_from = proposition notes p3 ; la relation rules refusée a une décision tracée."
       - "La proposition b5 member_of devient un support après l'acceptation de b1 notes p4 (même clé, même valeur)."
@@ -154,7 +154,7 @@ walkthroughs:
     steps:
       - { do: ingest_batch, batch: b4, extractor: oracle }
       - { do: decide, decisions: [ { passage: 6, action: accept_nature, nature: meta_sheet }, { passage: 6, action: accept }, { passage: 2, action: accept } ] }
-      - { do: checkpoint, name: "@after-b4" }
+      - { do: set_point, name: "@after-b4" }
       - do: apply_edit
         edit:
           id: e102
@@ -220,7 +220,7 @@ walkthroughs:
       - { do: load_drafts, file: scenarios/author-drafts.yaml }
       - { do: play, playthrough: pt-1 }
       - { do: play, playthrough: pt-2 }
-      - { do: checkpoint, name: "@after-siege" }
+      - { do: set_point, name: "@after-siege" }
     expect:
       - "Wiki d'auteur, page Odon (avant pt-2) : deux pistes ouvertes (ad-1, ad-2) et trois pistes du scénario X."
       - "x-d1 et x-d2 coexistent sans contradiction (alternatives)."

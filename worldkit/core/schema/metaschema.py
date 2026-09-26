@@ -11,7 +11,7 @@ import re
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
 
 class StrictModel(BaseModel):
@@ -86,6 +86,10 @@ class AttributeDef(StrictModel):
     @classmethod
     def _parse_type(cls, v: Any) -> Any:
         return AttrType.parse(v) if isinstance(v, str) else v
+
+    @field_serializer("type")
+    def _type_as_text(self, t: AttrType) -> str:
+        return str(t)
 
     @model_validator(mode="after")
     def _check_bounds(self) -> AttributeDef:

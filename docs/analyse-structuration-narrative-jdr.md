@@ -2,8 +2,8 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v22** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
-**Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1).
+**Statut :** analyse pré-cahier des charges, **v24** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2).
 
 Légende utilisée dans tout le document :
 
@@ -48,6 +48,8 @@ Ajouts v2/v3 :
 > - **v20** : lacune L4 tranchée — la qualification d'une affirmation porte sa propre notoriété (00.34) ; cadre de la fondation v1.14.
 > - **v21** : lacune L7 tranchée — étiquette d'origine `curation` pour les décisions sur les sources (00.35) ; cadre de la fondation v1.15. Plus aucune lacune bloquante avant J3.
 > - **v22** : décisions du jalon J1 (validateur de schéma) — valeur invalide non applicable (00.36), lien double face en relation noyau provisoire (00.37), fiches exigées déclarées par le monde (00.38), précisions du validateur (00.39) ; cadre de la fondation v1.16, cadre technique v2.6.
+> - **v23** : décisions du jalon J2 (journal, projection, vues) — ajout sur une clé occupée (00.40), notoriété d'une clôture (00.41) ; cadre de la fondation v1.17.
+> - **v24** : précisions techniques du jalon J2 (00.42) ; cadre technique v2.8.
 
 ### 00.1 Vision reformulée
 
@@ -887,6 +889,41 @@ Conséquence sur l'ordre : le cœur du module de contradictions (collisions, lec
 - **Clés des éléments de schéma** : clé provisoire `(portée, type|relation, nom[, attribut])` en attendant la lacune L6.
 - **Relation symétrique `one_to_one`** : appliquée à la lettre, la règle (ranger les extrémités, puis prendre les deux clés `(from, r)` et `(r, to)`) laissait passer une contradiction — `spouse_of(mervin, isabeau)` et `spouse_of(mervin, zoe)` ne partageaient aucune clé, Mervin tombant d'un côté puis de l'autre après tri. *Revenir au texte* est écarté (contraire à l'invariant 4) ; **retenu** : une clé `(extrémité, relation)` par extrémité (R-FAI-05), et une relation symétrique n'admet que `one_to_one` ou `many_to_many` (R-SCH-01).
 
+### 00.40 Ajout sur une clé occupée (v23)
+
+> Décision du 26 septembre 2026, soulevée par l'implémentation du journal (jalon J2).
+
+**Problème.** L'état de base contient « Odon gouverne Brume ». Une édition structurée appliquée directement ajoute « le conseil des marchands gouverne Brume » : avec `rules` en `one_to_many`, les deux faits occupent la clé `(rules, brume)`, qui ne peut porter qu'un fait (R-FAI-05). Le cadre ne disait pas ce que devient l'application.
+
+**Voies comparées.**
+- *Remplacer implicitement* : plus court à écrire, mais Odon perd Brume sans que l'édition le dise — précisément la contradiction que T-ING-03 veut rendre visible. Écartée.
+- *Refuser, sauf retrait explicite dans la même édition* : le diff de l'édition montre qui perd Brume ; invariant 4 respecté. **Retenue.**
+
+**Décision.** R-FAI-05 précise qu'un ajout sur une clé occupée n'est applicable que si la même édition retire le fait occupant ; `set_attribute` remplace une valeur, puisque l'opération signifie « modifier », et lit l'ancienne valeur (T-ING-02).
+
+### 00.41 Notoriété d'une clôture (v23)
+
+> Décision du 26 septembre 2026, soulevée par le parcours W01 (jalon J2).
+
+**Problème.** Les clôtures du corpus (Aldren, le Cœur de braise, Odon) ne portent pas de notoriété ; R-NOT-01 les rendrait non qualifiées, donc masquées aux joueurs, alors que W01 attend « Aldren, clos » dans le wiki joueur.
+
+**Voies comparées.**
+- *Notoriété propre, non qualifiée par défaut* : permettrait une mort secrète, mais un oubli fait disparaître les morts du wiki joueur, et le corpus serait à corriger. Écartée.
+- *La clôture suit la notoriété de l'entité* : conforme à l'intention du corpus, le plus simple. **Retenue.** Une mort secrète passe par un fait secret (`condition`) sur une entité restée ouverte ; une notoriété propre pourra être ajoutée plus tard.
+
+**Décision.** R-NOT-02 : la clôture et la suppression n'ont pas de notoriété propre et suivent celle de l'entité ; `close_entity` et `delete_entity` refusent le champ `visibility`.
+
+### 00.42 Précisions du journal et des vues (v24)
+
+> Décisions du 26 septembre 2026, jalon J2, validées par l'auteur après implémentation.
+
+- **Notoriété d'un remplacement** : `set_attribute` sans notoriété explicite garde celle du fait remplacé. Sinon, changer une valeur et changer sa notoriété écriraient la même sous-clé, ce que T-FAI-01 veut éviter.
+- **Traces** : une édition refusée à l'application directe n'est pas enregistrée (rien n'a été soumis) ; une édition soumise l'est toujours, même non applicable, conformément à R-SCH-06 (« signalé et mis en attente »).
+- **Opérations sans objet** : retirer un fait absent est refusé ; ajouter un fait déjà présent est sans effet. `delete_entity` retire aussi les faits qui mentionnent l'entité.
+- **Schéma initial** : le chargeur génère l'édition `e000`, qui construit schéma et systèmes par des changements `schema_*` (R-SCH-03). La liste des systèmes reste une donnée du monde, à revoir avec les branches (J5, R-MON-04).
+- **Vocabulaire** : un nom donné à un rang du journal (`@base`) est un *point nommé*, distinct du *point de sauvegarde* de T-STO-01, dont la fréquence est reportée faute de besoin mesuré.
+- **Vues** : identifiants affichés tels quels (libellés préparés, R-SCH-08) ; un groupe de doublons est représenté par l'entité créée en premier.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1476,6 +1513,9 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 64. Qui déclare quelles entités doivent avoir une fiche dans un système ? — **Réponse (v22) :** ✅ Le monde, par une correspondance type du monde → catégorie, par système (00.38).
 65. Comment vérifier que les identifiants de monde sont en anglais ? — **Réponse (v22) :** ✅ Heuristique de forme (ASCII, casse), sans dictionnaire (00.39).
 66. Quelles clés pour une relation symétrique `one_to_one` ? — **Réponse (v22) :** ✅ Une clé `(extrémité, relation)` par extrémité ; symétrie limitée à `one_to_one` et `many_to_many` (00.39).
+67. Que devient l'ajout d'un fait sur une clé déjà occupée ? — **Réponse (v23) :** ✅ Refusé, sauf si la même édition retire le fait occupant ; `set_attribute` remplace (00.40).
+68. Une clôture porte-t-elle sa propre notoriété ? — **Réponse (v23) :** ✅ Non : elle suit celle de l'entité (00.41).
+69. Remplacer une valeur sans préciser de notoriété change-t-il sa notoriété ? — **Réponse (v24) :** ✅ Non : la notoriété du fait est gardée (00.42).
 
 ---
 
