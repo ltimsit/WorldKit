@@ -1,7 +1,7 @@
 # Cadre technique de la fondation
 
 **Objet :** décisions techniques de la fondation : éléments structurants, découpage en modules, architecture, articulation entre le noyau et l'ingestion, stratégie de test et étapes de construction.
-**Version :** 2.8 — 26 septembre 2026. S'appuie sur *cadre-fondation.md* v1.17, qu'il cite sans le dupliquer.
+**Version :** 2.9 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.18, qu'il cite sans le dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (argumenté, en attente de validation). En cas de divergence, *cadre-fondation.md* prévaut.
 
 **Conventions**
@@ -234,6 +234,7 @@ Conséquences :
 **T-ING-04 — Granularité des propositions et confirmation partielle.** *(validé ; R-EDI-02, R-EDI-08, R-CYC-01)*
 Une proposition regroupe les changements d'une **unité d'intention** : une entité sujet dans un passage. Une entité nouvelle est proposée avec ses faits initiaux dans la même proposition. La revue peut **accepter une partie** des changements ou les **modifier** : l'édition appliquée est alors une nouvelle édition, liée à la proposition par `derived_from`, et chaque changement écarté reçoit une décision tracée. C'est la « confirmation éventuellement adaptée » du cycle de vie, appliquée aux propositions.
 Exemple : la proposition « le baron devient régent + le baron est membre du conseil des marchands » est confirmée pour le titre seulement. L'édition appliquée ne contient que `set_attribute(baron, title, régent)`, avec `derived_from` vers la proposition ; l'appartenance au conseil reçoit une décision de refus, qui ne sera pas redemandée à la ré-ingestion (T-ING-08).
+Précisions (J3) : accepter entièrement applique la proposition elle-même ; une confirmation partielle, sans les changements facultatifs, ou adaptée applique une édition dérivée (`derived_from`) et clôt la proposition. **Accepter une anomalie ou une intention sur une relation ajoute à l'édition le retrait explicite du fait qui occupe la clé**, montré avant confirmation (« − rules(odon, brume) », R-FAI-05). Décisions en ligne de commande : une commande par décision (`accept`, `refuse`, `abandon`, `choose`, `adapt`, `qualify`, `promote`, `dismiss`). `choose` accepte une proposition et refuse, avec trace, les changements des autres propositions qui visent la même clé avec une autre valeur. Une proposition dont tous les changements sont devenus des supports est close (`abandoned`, motif « support »). Une proposition dépend d'une autre si elle lit une clé que l'autre écrit ; deux écritures de la même clé relèvent de la contradiction ou de la concurrence, jamais de la dépendance (§6.3 du cadre).
 
 **T-ING-05 — Dépendances entre propositions.** *(validé ; R-EDI-03, §6.3 du cadre)*
 L'identifiant d'une entité nouvelle est attribué dès la proposition. Une proposition qui cite cette entité lit sa clé d'existence et **dépend** donc de la proposition qui la crée. La revue présente les propositions dans l'ordre des dépendances ; refuser la création du conseil des marchands met « à revérifier » la proposition « le baron est membre du conseil ». Le calcul est celui de M4, déjà utilisé pour les transpositions.
@@ -253,13 +254,13 @@ Tous les documents d'un lot sont extraits contre le **même état de base**, fig
 - la résolution voit aussi les **entités proposées par les autres lots encore en attente** sur la même branche. Une mention qui correspond à une création en attente (même empreinte `(type, nom normalisé)`, T-ING-08) reprend l'identifiant proposé, et la proposition qui la cite **dépend** de cette création (T-ING-05) : acceptée, elle devient applicable ; refusée, les propositions dépendantes passent à revérifier. Une entité n'a jamais qu'une seule proposition de création. Exemple : le lot b5 cite le conseil des marchands, dont la création n'est proposée que par le lot b1, en attente ; b5 réutilise cet identifiant au lieu de proposer une seconde création.
 
 **T-ING-08 — Empreinte de changement et mémoire des décisions.** *(validé ; R-PRI-04, R-CYC-02)*
-Chaque changement proposé reçoit une empreinte stable : `hash(opération, clé de fait canonique, valeur normalisée)`. Pour une entité nouvelle, la clé canonique utilise `(type, nom normalisé)` à la place de l'identifiant. Les décisions sont stockées par empreinte et par passage. À la ré-ingestion, un changement dont l'empreinte a déjà une décision reprend cette décision sans la redemander. Une décision prise sur une branche vaut pour les branches qui en descendent après la décision.
+Chaque changement proposé reçoit une empreinte stable : `hash(opération, clé de fait canonique, valeur normalisée)`. Pour une entité nouvelle, la clé canonique utilise `(type, nom normalisé)` à la place de l'identifiant. Les décisions sont stockées par empreinte et par passage. À la ré-ingestion, un changement dont l'empreinte a déjà une décision reprend cette décision sans la redemander. Une décision prise sur une branche vaut pour les branches qui en descendent après la décision. Précision (J3) : la décision est retrouvée par empreinte **et par document** (et non par passage : un passage modifié change d'empreinte, et la décision serait perdue) ; un refus est repris, une acceptation n'a rien à reprendre (le fait est dans l'état, le changement y est un support).
 
 **T-ING-09 — Cache d'extraction par passage.** *(validé ; T-ARC-01, R-PRI-04)*
 La sortie de l'extraction est mise en cache par `(empreinte du passage, empreinte du schéma, version de l'extracteur)`. Un passage inchangé n'est pas renvoyé au LLM : il produit exactement les mêmes brouillons, donc les mêmes empreintes, donc les mêmes décisions. Le non-déterminisme du LLM ne touche que les passages nouveaux ou modifiés. Changer de modèle ou de prompt invalide le cache explicitement (nouvelle version d'extracteur).
 
 **T-ING-10 — Passages déterministes.** *(validé ; R-DOC-04, R-DEC-01)*
-M6 découpe un document en passages de façon déterministe (titres, paragraphes, marqueurs `[in_world]`, `[meta]`). Un passage est identifié par l'empreinte de son contenu normalisé. À la ré-ingestion d'une nouvelle version, les passages sont alignés par empreinte, puis par similarité pour les passages modifiés : seuls les passages ajoutés ou modifiés sont extraits, les passages supprimés retirent leurs supports (T-ING-11).
+M6 découpe un document en passages de façon déterministe (titres, paragraphes, marqueurs `[in_world]`, `[meta]`). Un passage est identifié par l'empreinte de son contenu normalisé. À la ré-ingestion d'une nouvelle version, les passages sont alignés par empreinte, puis par similarité pour les passages modifiés : seuls les passages ajoutés ou modifiés sont extraits, les passages supprimés retirent leurs supports (T-ING-11). Précisions (J3) : un passage déjà ingéré pour ce document sur la branche n'est ni extrait ni reproposé ; un passage modifié est traité comme un retrait et un ajout, l'alignement par similarité ne servant qu'à l'affichage du diff (reporté à J4) ; les marqueurs découpent un passage en segments qui portent leurs propres axes (niveau 2, R-DEC-01).
 
 **T-ING-11 — Provenance, corroboration et statut des documents.** *(validé ; R-FAI-01, R-FAI-06, R-DOC-04, R-DOC-05)*
 - La provenance d'un fait est l'édition qui l'a établi, plus ses supports documentaires.
@@ -271,6 +272,7 @@ M6 découpe un document en passages de façon déterministe (titres, paragraphes
 **T-ING-12 — Affirmations structurées.** *(validé ; R-DOC-06 à R-DOC-08, R-DEC-02)*
 En énonciation `in_world`, l'extraction produit des `add_claim` portant le texte et, quand c'est possible, le **changement revendiqué** sous forme structurée (clé et valeur). Les affirmations ont leur propre espace de clés (`(claim)`) : elles n'entrent jamais en collision avec les faits (R-DOC-08). Le noyau compare le changement revendiqué à l'état et en tire une **suggestion** de qualification (`qualify_claim`), toujours présentée comme proposition.
 Exemple : la Chronique affirme « Aldren est mort au combat » ; l'état contient un fait secret « Aldren a été empoisonné » ; le noyau suggère « fausse ».
+Précisions (J3) : une proposition par affirmation ; l'énonciateur est celui du marqueur, sinon celui de l'en-tête ; l'affirmation hérite de la notoriété du document (R-NOT-05). Suggestion : même valeur → `true` ; clé occupée autrement, ou entité ouverte quand sa clôture est revendiquée → `false` ; sinon `undetermined`. Qualifier une affirmation en attente applique l'affirmation et sa qualification ensemble ; la promouvoir y ajoute le changement revendiqué (origine `redefinition` ponctuelle si la suggestion était « fausse »).
 
 **T-ING-13 — Hors schéma et non-conformité.** *(validé ; R-SCH-04, R-SCH-06, R-SCH-10, R-MET-05)*
 - **Hors schéma** : un changement qui cite un type, un attribut ou une relation que le schéma de l'état de base ne déclare pas. Il ne peut pas être appliqué en l'état. La revue l'adapte (vers un type existant) ou ajoute dans **la même édition** un changement `schema_*` qui le rend représentable.
@@ -295,6 +297,14 @@ Exemple : lundi, les notes sur le baron proposent « le conseil des marchands go
 
 **T-ING-19 — Extracteur oracle.** *(validé)*
 Une implémentation de l'extracteur lit les annotations de `valmont/gold/` au lieu d'appeler un LLM. Elle permet de tester **exactement** toute la chaîne d'ingestion (passages, lots, propositions, collisions, dépendances, décisions, ré-ingestion) dès J3, sans LLM. À J4, le LLM remplace l'oracle derrière la même interface, et l'écart entre les deux devient la métrique d'extraction.
+
+**Précisions de mise en œuvre (J3).**
+- Une entité nouvelle reçoit comme identifiant l'étiquette de l'extracteur (`conseil-marchands`), suffixée si elle est prise ; une création déjà proposée par un lot en attente est reprise par son étiquette ou par son empreinte `(type, nom normalisé)` (T-ING-07).
+- Un changement peut porter plusieurs qualifications (« anomalie + contradiction interne », « enrichissement + conflit dans le lot »).
+- La notoriété de l'en-tête s'applique aux changements extraits qui n'en déclarent pas (niveau 1, R-DEC-01).
+- Avant J8, un passage de nature méta est conservé sans proposition ; une sortie d'extracteur inexploitable marque le passage `extraction_error` (T-ING-17).
+- Une entité créée sans ses attributs requis porte le signalement `missing_required` (R-SCH-06).
+- La requalification contre la tête a lieu à chaque lecture de la revue et avant chaque décision : son résultat ne dépend pas de ce qui a fait avancer la branche (T-ING-06).
 
 ### 5.4 Règles du cadre issues de cette analyse
 
@@ -417,5 +427,8 @@ Complète le glossaire de *cadre-fondation.md* §3.
 | Propositions concurrentes | `competing_proposals` | Propositions en attente de lots différents sur la même clé. |
 | Cache d'extraction | `extraction_cache` | Sorties d'extraction par passage, schéma et version d'extracteur. |
 | Extracteur oracle | `OracleExtractor` | Extracteur de test lisant les annotations de référence. |
+| File de revue | `review` | Propositions en attente, requalifiées contre la tête à chaque lecture (T-ING-06). |
+| Proposition bloquée | `blocked` | Proposition dont le document est obsolète : ni acceptable ni close (R-DOC-05). |
+| Segment | `Segment` | Partie d'un passage délimitée par un marqueur, avec ses propres axes (R-DEC-01). |
 | Contexte de vérification | `SchemaContext` | Schémas de l'état visé, entités connues et fiches exigées : entrée pure de M1. |
 | Signalement | `Issue` | Résultat de M1 : code, message en français, identifiant de règle, gravité (`error` bloquant, `warning` signalé). |

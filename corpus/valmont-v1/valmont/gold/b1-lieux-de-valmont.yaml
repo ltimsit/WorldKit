@@ -31,6 +31,7 @@ passages:
       - { op: set_attribute, entity: "new:taverne-du-heron", attribute: category, value: "taverne", outcome: enrichment, optional: true }
       - { op: add_relation, from: "new:taverne-du-heron", relation: located_in, to: brume, outcome: enrichment }
       - { op: create_entity, entity: "new:contrebandiers", type: Faction, outcome: enrichment, optional: true }
+      - { op: set_attribute, entity: "new:contrebandiers", attribute: name, value: "les contrebandiers", outcome: enrichment, optional: true }
       - { op: add_relation, from: "new:contrebandiers", relation: based_in, to: "new:taverne-du-heron", outcome: enrichment, optional: true }
     note: "Tout reste non qualifié (pas de notoriété déclarée) : invisible dans le wiki joueur (R-NOT-03)."
 

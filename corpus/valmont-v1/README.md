@@ -46,6 +46,8 @@ Ces formats sont des choix de fixture, faits pour écrire le corpus ; ils ne pr�
 | Fiche | `create_entity` de type `Sheet` avec `sheet: { of, system, category }` ; identifiant `entité@système` (voir lacune L2). |
 | Fiches exigées | Dans `world.yaml`, par système : `sheets: { TypeDuMonde: Catégorie }`, sous-types compris (R-MET-06). |
 | Changements de schéma | `schema_set_relation` : `relation` + `definition` complète ; `schema_set_type` : `type` + `definition` complète, ou `attribute` + `definition` d'attribut, ou `attribute` + `constraint` (`min`, `max`, `required`). |
+| Affirmations (gold) | `claims` par passage, ou `segments` quand un marqueur `[in_world: …]` découpe le passage ; `suggested` est la conclusion attendue du noyau, que l'extracteur oracle ne transmet pas. |
+| Entité en attente (gold) | `pending:étiquette` : entité dont la création est proposée par un lot encore en attente (T-ING-07). |
 | Notoriété désignée | `set_visibility` : `target` textuel (« `a relation b` », « `entité.attribut` », « `entité` ») ou structuré (`entity`, `attribute`, `value`, `from`, `relation`, `to`). |
 | Passages | Paragraphes du corps du document, titres exclus, numérotés à partir de 1. |
 | Gold | Par passage : `mentions` (résolution attendue ; `new:` = entité nouvelle, `pending:` = entité seulement proposée), `changes` avec `outcome`, `must_not` (pièges), `optional`. |

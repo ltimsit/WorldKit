@@ -60,7 +60,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **J0 — fait** : corpus synthétique v1.
 - **J1 — fait** (branche `j1-schema`) : validateur de schéma, clés de fait, vérification des changements et de la conformité (`worldkit/core/schema/`). Fiche : `docs/j1-brief.md`.
 - **J2 — fait** (branche `j2-journal`) : journal SQLite, projection, collisions et péremption, wiki d'auteur et joueur, export (`worldkit/core/{journal,projection,conflicts,views}`, `worldkit/core/world.py`).
-- Ensuite : J3 (ingestion déterministe + extracteur oracle), J4 (extraction LLM)… (cadre technique §7).
+- **J3 — fait** (branche `j3-ingestion`) : lots, passages, extracteur oracle, propositions qualifiées, revue et décisions, affirmations, ré-ingestion, documents obsolètes (`worldkit/ingest/`, `worldkit/periphery/`).
+- Ensuite : J4 (extraction et résolution par LLM derrière l'adaptateur)… (cadre technique §7).
 - Points ouverts à trancher avant J8 : lacunes L1, L2, L6 du corpus (`corpus/valmont-v1/README.md` §5).
 
 ## Git
