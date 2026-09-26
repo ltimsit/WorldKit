@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "worldkit"
+version = "0.1.0"
+description = "Outil de worldbuilding pour MJ-auteur de JDR (nom provisoire)"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.6",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "hypothesis>=6"]
+
+[project.scripts]
+worldkit = "worldkit.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["worldkit*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
