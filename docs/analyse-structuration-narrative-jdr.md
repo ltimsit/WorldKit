@@ -2,8 +2,8 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v23** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
-**Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2).
+**Statut :** analyse pré-cahier des charges, **v24** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2).
 
 Légende utilisée dans tout le document :
 
@@ -49,6 +49,7 @@ Ajouts v2/v3 :
 > - **v21** : lacune L7 tranchée — étiquette d'origine `curation` pour les décisions sur les sources (00.35) ; cadre de la fondation v1.15. Plus aucune lacune bloquante avant J3.
 > - **v22** : décisions du jalon J1 (validateur de schéma) — valeur invalide non applicable (00.36), lien double face en relation noyau provisoire (00.37), fiches exigées déclarées par le monde (00.38), précisions du validateur (00.39) ; cadre de la fondation v1.16, cadre technique v2.6.
 > - **v23** : décisions du jalon J2 (journal, projection, vues) — ajout sur une clé occupée (00.40), notoriété d'une clôture (00.41) ; cadre de la fondation v1.17.
+> - **v24** : précisions techniques du jalon J2 (00.42) ; cadre technique v2.8.
 
 ### 00.1 Vision reformulée
 
@@ -912,6 +913,17 @@ Conséquence sur l'ordre : le cœur du module de contradictions (collisions, lec
 
 **Décision.** R-NOT-02 : la clôture et la suppression n'ont pas de notoriété propre et suivent celle de l'entité ; `close_entity` et `delete_entity` refusent le champ `visibility`.
 
+### 00.42 Précisions du journal et des vues (v24)
+
+> Décisions du 26 septembre 2026, jalon J2, validées par l'auteur après implémentation.
+
+- **Notoriété d'un remplacement** : `set_attribute` sans notoriété explicite garde celle du fait remplacé. Sinon, changer une valeur et changer sa notoriété écriraient la même sous-clé, ce que T-FAI-01 veut éviter.
+- **Traces** : une édition refusée à l'application directe n'est pas enregistrée (rien n'a été soumis) ; une édition soumise l'est toujours, même non applicable, conformément à R-SCH-06 (« signalé et mis en attente »).
+- **Opérations sans objet** : retirer un fait absent est refusé ; ajouter un fait déjà présent est sans effet. `delete_entity` retire aussi les faits qui mentionnent l'entité.
+- **Schéma initial** : le chargeur génère l'édition `e000`, qui construit schéma et systèmes par des changements `schema_*` (R-SCH-03). La liste des systèmes reste une donnée du monde, à revoir avec les branches (J5, R-MON-04).
+- **Vocabulaire** : un nom donné à un rang du journal (`@base`) est un *point nommé*, distinct du *point de sauvegarde* de T-STO-01, dont la fréquence est reportée faute de besoin mesuré.
+- **Vues** : identifiants affichés tels quels (libellés préparés, R-SCH-08) ; un groupe de doublons est représenté par l'entité créée en premier.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1503,6 +1515,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 66. Quelles clés pour une relation symétrique `one_to_one` ? — **Réponse (v22) :** ✅ Une clé `(extrémité, relation)` par extrémité ; symétrie limitée à `one_to_one` et `many_to_many` (00.39).
 67. Que devient l'ajout d'un fait sur une clé déjà occupée ? — **Réponse (v23) :** ✅ Refusé, sauf si la même édition retire le fait occupant ; `set_attribute` remplace (00.40).
 68. Une clôture porte-t-elle sa propre notoriété ? — **Réponse (v23) :** ✅ Non : elle suit celle de l'entité (00.41).
+69. Remplacer une valeur sans préciser de notoriété change-t-il sa notoriété ? — **Réponse (v24) :** ✅ Non : la notoriété du fait est gardée (00.42).
 
 ---
 

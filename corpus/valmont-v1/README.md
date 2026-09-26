@@ -50,7 +50,7 @@ Ces formats sont des choix de fixture, faits pour écrire le corpus ; ils ne pr�
 | Passages | Paragraphes du corps du document, titres exclus, numérotés à partir de 1. |
 | Gold | Par passage : `mentions` (résolution attendue ; `new:` = entité nouvelle, `pending:` = entité seulement proposée), `changes` avec `outcome`, `must_not` (pièges), `optional`. |
 | Outcomes | `support`, `enrichment`, `anomaly`, `intention`, `batch_conflict`, `competing`, `out_of_schema`, `hint_visibility`, `attribution` ; pour les affirmations : `claimed` et `suggested` (`true` / `false` / `undetermined`). |
-| Points nommés | `@base`, `@after-b1`, `@after-b4`, `@after-siege`, définis par les parcours. |
+| Points nommés | `@base`, `@after-b1`, `@after-b4`, `@after-siege`, définis par les parcours (`do: set_point`) ; distincts des points de sauvegarde (`checkpoint`, T-STO-01). |
 
 ## 4. Couverture du cadre
 
