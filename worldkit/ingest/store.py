@@ -39,6 +39,17 @@ CREATE TABLE IF NOT EXISTS proposal_deps (
 CREATE TABLE IF NOT EXISTS supports (
     doc_id TEXT NOT NULL, version_fp TEXT NOT NULL, passage_idx INTEGER NOT NULL, fact_key TEXT NOT NULL,
     value TEXT NOT NULL, batch_id TEXT NOT NULL, PRIMARY KEY (doc_id, version_fp, passage_idx, fact_key));
+CREATE TABLE IF NOT EXISTS proposal_keys (
+    edit_id TEXT NOT NULL, idx INTEGER NOT NULL, fact_key TEXT NOT NULL, value TEXT NOT NULL,
+    PRIMARY KEY (edit_id, idx, fact_key));
+CREATE TABLE IF NOT EXISTS decisions (
+    decision_id INTEGER PRIMARY KEY AUTOINCREMENT, fingerprint TEXT NOT NULL, doc_id TEXT NOT NULL,
+    passage_fp TEXT NOT NULL, branch_id TEXT NOT NULL, action TEXT NOT NULL, proposal TEXT,
+    edit_id TEXT, reason TEXT);
+CREATE TRIGGER IF NOT EXISTS decisions_append_only_u BEFORE UPDATE ON decisions
+  BEGIN SELECT RAISE(ABORT, 'R-PRI-04 : une décision tracée ne se modifie pas'); END;
+CREATE TRIGGER IF NOT EXISTS decisions_append_only_d BEFORE DELETE ON decisions
+  BEGIN SELECT RAISE(ABORT, 'R-PRI-04 : une décision tracée ne se retire pas'); END;
 CREATE TABLE IF NOT EXISTS new_entities (
     batch_id TEXT NOT NULL, label TEXT NOT NULL, entity_id TEXT NOT NULL, type TEXT NOT NULL, name TEXT,
     PRIMARY KEY (batch_id, label));
@@ -57,5 +68,17 @@ def loads_key(text: str) -> Any:
     return _tuplify(json.loads(text))
 
 
+# Colonnes ajoutées après J3.1 : (table, colonne, définition).
+_COLUMNS = [
+    ("proposal_changes", "state", "TEXT NOT NULL DEFAULT 'open'"),  # open | accepted | refused | support
+    ("proposals", "closed_reason", "TEXT"),
+    ("new_entities", "creator", "TEXT"),  # proposition qui crée l'entité (T-ING-05, T-ING-07)
+]
+
+
 def ensure_tables(conn: sqlite3.Connection) -> None:
     conn.executescript(_DDL)
+    for table, column, definition in _COLUMNS:
+        present = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in present:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")

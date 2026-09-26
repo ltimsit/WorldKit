@@ -25,7 +25,9 @@ from worldkit.core.world import World
 from worldkit.periphery.extraction import Extraction, Extractor
 
 from .declaration import DocumentVersion, Nature, Voice, read_document
-from .proposals import Item, NewEntity, ProposalDraft, Qualified, assemble, new_entities, resolve
+from .declaration import normalize
+from .proposals import NEW, Item, NewEntity, ProposalDraft, Qualified, assemble, depends, new_entities, resolve
+from .queue import StoredProposal, load, name_index, pending_new_entities, refresh, save_change
 from .store import dumps, ensure_tables
 
 META = {Nature.META_SYSTEM, Nature.META_SHEET}
@@ -83,6 +85,7 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
     if conn.execute("SELECT 1 FROM batches WHERE batch_id = ?", (batch_id,)).fetchone():
         raise BatchError(f"lot déjà ingéré : {batch_id}")
     branch = branch or world.reference_branch
+    refresh(world, branch)
     head = world.state(branch)
     base = BaseState(branch=branch, seq=head.seq, schema_rev=head.schema_rev)
     schema_fp = schema_fingerprint(head)
@@ -108,8 +111,24 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
                         raw.append((doc, index, i, draft, i in ex.optional))
                 passage_flags[(doc.doc_id, index)] = flags
 
+    # Résolution : les créations proposées par les lots en attente sont reprises, jamais dupliquées (T-ING-07).
+    pending_new = pending_new_entities(world, head)
+    by_name = name_index(pending_new)
+    reused: dict[str, NewEntity] = dict(pending_new)
+    for _, _, _, d, _ in raw:
+        entity = d.get("entity")
+        if d.get("op") == "set_attribute" and d.get("attribute") == "name" and isinstance(entity, str)                 and entity.startswith(NEW):
+            label = entity[len(NEW):]
+            types = {x.get("type") for _, _, _, x, _ in raw if x.get("op") == "create_entity" and x.get("entity") == entity}
+            for t in types:
+                match = by_name.get((t, normalize(str(d["value"])).casefold()))
+                if match:
+                    reused[label] = match
+    raw = [r for r in raw if not (r[3].get("op") == "create_entity" and isinstance(r[3].get("entity"), str)
+                                  and r[3]["entity"].startswith(NEW) and r[3]["entity"][len(NEW):] in reused)]
     taken = set(head.entities) | {r[0] for r in conn.execute("SELECT entity_id FROM new_entities")}
-    new = new_entities([r[3] for r in raw], taken)
+    own = new_entities([r[3] for r in raw], taken)
+    new = {**reused, **own}
     items: list[Item] = []
     for order, (doc, index, _, draft, optional) in enumerate(raw):
         draft = resolve(draft, new)
@@ -124,7 +143,9 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
         items.append(Item(doc.doc_id, doc.fingerprint, index, order, change, doc.axes.mode, optional))
 
     supports, proposals = assemble(batch_id, items, head, new)
-    report.supports, report.proposals, report.new_entities = supports, proposals, list(new.values())
+    others = [p for p in load(world, branch) if p.batch != batch_id]
+    _across_batches(proposals, others)
+    report.supports, report.proposals, report.new_entities = supports, proposals, list(own.values())
     report.flagged = {f"{d} p{i}": f for (d, i), f in sorted(passage_flags.items()) if f}
 
     with conn:
@@ -138,8 +159,11 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
                 conn.execute("INSERT OR IGNORE INTO passages VALUES (?, ?, ?, ?, ?, ?)",
                              (doc.doc_id, doc.fingerprint, p.index, p.fingerprint, p.text,
                               dumps(passage_flags.get((doc.doc_id, p.index), []))))
-        for e in new.values():
-            conn.execute("INSERT INTO new_entities VALUES (?, ?, ?, ?, ?)", (batch_id, e.label, e.id, e.type, e.name))
+        creators = {q.item.change.entity: p.id for p in proposals for q in p.items
+                    if q.item.change.op == "create_entity"}
+        for e in own.values():
+            conn.execute("INSERT INTO new_entities (batch_id, label, entity_id, type, name, creator)"
+                         " VALUES (?, ?, ?, ?, ?, ?)", (batch_id, e.label, e.id, e.type, e.name, creators.get(e.id)))
         for q in supports:
             it = q.item
             for k in q.keys:
@@ -149,14 +173,47 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
             edit = Edit(id=p.id, branch=branch, origin=None, tags=["ingestion", batch_id],
                         changes=[q.item.change for q in p.items])
             world.store.record_edit(edit, EditStatus.PENDING, base, frozenset(p.reads), frozenset(p.writes))
-            conn.execute("INSERT INTO proposals VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            conn.execute("INSERT INTO proposals (edit_id, batch_id, doc_id, version_fp, passage_idx, subject, kind,"
+                         " issues) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                          (p.id, batch_id, p.doc_id, p.version_fp, p.passage, p.subject, p.kind, dumps(p.issues)))
             for i, q in enumerate(p.items):
-                conn.execute("INSERT INTO proposal_changes VALUES (?, ?, ?, ?, ?)",
-                             (p.id, i, q.fingerprint, dumps(sorted(q.tags)), dumps(q.detail)))
+                conn.execute("INSERT INTO proposal_changes (edit_id, idx, fingerprint, tags, detail)"
+                             " VALUES (?, ?, ?, ?, ?)", (p.id, i, q.fingerprint, dumps(sorted(q.tags)), dumps(q.detail)))
+                for k in q.keys:
+                    conn.execute("INSERT OR IGNORE INTO proposal_keys VALUES (?, ?, ?, ?)",
+                                 (p.id, i, dumps(k), dumps(q.value)))
             for dep in sorted(p.depends_on):
                 conn.execute("INSERT INTO proposal_deps VALUES (?, ?)", (p.id, dep))
+        for other in others:
+            for c in other.changes:
+                save_change(world, other.id, c)  # étiquettes « concurrente » ajoutées de l'autre côté
     return report
+
+
+def _across_batches(proposals: list[ProposalDraft], others: list[StoredProposal]) -> None:
+    """Face aux propositions en attente des autres lots : concurrence (R-PRI-07, T-ING-18), doublon
+    d'empreinte, dépendances (T-ING-05). La priorité est suggérée au lot le plus ancien (R-PRI-02)."""
+    for p in proposals:
+        for q in p.items:
+            if q.is_support or "hint_visibility" in q.tags:
+                continue
+            value = dumps(q.value)
+            for other in others:
+                for c in other.open_changes():
+                    if not set(q.keys) & set(c.keys) or "hint_visibility" in c.tags:
+                        continue
+                    if c.value == value:
+                        q.tags.add("duplicate")
+                        q.detail.setdefault("same_as", []).append(other.id)
+                    else:
+                        q.tags.add("competing")
+                        q.detail.setdefault("competes_with", []).append(other.id)
+                        q.detail["priority"] = other.id  # l'autre lot est plus ancien
+                        c.tags.add("competing")
+                        c.detail.setdefault("competes_with", []).append(p.id)
+        for other in others:
+            if depends(p.reads, p.writes, other.writes):
+                p.depends_on.add(other.id)
 
 
 def batch_documents(batches_yaml: str | Path, batch_id: str) -> list[Path]:

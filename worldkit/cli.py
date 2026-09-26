@@ -12,6 +12,10 @@
     worldkit --db valmont.db check [--point …]
     worldkit --db valmont.db ingest <lot> [documents…] [--batches batches.yaml] --oracle <gold/>
     worldkit --db valmont.db review list [--batch LOT] | review show <proposition>
+    worldkit --db valmont.db review accept <proposition>… [--keep 0,1] [--drop-optional]
+    worldkit --db valmont.db review refuse <proposition>… [--changes 2] [--reason …]
+    worldkit --db valmont.db review choose <proposition> | adapt <proposition> --prepend|--replace <changes.yaml>
+    worldkit --db valmont.db review dismiss <document> <passage>
 
 Code de sortie : 0 succès, 1 refus ou signalement bloquant, 2 entrée illisible.
 """
@@ -72,7 +76,8 @@ def _read_edits(path: str, only: list[str] | None) -> list[Any]:
 TAG_FR = {
     "out_of_schema": "hors schéma", "invalid_value": "valeur invalide", "unresolved": "entité inconnue",
     "anomaly": "anomalie", "intention": "intention", "internal_contradiction": "contradiction interne",
-    "batch_conflict": "conflit dans le lot", "competing": "concurrente", "hint_visibility": "indice de notoriété",
+    "batch_conflict": "conflit dans le lot", "competing": "concurrente", "duplicate": "déjà proposé",
+    "hint_visibility": "indice de notoriété",
     "enrichment": "enrichissement", "optional": "facultatif", "support": "support",
 }
 
@@ -100,15 +105,55 @@ def _run_ingest(world: Any, args: argparse.Namespace) -> int:
     return 0
 
 
+def _indices(text: str | None) -> list[int] | None:
+    return [int(i) for i in text.split(",")] if text else None
+
+
+def _print_decided(results: list[Any]) -> int:
+    status = 0
+    for d in results:
+        applied = f" → {d.edit_id} (rang {d.seq})" if d.seq is not None else ""
+        print(f"{d.proposal} : {d.action}{applied}" if d.ok else f"{d.proposal} : REFUSÉE")
+        _print_issues(d.issues)
+        status = status if d.ok else 1
+    return status
+
+
+def _run_decision(world: Any, args: argparse.Namespace) -> int:
+    from worldkit.ingest import decide
+    cmd = args.review_command
+    if cmd == "accept":
+        return _print_decided([decide.accept(world, pid, _indices(args.keep), args.drop_optional, args.reason)
+                               for pid in args.proposals])
+    if cmd == "refuse":
+        return _print_decided([decide.refuse(world, pid, _indices(args.changes), args.reason)
+                               for pid in args.proposals])
+    if cmd == "choose":
+        return _print_decided(decide.choose(world, args.proposal, args.reason))
+    if cmd == "adapt":
+        from worldkit.core.schema import parse_change
+        raw = read_yaml(args.prepend or args.replace)
+        items = raw["changes"] if isinstance(raw, dict) else raw
+        changes = [parse_change(c) for c in items]
+        return _print_decided([decide.adapt(world, args.proposal, changes, replace=bool(args.replace),
+                                            reason=args.reason)])
+    decide.dismiss(world, args.document, args.passage, args.reason)
+    print(f"{args.document} p{args.passage} : écarté")
+    return 0
+
+
 def _run_review(world: Any, args: argparse.Namespace) -> int:
     from worldkit.ingest.review import flagged_passages, proposals, supports
+    if args.review_command not in ("list", "show"):
+        return _run_decision(world, args)
     if args.review_command == "list":
         views = proposals(world, args.batch)
         for v in views:
             recheck = " (à revérifier)" if v.needs_recheck else ""
             print(f"{v.id}{recheck}  [{_tags(v.tags)}]")
             for c in v.changes:
-                print(f"    {c.text}")
+                if c.state == "open":
+                    print(f"    {c.text}")
         print(f"{len(views)} proposition(s) en attente ; {len(supports(world, args.batch))} support(s)")
         for doc, idx, flags in flagged_passages(world, args.batch):
             print(f"  passage {doc} p{idx} : {', '.join(flags)}")
@@ -119,10 +164,12 @@ def _run_review(world: Any, args: argparse.Namespace) -> int:
         return 1
     v = found[0]
     base = f"rang {v.base.seq}, schema_rev {v.base.schema_rev}" if v.base else "?"
-    print(f"{v.id} — {v.status}{' (à revérifier)' if v.needs_recheck else ''}")
+    closed = f" ({v.closed_reason})" if v.closed_reason else ""
+    print(f"{v.id} — {v.status}{closed}")
     print(f"lot {v.batch}, document {v.doc}, passage {v.passage} ; sujet {v.subject} ; base {base}")
-    for c in v.changes:
-        print(f"  {c.text}   [{_tags(c.tags)}]")
+    for i, c in enumerate(v.changes):
+        state = "" if c.state == "open" else f" — {c.state}"
+        print(f"  [{i}] {c.text}   [{_tags(c.tags)}]{state}")
         occ = c.detail.get("occupied_by")
         if occ:
             fact = occ["fact"]
@@ -132,8 +179,15 @@ def _run_review(world: Any, args: argparse.Namespace) -> int:
             print(f"      contredit {label} (même document)")
         for label in c.detail.get("conflicts_with", []):
             print(f"      en conflit avec {label} (même lot, aucune ne l'emporte)")
+        for other in c.detail.get("competes_with", []):
+            print(f"      concurrente de {other} (autre lot)")
+        if "priority" in c.detail:
+            print(f"      priorité suggérée : {c.detail['priority']} (lot plus ancien)")
+        for other in c.detail.get("same_as", []):
+            print(f"      déjà proposé par {other}")
+    pending = {p.id for p in proposals(world)}
     for d in v.depends_on:
-        print(f"  dépend de {d}")
+        print(f"  dépend de {d}" + ("" if d in pending else " (décidée)"))
     for i in v.issues:
         print(f"  {i}")
     return 0
@@ -287,6 +341,25 @@ def build_parser() -> argparse.ArgumentParser:
     review_cmds = review.add_subparsers(dest="review_command", required=True)
     review_cmds.add_parser("list").add_argument("--batch", default=None)
     review_cmds.add_parser("show").add_argument("proposal")
+    acc = review_cmds.add_parser("accept", help="accepter (tout, ou --keep)")
+    acc.add_argument("proposals", nargs="+")
+    acc.add_argument("--keep", help="indices des changements gardés (0,1…) ; les autres sont refusés")
+    acc.add_argument("--drop-optional", action="store_true", help="écarter les changements facultatifs")
+    ref = review_cmds.add_parser("refuse", help="refuser (tout, ou --changes)")
+    ref.add_argument("proposals", nargs="+")
+    ref.add_argument("--changes", help="indices des changements refusés")
+    cho = review_cmds.add_parser("choose", help="trancher un conflit : accepter celle-ci, refuser les autres")
+    cho.add_argument("proposal")
+    ada = review_cmds.add_parser("adapt", help="confirmer en adaptant (édition dérivée)")
+    ada.add_argument("proposal")
+    grp = ada.add_mutually_exclusive_group(required=True)
+    grp.add_argument("--prepend", help="fichier YAML de changements ajoutés en tête")
+    grp.add_argument("--replace", help="fichier YAML de changements qui remplacent la proposition")
+    dis = review_cmds.add_parser("dismiss", help="écarter un passage signalé (attribution)")
+    dis.add_argument("document")
+    dis.add_argument("passage", type=int)
+    for p in (acc, ref, cho, ada, dis):
+        p.add_argument("--reason", default=None)
 
     view_opts(commands.add_parser("export", help="graphe filtré en JSON, pour un LLM (R-LLM-01)"))
     view_opts(commands.add_parser("check", help="non-conformités, fiches manquantes, faits masqués"), False)

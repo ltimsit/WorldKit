@@ -14,11 +14,12 @@ from worldkit.core.schema.changes import (
 )
 from worldkit.core.world import World
 
+from .queue import load, refresh
 from .store import ensure_tables, loads_key
 
 # Ordre d'affichage des étiquettes : ce qui demande l'attention d'abord.
 TAG_ORDER = ["out_of_schema", "invalid_value", "unresolved", "anomaly", "intention", "internal_contradiction",
-             "batch_conflict", "competing", "hint_visibility", "enrichment", "optional", "support"]
+             "batch_conflict", "competing", "duplicate", "hint_visibility", "enrichment", "optional", "support"]
 
 
 def describe(c: Change) -> str:
@@ -60,6 +61,7 @@ class ChangeView:
     tags: list[str]
     detail: dict[str, Any]
     fingerprint: str
+    state: str = "open"
 
     @property
     def text(self) -> str:
@@ -80,33 +82,21 @@ class ProposalView:
     changes: list[ChangeView]
     depends_on: list[str] = field(default_factory=list)
     issues: list[str] = field(default_factory=list)
+    closed_reason: str | None = None
 
     @property
     def tags(self) -> list[str]:
-        return sort_tags(sorted({t for c in self.changes for t in c.tags}))
+        return sort_tags(sorted({t for c in self.changes if c.state == "open" for t in c.tags}))
 
 
-def proposals(world: World, batch: str | None = None, status: EditStatus | None = EditStatus.PENDING) -> list[ProposalView]:
-    conn = world.store.conn
-    ensure_tables(conn)
-    sql = ("SELECT p.edit_id, p.batch_id, p.doc_id, p.passage_idx, p.subject, p.kind, p.issues FROM proposals p"
-           " JOIN batches b ON b.batch_id = p.batch_id"
-           " JOIN batch_documents d ON d.batch_id = p.batch_id AND d.doc_id = p.doc_id"
-           " WHERE (? IS NULL OR p.batch_id = ?) ORDER BY b.opened, d.position, p.passage_idx, p.edit_id")
-    out = []
-    for edit_id, batch_id, doc, passage, subject, kind, issues in conn.execute(sql, (batch, batch)).fetchall():
-        rec = world.store.edit(edit_id)
-        if status is not None and rec.status is not status:
-            continue
-        rows = conn.execute("SELECT fingerprint, tags, detail FROM proposal_changes WHERE edit_id = ? ORDER BY idx",
-                            (edit_id,)).fetchall()
-        changes = [ChangeView(c, sort_tags(json.loads(t)), json.loads(d), fp)
-                   for c, (fp, t, d) in zip(rec.edit.changes, rows, strict=True)]
-        deps = [d for (d,) in conn.execute("SELECT depends_on FROM proposal_deps WHERE edit_id = ? ORDER BY depends_on",
-                                           (edit_id,))]
-        out.append(ProposalView(edit_id, rec.status, rec.needs_recheck, batch_id, doc, passage, subject, kind,
-                                rec.base, changes, deps, json.loads(issues)))
-    return out
+def proposals(world: World, batch: str | None = None,
+              status: EditStatus | None = EditStatus.PENDING) -> list[ProposalView]:
+    """Propositions, requalifiées contre la tête au préalable (T-ING-06)."""
+    refresh(world)
+    return [ProposalView(p.id, p.status, p.needs_recheck, p.batch, p.doc, p.passage, p.subject, p.kind, p.base,
+                         [ChangeView(c.change, sort_tags(sorted(c.tags)), c.detail, c.fingerprint, c.state)
+                          for c in p.changes], p.depends_on, p.issues, p.closed_reason)
+            for p in load(world, None, None, status) if batch is None or p.batch == batch]
 
 
 @dataclass(frozen=True)

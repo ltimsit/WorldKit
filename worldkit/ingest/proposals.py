@@ -42,6 +42,7 @@ from worldkit.core.schema.keys import UnknownRelation, target_keys
 from .declaration import Mode, normalize
 
 NEW = "new:"
+PENDING = "pending:"  # entité dont la création est proposée par un lot en attente (T-ING-07)
 
 
 @dataclass(frozen=True)
@@ -123,8 +124,9 @@ def new_entities(drafts: list[dict[str, Any]], taken: set[str]) -> dict[str, New
 def resolve(draft: dict[str, Any], new: dict[str, NewEntity]) -> dict[str, Any]:
     def sub(v: Any) -> Any:
         if isinstance(v, str):
-            if v.startswith(NEW) and v[len(NEW):] in new:
-                return new[v[len(NEW):]].id
+            for prefix in (NEW, PENDING):
+                if v.startswith(prefix) and v[len(prefix):] in new:
+                    return new[v[len(prefix):]].id
             if " " in v:  # désignation textuelle « a relation b » de set_visibility
                 return " ".join(sub(t) for t in v.split(" "))
         return v
@@ -277,6 +279,13 @@ def _cited(c: Change, sc: str) -> list[str]:
     return [qualify(getattr(c, "entity", ""), sc)]
 
 
+def depends(reads: set[FactKey] | frozenset[FactKey], writes: set[FactKey] | frozenset[FactKey],
+            other_writes: set[FactKey] | frozenset[FactKey]) -> bool:
+    """Dépendance (§6.3) : lire une clé que l'autre écrit. Deux écritures de la même clé relèvent de la
+    contradiction ou de la concurrence, pas de la dépendance : elles sont exclues."""
+    return bool((set(reads) & set(other_writes)) - set(writes))
+
+
 def assemble(batch_id: str, items: list[Item], base: State,
              new: dict[str, NewEntity]) -> tuple[list[Qualified], list[ProposalDraft]]:
     """Qualifie les changements du lot ; rend (supports, propositions)."""
@@ -324,7 +333,7 @@ def assemble(batch_id: str, items: list[Item], base: State,
         proposals.append(p)
     for p in proposals:
         for other in proposals:
-            if other is not p and p.reads & other.writes:
+            if other is not p and depends(p.reads, p.writes, other.writes):
                 p.depends_on.add(other.id)
     return supports, proposals
 
