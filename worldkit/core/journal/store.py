@@ -154,6 +154,14 @@ class Store:
             sets.append("needs_recheck = ?"); args.append(int(needs_recheck))
         self.conn.execute(f"UPDATE edits SET {', '.join(sets)} WHERE edit_id = ?", (*args, edit_id))
 
+    def set_origin(self, edit_id: str, origin: str, redefinition: str | None = None) -> None:
+        """Étiquette d'origine d'une édition en attente, déduite à la confirmation (R-EDI-05)."""
+        header = json.loads(self.conn.execute("SELECT header FROM edits WHERE edit_id = ?", (edit_id,)).fetchone()[0])
+        header["origin"] = origin
+        if redefinition:
+            header["redefinition"] = redefinition
+        self.conn.execute("UPDATE edits SET header = ? WHERE edit_id = ?", (json.dumps(header, ensure_ascii=False), edit_id))
+
     def edit(self, edit_id: str) -> EditRecord:
         row = self.conn.execute(
             "SELECT edit_id, branch_id, status, header, base_seq, base_schema_rev, reads, writes, needs_recheck"

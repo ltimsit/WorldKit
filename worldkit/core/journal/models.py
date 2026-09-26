@@ -24,6 +24,7 @@ class Origin(StrEnum):
     SCENARIO_CONSEQUENCE = "scenario_consequence"
     ADOPTED_DRAFT = "adopted_draft"
     REDEFINITION = "redefinition"
+    EVOLUTION = "evolution"  # intention acceptée : le monde change dans son histoire (décision J3.2)
     CORRECTION = "correction"
     CURATION = "curation"
 
