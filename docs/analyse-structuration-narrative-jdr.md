@@ -2,8 +2,8 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v25** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
-**Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3).
+**Statut :** analyse pré-cahier des charges, **v26** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage).
 
 Légende utilisée dans tout le document :
 
@@ -51,6 +51,7 @@ Ajouts v2/v3 :
 > - **v23** : décisions du jalon J2 (journal, projection, vues) — ajout sur une clé occupée (00.40), notoriété d'une clôture (00.41) ; cadre de la fondation v1.17.
 > - **v24** : précisions techniques du jalon J2 (00.42) ; cadre technique v2.8.
 > - **v25** : décisions du jalon J3 (ingestion) — anomalie acceptée (00.43), origine des propositions confirmées (00.44), document obsolète (00.45) ; cadre de la fondation v1.18, cadre technique v2.9.
+> - **v26** : accès aux modèles de langage et routage par tâche (00.46) ; cadre technique v2.10.
 
 ### 00.1 Vision reformulée
 
@@ -962,6 +963,19 @@ Conséquence sur l'ordre : le cœur du module de contradictions (collisions, lec
 
 **Décision.** R-DOC-05 : pendant l'obsolescence, les propositions du document sont bloquées (refusables, non acceptables) et une ingestion du document ne produit ni n'enregistre rien ; la levée les réactive telles quelles ; les décisions tracées restent valables. Le point ouvert §10.1 « Documents obsolètes » est retiré.
 
+### 00.46 Modèles de langage : plusieurs, routés par tâche (v26)
+
+> Décision du 27 septembre 2026, jalon J4.
+
+**Problème.** L'extraction par LLM demande au moins un modèle accessible pour mesurer. La machine de l'auteur ne peut pas faire tourner de modèle local ; l'auteur dispose d'un abonnement Claude et préfère l'utiliser plutôt que l'API facturée à l'usage.
+
+**Voies comparées.**
+- *Utiliser le jeton de l'abonnement directement avec l'API* : écartée — le jeton est documenté pour Claude Code, et Anthropic n'autorise pas, sauf accord, à brancher la connexion claude.ai dans un autre produit.
+- *Clé d'API seulement* : propre techniquement (cache du prompt, sorties structurées), mais facturée à l'usage.
+- *Plusieurs adaptateurs routés par tâche, en commençant par Claude Code en mode non interactif avec l'abonnement* : conforme à l'usage documenté de Claude Code dans des scripts, pour un usage personnel ; prépare l'API et le local. **Retenue.**
+
+**Décision.** Trois adaptateurs derrière l'interface unique (T-LLM-01) : `claude-code` (abonnement, usage personnel), `anthropic-api`, `ollama` (préparé). Un fichier de profils associe chaque tâche à un modèle ; premiers modèles : légers (Haiku 4.5, Sonnet 5). Premières mesures sur Valmont v1 (Sonnet 5 : précision 0,73, rappel 0,86 ; Haiku 4.5 : 0,61, 0,79), à confirmer sur le second jet du corpus avant tout choix.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1557,6 +1571,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 70. Accepter une anomalie qui vise une clé occupée : qui retire l'ancien fait ? — **Réponse (v25) :** ✅ L'édition dérivée, automatiquement, et le diff le montre (00.43).
 71. Quelle origine pour une proposition confirmée qui remplace un fait ? — **Réponse (v25) :** ✅ `redefinition` ponctuelle pour une anomalie, `evolution` pour une intention (00.44).
 72. Que devient un document obsolète, et que produit la levée du statut ? — **Réponse (v25) :** ✅ Propositions bloquées sans être closes, réactivées à la levée ; décisions conservées (00.45).
+73. Quel modèle de langage pour l'extraction, et comment y accéder ? — **Réponse (v26) :** ✅ Plusieurs, routés par tâche ; d'abord Claude Code avec l'abonnement (usage personnel), API et local préparés ; choix final sur le second jet du corpus (00.46).
 
 ---
 

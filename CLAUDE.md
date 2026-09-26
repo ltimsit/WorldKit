@@ -61,7 +61,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **J1 — fait** (branche `j1-schema`) : validateur de schéma, clés de fait, vérification des changements et de la conformité (`worldkit/core/schema/`). Fiche : `docs/j1-brief.md`.
 - **J2 — fait** (branche `j2-journal`) : journal SQLite, projection, collisions et péremption, wiki d'auteur et joueur, export (`worldkit/core/{journal,projection,conflicts,views}`, `worldkit/core/world.py`).
 - **J3 — fait** (branche `j3-ingestion`) : lots, passages, extracteur oracle, propositions qualifiées, revue et décisions, affirmations, ré-ingestion, documents obsolètes (`worldkit/ingest/`, `worldkit/periphery/`).
-- Ensuite : J4 (extraction et résolution par LLM derrière l'adaptateur)… (cadre technique §7).
+- **J4 — outillage fait** (branche `j4-extraction`) : adaptateurs LLM (`claude-code` avec l'abonnement, `anthropic-api`, `ollama`), profils routés par tâche (`worldkit-llm.yaml`), extracteur LLM, mesure T2 (`worldkit eval extraction`). Le choix du modèle attend le second jet du corpus, écrit par l'auteur (T-TST-01).
+- Ensuite : J5 (branches, transposition), ou J8 (méta), ou le second jet du corpus… (cadre technique §7).
 - Points ouverts à trancher avant J8 : lacunes L1, L2, L6 du corpus (`corpus/valmont-v1/README.md` §5).
 
 ## Git
