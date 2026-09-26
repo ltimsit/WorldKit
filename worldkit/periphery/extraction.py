@@ -56,11 +56,16 @@ class OracleExtractor:
         if not matches:
             return Extraction()
         gold = max(matches, key=lambda p: len(p["starts_with"]))
-        drafts, optional = [], set()
-        for i, change in enumerate(gold.get("changes") or []):
-            if change.get("optional"):
-                optional.add(i)
-            drafts.append({k: v for k, v in change.items() if k not in _EXPECTATIONS and k != "optional"})
+        # Un passage annoté par segments (marqueurs) : on aplatit, l'énonciateur restant attaché.
+        parts = gold.get("segments") or [gold]
+        drafts, optional, claims = [], set(), []
+        for part in parts:
+            for change in part.get("changes") or []:
+                if change.get("optional"):
+                    optional.add(len(drafts))
+                drafts.append({k: v for k, v in change.items() if k not in _EXPECTATIONS and k != "optional"})
+            for claim in part.get("claims") or []:
+                claims.append({"text": claim["text"], "claimed": claim.get("claimed"),
+                               "speaker": part.get("speaker")})  # « suggested » : conclusion du noyau, retirée
         flags = ("attribution",) if gold.get("outcome") == "attribution" else ()
-        return Extraction(tuple(drafts), frozenset(optional), tuple(gold.get("claims") or ()), flags,
-                          gold.get("nature"))
+        return Extraction(tuple(drafts), frozenset(optional), tuple(claims), flags, gold.get("nature"))

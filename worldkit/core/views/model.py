@@ -142,6 +142,16 @@ class IdentityLine:
 
 
 @dataclass(frozen=True)
+class ClaimLine:
+    claim: str
+    text: str
+    visibility: Visibility | None           # héritée du document (R-NOT-05)
+    qualification: str | None               # true | false | undetermined, si visible dans la vue
+    qualification_visibility: Visibility | None
+    provenance: str
+
+
+@dataclass(frozen=True)
 class SheetSummary:
     sheet: str
     system: str
@@ -161,6 +171,7 @@ class EntityPage:
     relations: list[RelationLine] = field(default_factory=list)
     identities: list[IdentityLine] = field(default_factory=list)
     sheets: list[SheetSummary] = field(default_factory=list)
+    claims: list[ClaimLine] = field(default_factory=list)
     drafts: list[str] = field(default_factory=list)     # pistes ouvertes : J6
     documents: list[str] = field(default_factory=list)  # documents sources : J3
 
@@ -240,4 +251,21 @@ class View:
                 sheets.append(SheetSummary(sid, srec.sheet.system, srec.sheet.category, lines))
 
         return EntityPage(entity, sorted(members), rec.type, self.title(entity), rec.closed,
-                          rec.visibility, attributes, relations, identities, sheets)
+                          rec.visibility, attributes, relations, identities, sheets, self.claims_of(members))
+
+    def claims_of(self, members: set[str]) -> list[ClaimLine]:
+        """Affirmations dont l'énonciateur est sur la page (R-DOC-06, R-DOC-07, R-NOT-05)."""
+        s, flt = self.state, self.filter
+        out = []
+        for cid, c in sorted(s.claims.items()):
+            if c.get("speaker") not in members:
+                continue
+            vis = Visibility(c["visibility"]) if c.get("visibility") else Visibility.UNQUALIFIED
+            if flt is Filter.PLAYER and vis is not Visibility.PUBLIC:
+                continue
+            q = s.qualifications.get(cid)
+            qvis = Visibility(q["visibility"]) if q and q.get("visibility") else Visibility.UNQUALIFIED
+            shown = q is not None and (flt is Filter.AUTHOR or qvis is Visibility.PUBLIC)
+            out.append(ClaimLine(cid, c.get("text") or cid, vis, q["value"] if shown else None,
+                                 qvis if shown else None, c["established_by"]))
+        return out

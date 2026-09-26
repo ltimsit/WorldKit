@@ -9,7 +9,7 @@ from typing import Any
 from worldkit.core.journal.models import BaseState, EditStatus
 from worldkit.core.schema import Change
 from worldkit.core.schema.changes import (
-    AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, RemoveRelation, RemoveValue, SetAttribute,
+    AddClaim, AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, RemoveRelation, RemoveValue, SetAttribute,
     SetVisibility, UnsetAttribute,
 )
 from worldkit.core.world import World
@@ -43,6 +43,8 @@ def describe(c: Change) -> str:
             return f"+ {c.relation}({c.from_}, {c.to})"
         case RemoveRelation():
             return f"- {c.relation}({c.from_}, {c.to})"
+        case AddClaim():
+            return f"affirmation de {c.speaker} : « {c.text} »"
         case SetVisibility():
             t = c.target
             target = f"{t.relation}({t.from_}, {t.to})" if t.relation else \

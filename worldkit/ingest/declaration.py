@@ -51,10 +51,25 @@ class Axes:
 
 
 @dataclass(frozen=True)
+class Segment:
+    """Partie d'un passage, avec ses axes : ceux de l'en-tête, ou ceux d'un marqueur (niveau 2, R-DEC-01)."""
+
+    text: str
+    voice: Voice
+    speaker: str | None
+    nature: Nature
+    declared_by: str  # "header" | "marker"
+
+
+@dataclass(frozen=True)
 class Passage:
     index: int
     text: str
     fingerprint: str
+    segments: tuple[Segment, ...] = ()
+
+    def speakers(self) -> list[str]:
+        return [s.speaker for s in self.segments if s.voice is Voice.IN_WORLD and s.speaker]
 
 
 @dataclass(frozen=True)
@@ -75,6 +90,27 @@ def fingerprint(text: str) -> str:
 
 
 _FRONTMATTER = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+_MARKER = re.compile(r"\[(in_world):\s*([^\]]+)\](.*?)\[/in_world\]|\[(meta)\](.*?)\[/meta\]", re.DOTALL)
+
+
+def segments(text: str, axes: Axes) -> tuple[Segment, ...]:
+    """Découpe un passage selon ses marqueurs ; hors marqueur, les axes de l'en-tête s'appliquent."""
+    out: list[Segment] = []
+    pos = 0
+
+    def plain(chunk: str) -> None:
+        if chunk.strip():
+            out.append(Segment(normalize(chunk), axes.voice, axes.speaker, axes.nature, "header"))
+
+    for m in _MARKER.finditer(text):
+        plain(text[pos:m.start()])
+        if m.group(1):
+            out.append(Segment(normalize(m.group(3)), Voice.IN_WORLD, m.group(2).strip(), axes.nature, "marker"))
+        else:
+            out.append(Segment(normalize(m.group(5)), axes.voice, axes.speaker, Nature.META_SYSTEM, "marker"))
+        pos = m.end()
+    plain(text[pos:])
+    return tuple(out)
 
 
 def parse_document(text: str, path: str = "") -> DocumentVersion:
@@ -94,7 +130,7 @@ def parse_document(text: str, path: str = "") -> DocumentVersion:
         raise DeclarationError(f"{path} : un document in_world nomme son énonciateur (speaker) (R-DOC-02)")
     body = text[m.end():]
     blocks = [b for b in re.split(r"\n\s*\n", body) if b.strip() and not b.lstrip().startswith("#")]
-    passages = tuple(Passage(i, normalize(b), fingerprint(b)) for i, b in enumerate(blocks, start=1))
+    passages = tuple(Passage(i, normalize(b), fingerprint(b), segments(b, axes)) for i, b in enumerate(blocks, start=1))
     return DocumentVersion(str(header["id"]), path, fingerprint(body), axes, passages)
 
 

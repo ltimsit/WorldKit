@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 from worldkit.core.journal.models import Edit, EditStatus, Origin, RedefinitionKind
 from worldkit.core.schema import Change, Issue, IssueCode, fact_keys
-from worldkit.core.schema.changes import AddRelation, RemoveRelation
+from worldkit.core.schema.changes import AddClaim, AddRelation, QualifyClaim, RemoveRelation, parse_change
 from worldkit.core.schema.keys import UnknownRelation
 from worldkit.core.world import World
 
@@ -93,12 +93,14 @@ def _with_removals(world: World, kept: list[StoredChange]) -> tuple[list[Change]
     return removals, [c.change for c in kept]
 
 
-def _apply(world: World, p: StoredProposal, kept: list[StoredChange], extra: list[Change], action: str,
-           refused: list[StoredChange], reason: str | None, prepend: bool = True) -> Decided:
+def _apply(world: World, p: StoredProposal, kept: list[StoredChange], before: list[Change], action: str,
+           refused: list[StoredChange], reason: str | None, after: list[Change] | None = None,
+           origin: tuple[Origin, RedefinitionKind | None] | None = None) -> Decided:
+    after = after or []
     removals, changes = _with_removals(world, kept)
-    changes = (extra + removals + changes) if prepend else (removals + extra)
-    origin, redefinition = origin_for(kept)
-    whole = not extra and not removals and len(kept) == len(p.changes)
+    changes = before + removals + changes + after
+    origin, redefinition = origin or origin_for(kept)
+    whole = not before and not after and not removals and len(kept) == len(p.changes)
     conn = world.store.conn
     if whole:
         with conn:
@@ -174,7 +176,7 @@ def adapt(world: World, pid: str, changes: list[Change], replace: bool = False, 
         return p
     kept = p.open_changes()
     if replace:
-        return _apply(world, p, [], changes, "adapt", kept, reason, prepend=False)
+        return _apply(world, p, [], changes, "adapt", kept, reason)
     return _apply(world, p, kept, changes, "adapt", [], reason)
 
 
@@ -196,6 +198,58 @@ def choose(world: World, pid: str, reason: str | None = None) -> list[Decided]:
         if losing:
             out.append(refuse(world, other.id, losing, reason or f"conflit tranché pour {pid}"))
     return out
+
+
+def _claim(p: StoredProposal) -> AddClaim | None:
+    c = p.changes[0].change
+    return c if isinstance(c, AddClaim) else None
+
+
+def qualify(world: World, target: str, value: str, visibility: str | None = None,
+            reason: str | None = None) -> Decided:
+    """Qualifier une affirmation `true` / `false` / `undetermined` (R-DOC-07).
+
+    `target` : la proposition d'affirmation (appliquée avec sa qualification), ou l'identifiant d'une
+    affirmation déjà dans l'état. La qualification a sa propre notoriété, non qualifiée par défaut
+    (R-NOT-02) : la rendre publique est une nouvelle qualification.
+    """
+    change = QualifyClaim(op="qualify_claim", claim="", value=value, visibility=visibility)
+    ensure_tables(world.store.conn)
+    refresh(world)
+    p = load_one(world, target)
+    if p is not None and p.status is EditStatus.PENDING:
+        claim = _claim(p)
+        if claim is None:
+            return _fail(target, "qualify", "seule une affirmation se qualifie", "R-DOC-07")
+        return _apply(world, p, p.open_changes(), [], "qualify", [], reason,
+                      after=[change.model_copy(update={"claim": claim.claim})])
+    claim_id = target
+    if p is not None:
+        claim = _claim(p)
+        claim_id = claim.claim if claim else target
+    if claim_id not in world.state().claims:
+        return _fail(target, "qualify", f"affirmation inconnue : {target}", "R-DOC-07")
+    n = world.store.conn.execute("SELECT COUNT(*) FROM edits WHERE edit_id LIKE ?", (f"{claim_id}.q%",)).fetchone()[0]
+    edit_id = f"{claim_id}.q{n + 1}"
+    outcome = world.apply(Edit(id=edit_id, branch=world.reference_branch, origin=Origin.ENRICHMENT,
+                               tags=["qualification"], changes=[change.model_copy(update={"claim": claim_id})]))
+    return Decided(target, "qualify", edit_id if outcome.ok else None, outcome.seq, outcome.issues)
+
+
+def promote(world: World, pid: str, visibility: str | None = None, reason: str | None = None) -> Decided:
+    """Promouvoir une affirmation en fait (R-DOC-07) : une édition combine l'affirmation, sa qualification
+    `true` et le changement revendiqué."""
+    p = _pending(world, pid, "promote")
+    if isinstance(p, Decided):
+        return p
+    claim = _claim(p)
+    if claim is None or not claim.claimed:
+        return _fail(pid, "promote", "aucun changement revendiqué à promouvoir", "R-DOC-07")
+    fact = parse_change({**claim.claimed, **({"visibility": visibility} if visibility else {})})
+    qualification = QualifyClaim(op="qualify_claim", claim=claim.claim, value="true")
+    suggested = p.changes[0].detail.get("suggested")
+    origin = (Origin.REDEFINITION, RedefinitionKind.POINT) if suggested == "false" else (Origin.ENRICHMENT, None)
+    return _apply(world, p, p.open_changes(), [], "promote", [], reason, after=[qualification, fact], origin=origin)
 
 
 def dismiss(world: World, doc: str, passage: int, reason: str | None = None) -> None:

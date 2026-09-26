@@ -77,7 +77,7 @@ TAG_FR = {
     "out_of_schema": "hors schéma", "invalid_value": "valeur invalide", "unresolved": "entité inconnue",
     "anomaly": "anomalie", "intention": "intention", "internal_contradiction": "contradiction interne",
     "batch_conflict": "conflit dans le lot", "competing": "concurrente", "duplicate": "déjà proposé",
-    "hint_visibility": "indice de notoriété",
+    "hint_visibility": "indice de notoriété", "claim": "affirmation",
     "enrichment": "enrichissement", "optional": "facultatif", "support": "support",
 }
 
@@ -130,6 +130,10 @@ def _run_decision(world: Any, args: argparse.Namespace) -> int:
                                for pid in args.proposals])
     if cmd == "choose":
         return _print_decided(decide.choose(world, args.proposal, args.reason))
+    if cmd == "qualify":
+        return _print_decided([decide.qualify(world, args.target, args.value, args.visibility, args.reason)])
+    if cmd == "promote":
+        return _print_decided([decide.promote(world, args.proposal, args.visibility, args.reason)])
     if cmd == "adapt":
         from worldkit.core.schema import parse_change
         raw = read_yaml(args.prepend or args.replace)
@@ -153,7 +157,9 @@ def _run_review(world: Any, args: argparse.Namespace) -> int:
             print(f"{v.id}{recheck}  [{_tags(v.tags)}]")
             for c in v.changes:
                 if c.state == "open":
-                    print(f"    {c.text}")
+                    suggested = c.detail.get("suggested")
+                    hint = f"   (suggestion : {suggested})" if suggested else ""
+                    print(f"    {c.text}{hint}")
         print(f"{len(views)} proposition(s) en attente ; {len(supports(world, args.batch))} support(s)")
         for doc, idx, flags in flagged_passages(world, args.batch):
             print(f"  passage {doc} p{idx} : {', '.join(flags)}")
@@ -358,7 +364,14 @@ def build_parser() -> argparse.ArgumentParser:
     dis = review_cmds.add_parser("dismiss", help="écarter un passage signalé (attribution)")
     dis.add_argument("document")
     dis.add_argument("passage", type=int)
-    for p in (acc, ref, cho, ada, dis):
+    qua = review_cmds.add_parser("qualify", help="qualifier une affirmation (R-DOC-07)")
+    qua.add_argument("target", help="proposition d'affirmation, ou identifiant d'une affirmation appliquée")
+    qua.add_argument("value", choices=["true", "false", "undetermined"])
+    qua.add_argument("--visibility", choices=["public", "secret", "unqualified"], default=None)
+    pro = review_cmds.add_parser("promote", help="promouvoir une affirmation en fait")
+    pro.add_argument("proposal")
+    pro.add_argument("--visibility", choices=["public", "secret", "unqualified"], default=None)
+    for p in (acc, ref, cho, ada, dis, qua, pro):
         p.add_argument("--reason", default=None)
 
     view_opts(commands.add_parser("export", help="graphe filtré en JSON, pour un LLM (R-LLM-01)"))

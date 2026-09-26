@@ -17,6 +17,7 @@ Qualification de chaque changement (cadre de fondation §5.2, T-ING-03) :
 | `unresolved` | entité citée inconnue |
 | `hint_visibility` | notoriété tirée d'un indice : proposition à part (T-ING-15) |
 | `optional` | marqué facultatif par l'extracteur |
+| `claim` | affirmation d'une voix du monde (R-DOC-06) ; qualification suggérée dans le détail (T-ING-12) |
 
 Une proposition = les changements d'un passage qui portent sur une même entité sujet ; une entité
 nouvelle vient avec ses faits initiaux (T-ING-04). Dépendances : une proposition dépend de celle
@@ -33,8 +34,8 @@ from typing import Any
 from worldkit.core.projection.state import State, relation_fact_id, target_fact_id
 from worldkit.core.schema import Change, EntityInfo, FactKey, IssueCode, SchemaContext, fact_keys, qualify
 from worldkit.core.schema.changes import (
-    AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, RemoveRelation, RemoveValue, SetAttribute,
-    SetVisibility, UnsetAttribute,
+    AddClaim, AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, RemoveRelation, RemoveValue,
+    SetAttribute, SetVisibility, UnsetAttribute, parse_change,
 )
 from worldkit.core.schema.check import check_edit, check_fact_change
 from worldkit.core.schema.keys import UnknownRelation, target_keys
@@ -169,6 +170,41 @@ def _context(base: State, new: dict[str, NewEntity]) -> SchemaContext:
     return ctx
 
 
+def suggest(claimed: Any, state: State, ctx: SchemaContext) -> str:
+    """Qualification suggérée d'une affirmation (T-ING-12, R-DEC-02 : une suggestion, jamais une décision).
+
+    Le changement revendiqué est comparé à l'état, faits secrets compris : même valeur → `true` ;
+    clé occupée autrement (ou entité ouverte quand la clôture est revendiquée) → `false` ; sinon
+    `undetermined`.
+    """
+    if not claimed:
+        return "undetermined"
+    try:
+        c = parse_change(claimed)
+    except ValueError:
+        return "undetermined"
+    sc = c.scope
+    match c:
+        case SetAttribute():
+            fact = state.facts.get(("attr", qualify(c.entity, sc), c.attribute))
+            return "undetermined" if fact is None else "true" if fact.value == c.value else "false"
+        case AddValue():
+            return "true" if ("value", qualify(c.entity, sc), c.attribute, c.value) in state.facts else "undetermined"
+        case AddRelation():
+            try:
+                fid = relation_fact_id(c.from_, c.relation, c.to, sc, ctx)
+                keys = fact_keys(c, ctx)
+            except UnknownRelation:
+                return "undetermined"
+            if fid in state.facts:
+                return "true"
+            return "false" if any(k in state.occupancy for k in keys) else "undetermined"
+        case CloseEntity():
+            entity = state.entities.get(qualify(c.entity, sc))
+            return "undetermined" if entity is None else "true" if entity.closed else "false"
+    return "undetermined"
+
+
 def _conflict_tag(mode: Mode) -> str:
     return "anomaly" if mode is Mode.SOURCE else "intention"
 
@@ -194,6 +230,10 @@ def qualify_item(item: Item, base: State, ctx: SchemaContext) -> Qualified:
 
     sc = c.scope
     match c:
+        case AddClaim():
+            q.tags.add("claim")
+            q.value = c.claim
+            q.detail["suggested"] = suggest(c.claimed, base, ctx)
         case SetVisibility():
             q.tags.add("hint_visibility")
             q.value = c.value
@@ -235,7 +275,7 @@ def _cross_checks(qualified: list[Qualified]) -> None:
     """Contradictions internes au document (R-ING-02) et conflits symétriques du lot (R-PRI-03)."""
     by_key: dict[FactKey, list[Qualified]] = {}
     for q in qualified:
-        if "hint_visibility" in q.tags or q.value is None:
+        if {"hint_visibility", "claim"} & q.tags or q.value is None:
             continue
         for k in q.keys:
             by_key.setdefault(k, []).append(q)
@@ -260,6 +300,8 @@ def _cross_checks(qualified: list[Qualified]) -> None:
 # ---------------------------------------------------------------------------
 
 def _subject(c: Change, sc: str) -> str:
+    if isinstance(c, AddClaim):
+        return c.claim  # une affirmation = une proposition
     if isinstance(c, (AddRelation, RemoveRelation)):
         return qualify(c.from_, sc)
     if isinstance(c, SetVisibility):
@@ -276,6 +318,8 @@ def _cited(c: Change, sc: str) -> list[str]:
         return [qualify(e, sc) for e in ((t.from_, t.to) if t.relation else (t.entity,)) if e]
     if isinstance(c, CreateEntity):
         return []
+    if isinstance(c, AddClaim):
+        return [c.speaker] if c.speaker else []
     return [qualify(getattr(c, "entity", ""), sc)]
 
 
@@ -302,7 +346,7 @@ def assemble(batch_id: str, items: list[Item], base: State,
         if q.is_support:
             continue
         c = q.item.change
-        kind = "hint" if isinstance(c, SetVisibility) else "facts"
+        kind = "hint" if isinstance(c, SetVisibility) else "claim" if isinstance(c, AddClaim) else "facts"
         key = (q.item.doc_id, q.item.version_fp, q.item.passage, kind, _subject(c, c.scope))
         groups.setdefault(key, []).append(q)
 

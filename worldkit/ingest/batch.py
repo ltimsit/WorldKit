@@ -102,13 +102,21 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
             for index, ex in _extract(world, extractor, doc, schema_fp, report):
                 flags = list(ex.flags)
                 nature = Nature(ex.nature) if ex.nature in Nature._value2member_map_ else None
+                passage = doc.passages[index - 1]
                 if doc.axes.nature in META or nature in META:
                     flags.append("meta")  # conservé, sans proposition avant J8 (cadre technique §7)
-                elif doc.axes.voice is Voice.IN_WORLD:
-                    flags.append("in_world")  # affirmations : J3.3
                 else:
-                    for i, draft in enumerate(ex.drafts):
-                        raw.append((doc, index, i, draft, i in ex.optional))
+                    if doc.axes.voice is not Voice.IN_WORLD:  # en in_world, le contenu n'établit pas de faits
+                        for i, draft in enumerate(ex.drafts):
+                            raw.append((doc, index, i, draft, i in ex.optional))
+                    speakers = passage.speakers()
+                    for n, claim in enumerate(ex.claims, start=1):
+                        speaker = claim.get("speaker") or (speakers[0] if speakers else doc.axes.speaker)
+                        if speaker is None:
+                            continue  # une affirmation a un énonciateur (R-DOC-02)
+                        raw.append((doc, index, len(ex.drafts) + n, {
+                            "op": "add_claim", "claim": f"{doc.doc_id}.p{index}.c{n}", "document": doc.doc_id,
+                            "speaker": speaker, "text": claim["text"], "claimed": claim.get("claimed")}, False))
                 passage_flags[(doc.doc_id, index)] = flags
 
     # Résolution : les créations proposées par les lots en attente sont reprises, jamais dupliquées (T-ING-07).
