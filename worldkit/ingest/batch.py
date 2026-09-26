@@ -391,3 +391,40 @@ def batch_documents(batches_yaml: str | Path, batch_id: str) -> list[Path]:
 
 __all__ = ["BatchError", "BatchReport", "batch_documents", "ingest", "schema_fingerprint",
            "CloseEntity", "DeleteEntity", "SetVisibility"]
+
+
+class CachedExtractor:
+    """Extracteur adossé au cache d'extraction de la base (T-ING-09), pour la mesure : noter de nouveau ne
+    rappelle pas le modèle. Lecture au départ, écriture par `flush()` dans le fil principal (SQLite)."""
+
+    def __init__(self, inner: Extractor, world: World, schema_fp: str) -> None:
+        self.inner, self.world, self.schema_fp = inner, world, schema_fp
+        self.version = inner.version
+        self.concurrency = getattr(inner, "concurrency", 1)
+        ensure_tables(world.store.conn)
+        self._known = {fp: payload for fp, payload in world.store.conn.execute(
+            "SELECT passage_fp, payload FROM extraction_cache WHERE schema_fp = ? AND extractor = ?",
+            (schema_fp, self.version))}
+        self._new: dict[str, str] = {}
+        self.hits = 0
+
+    def extract(self, doc_id: str, passage_text: str, context: ExtractionContext | None = None) -> Extraction:
+        from .declaration import fingerprint
+        fp = fingerprint(passage_text)
+        payload = self._known.get(fp) or self._new.get(fp)
+        if payload is not None:
+            self.hits += 1
+            d = json.loads(payload)
+            return Extraction(tuple(d["drafts"]), frozenset(d["optional"]), tuple(d["claims"]), tuple(d["flags"]),
+                              d["nature"])
+        ex = self.inner.extract(doc_id, passage_text, context)
+        self._new[fp] = dumps({**asdict(ex), "optional": sorted(ex.optional)})
+        return ex
+
+    def flush(self) -> int:
+        with self.world.store.conn:
+            for fp, payload in self._new.items():
+                self.world.store.conn.execute("INSERT OR IGNORE INTO extraction_cache VALUES (?, ?, ?, ?)",
+                                              (fp, self.schema_fp, self.version, payload))
+        written, self._new = len(self._new), {}
+        return written

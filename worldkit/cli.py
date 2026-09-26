@@ -131,11 +131,16 @@ def _run_eval(world: Any, args: argparse.Namespace) -> int:
     declared = _yaml.safe_load(Path(args.batches).read_text(encoding="utf-8"))["batches"]
     batches = args.batch or [b["id"] for b in declared]
     paths = [batch_documents(args.batches, b) for b in batches]
-    extractor = _llm_extractor(args)
-    print(f"extracteur : {extractor.version} ; {sum(map(len, paths))} document(s) ; répétitions : {args.repeat}")
+    from worldkit.ingest.batch import CachedExtractor, schema_fingerprint
     state = world.state()
+    extractor = _llm_extractor(args)
+    if not args.no_cache:
+        extractor = CachedExtractor(extractor, world, schema_fingerprint(state))
+    print(f"extracteur : {extractor.version} ; {sum(map(len, paths))} document(s) ; répétitions : {args.repeat}")
     report = evaluate(extractor, OracleExtractor(Path(args.oracle)), Path(args.oracle), paths,
                       extraction_context(world, state), args.repeat, state)
+    if not args.no_cache:
+        print(f"  cache : {extractor.hits} relu(s), {extractor.flush()} ajouté(s)")
     summary = report.summary()
     for k, v in summary.items():
         if k != "per_op":
@@ -424,6 +429,7 @@ def build_parser() -> argparse.ArgumentParser:
     evx.add_argument("--batch", action="append", help="lot à mesurer (répétable) ; défaut : tous")
     evx.add_argument("--repeat", type=int, default=1, help="2 pour mesurer la stabilité (deux appels par passage)")
     evx.add_argument("--out", default=None, help="rapport JSON détaillé")
+    evx.add_argument("--no-cache", action="store_true", help="rappeler le modèle même pour un passage déjà extrait")
 
     review = commands.add_parser("review", help="file de revue des propositions")
     review_cmds = review.add_subparsers(dest="review_command", required=True)
