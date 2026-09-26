@@ -44,6 +44,9 @@ Ces formats sont des choix de fixture, faits pour écrire le corpus ; ils ne pr�
 | Notoriété | Absente = `unqualified`. |
 | Système de règles | Même langage que le schéma de monde, avec `kind: rule_system` ; éléments du système adressés `system-a:bite`. |
 | Fiche | `create_entity` de type `Sheet` avec `sheet: { of, system, category }` ; identifiant `entité@système` (voir lacune L2). |
+| Fiches exigées | Dans `world.yaml`, par système : `sheets: { TypeDuMonde: Catégorie }`, sous-types compris (R-MET-06). |
+| Changements de schéma | `schema_set_relation` : `relation` + `definition` complète ; `schema_set_type` : `type` + `definition` complète, ou `attribute` + `definition` d'attribut, ou `attribute` + `constraint` (`min`, `max`, `required`). |
+| Notoriété désignée | `set_visibility` : `target` textuel (« `a relation b` », « `entité.attribut` », « `entité` ») ou structuré (`entity`, `attribute`, `value`, `from`, `relation`, `to`). |
 | Passages | Paragraphes du corps du document, titres exclus, numérotés à partir de 1. |
 | Gold | Par passage : `mentions` (résolution attendue ; `new:` = entité nouvelle, `pending:` = entité seulement proposée), `changes` avec `outcome`, `must_not` (pièges), `optional`. |
 | Outcomes | `support`, `enrichment`, `anomaly`, `intention`, `batch_conflict`, `competing`, `out_of_schema`, `hint_visibility`, `attribution` ; pour les affirmations : `claimed` et `suggested` (`true` / `false` / `undetermined`). |
@@ -79,12 +82,12 @@ Ces formats sont des choix de fixture, faits pour écrire le corpus ; ils ne pr�
 
 | # | Lacune | Où | Règles |
 |---|---|---|---|
-| L1 | Le lien entre les deux nœuds d'un élément à double face n'a pas de nom ; `counterpart_of` est provisoire. | base e006 | R-MET-04 |
+| L1 | Le lien entre les deux nœuds d'un élément à double face n'a pas de nom ; `counterpart_of` est provisoire. **En attente** (cadre v1.16) : relation noyau provisoire, acceptée et signalée ; nom et cardinalité à fixer. | base e006 | R-MET-04 |
 | L2 | La forme d'une fiche dans les changements n'est pas fixée (type noyau `Sheet`, relations `has_sheet` et `conforms_to`, ou raccourci). | base e006, b4 | R-MET-01, §4.4 |
 | L3 | ~~Un lot peut citer une entité seulement proposée par un autre lot en attente.~~ **Tranchée** (cadre technique v2.3) : la résolution voit les créations en attente et en reprend l'identifiant ; dépendance envers la création. | b5 p1, W03 | T-ING-07, T-ING-05 |
 | L4 | ~~La notoriété d'une qualification d'affirmation n'est pas fixée.~~ **Tranchée** (cadre v1.14) : la qualification porte sa propre notoriété, non qualifiée par défaut. | W06 | R-DOC-07, R-NOT-02 |
 | L5 | ~~Un fait déclaré public qui mentionne une entité non qualifiée ou secrète.~~ **Tranchée** (cadre v1.13) : notoriété plafonnée par l'entité, levée explicite (`propagation_lifted`), faits masqués signalés. | Q01, W12 | R-NOT-04, R-NOT-07 |
-| L6 | Les éléments de schéma n'ont pas de clé de fait : on ne sait pas exprimer qu'un passage « soutient » une règle de système, ni la dépendance d'une édition à une définition de type. | b4 p4, W09 | R-FAI-05, R-SCH-03 |
+| L6 | Les éléments de schéma n'ont pas de clé de fait : on ne sait pas exprimer qu'un passage « soutient » une règle de système, ni la dépendance d'une édition à une définition de type. **En attente** (cadre technique v2.6) : clé provisoire `(portée, type|relation, nom[, attribut])`. | b4 p4, W09 | R-FAI-05, R-SCH-03 |
 | L7 | ~~Aucune étiquette d'origine ne convient à une décision documentaire.~~ **Tranchée** (cadre v1.15) : origine `curation`, réservée aux changements de statut de document. | W14 | R-EDI-05, R-EDI-09 |
 
 ## 6. Ce que ce jet ne teste pas bien

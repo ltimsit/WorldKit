@@ -1,7 +1,7 @@
 # Cadre conceptuel de la fondation
 
 **Objet :** base de vérité du modèle conceptuel de la fondation. Sert d'entrée à la conception technique.
-**Version :** 1.15 — 26 septembre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v21, section 00).
+**Version :** 1.16 — 26 septembre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v22, section 00).
 **Statut :** de référence. En cas de divergence avec l'analyse ou avec le cadre technique, ce document prévaut.
 
 **Conventions**
@@ -98,6 +98,11 @@ flowchart TB
 | Attribut à valeurs multiples | `list[...]` | Attribut dont la valeur est un ensemble non ordonné ; chaque valeur est un fait à part (R-FAI-05). |
 | Clé de fait | `fact_key` | Emplacement qu'occupe un fait ; deux faits de même clé ne coexistent pas dans un état (R-FAI-05). |
 | Fiche | `Sheet` | Valeurs méta d'une entité dans un système donné. |
+| Fiches exigées | `sheets` | Déclaration du monde, par système : types du monde qui exigent une fiche et catégorie attendue (R-MET-06). |
+| Contrepartie | `counterpart_of` | Relation noyau, provisoire, entre les deux nœuds d'un élément à double face (R-MET-04, lacune L1). |
+| Hors schéma | `out_of_schema` | Changement qui cite un élément non déclaré ; non applicable (R-SCH-06). |
+| Valeur invalide | `invalid_value` | Changement qui cite des éléments déclarés en violant leurs contraintes ; non applicable (R-SCH-06). |
+| Non-conformité | `non_conforming` | Élément d'un état devenu invalide après une modification du schéma ; toléré et signalé (R-SCH-10). |
 | Document | `Document` | Source ingérée. Un document in-world est aussi une entité de l'univers. |
 | Lot | `Batch` | Ensemble de documents ingérés ensemble. |
 | Affirmation | `Claim` | Contenu attribué à une voix du monde ; n'est pas un fait. |
@@ -179,16 +184,16 @@ Principe : **un système libre, contraint par monde.** Le moteur ne présuppose 
 
 | ID | Règle |
 |---|---|
-| R-SCH-01 | Le schéma de monde **doit** déclarer les types d'entités (attributs typés, contraintes, héritage éventuel) et les types de relations (domaine, cible, cardinalité, symétrie). La cardinalité (`cardinality`) se lit de `from` vers `to` : `one_to_many` signifie qu'une cible a au plus une source ; `many_to_many` est la valeur par défaut. Un attribut de type `list[...]` est un ensemble non ordonné de valeurs. |
+| R-SCH-01 | Le schéma de monde **doit** déclarer les types d'entités (attributs typés, contraintes, héritage éventuel) et les types de relations (domaine, cible, cardinalité, symétrie). La cardinalité (`cardinality`) se lit de `from` vers `to` : `one_to_many` signifie qu'une cible a au plus une source ; `many_to_many` est la valeur par défaut. Un attribut de type `list[...]` est un ensemble non ordonné de valeurs. Une relation symétrique (`symmetric`) a les mêmes types en `from` et en `to`, et une cardinalité `one_to_one` ou `many_to_many`. |
 | R-SCH-02 | Schéma de monde et systèmes **doivent** utiliser le **même langage** et le **même validateur**. |
 | R-SCH-03 | Les schémas **font partie de l'état** : les modifier est une édition (ponctuelle ou rétroactive). |
 | R-SCH-04 | Une modification de schéma **ne doit pas** modifier d'office les éléments existants : les non-conformités sont **signalées**. |
 | R-SCH-05 | La plateforme **doit** fournir un schéma de monde par défaut (fantasy) à copier et adapter. |
-| R-SCH-06 | Un changement qui cite un type, un attribut ou une relation que le schéma de l'état visé ne déclare pas est **hors schéma** : il **doit** être signalé et mis en attente, et **ne peut pas être appliqué** en l'état. Il ne devient applicable que s'il est adapté vers un élément déclaré, ou si la même édition étend le schéma pour le rendre représentable (R-SCH-03, R-MET-05). Cela vaut pour toute voie d'alimentation et pour les systèmes de règles (R-SCH-02). |
+| R-SCH-06 | Un changement **non représentable** dans le schéma de l'état visé **doit** être signalé et mis en attente, et **ne peut pas être appliqué** en l'état. Il est non représentable s'il est **hors schéma** (`out_of_schema` : il cite un type, un attribut ou une relation non déclaré) ou de **valeur invalide** (`invalid_value` : il cite des éléments déclarés mais viole leurs contraintes — type ou bornes d'une valeur, type d'une extrémité de relation, attribut requis vidé ou absent d'une entité créée, `set_attribute` sur un attribut `list[...]` ou `add_value` sur un attribut simple). Il ne devient applicable que s'il est adapté vers un changement représentable, ou si la même édition modifie le schéma pour le rendre représentable (R-SCH-03, R-MET-05). Cela vaut pour toute voie d'alimentation et pour les systèmes de règles (R-SCH-02). |
 | R-SCH-07 | Dans la fondation, les identifiants des types, attributs et relations **de monde** **doivent** être en anglais, comme ceux de la plateforme. Norme de départ volontairement stricte, assouplissable plus tard. |
 | R-SCH-08 | Chaque type, attribut et relation **peut** porter des libellés par langue (`labels`) ; champ préparé, exploité par une future interface. Sans libellé, l'identifiant est affiché tel quel. |
 | R-SCH-09 | Les termes de la plateforme (types noyau, énumérations) se traduisent dans l'interface ; les termes définis par l'auteur se traduisent via `labels` dans le schéma. |
-| R-SCH-10 | **Hors schéma ≠ non-conformité.** Un élément **non conforme** était valide quand il a été écrit et l'est devenu après une modification du schéma : il est **toléré et signalé** (R-SCH-04). Un changement **hors schéma** n'a jamais été représentable : il est **refusé à l'application** (R-SCH-06). |
+| R-SCH-10 | **Hors schéma ≠ non-conformité.** Un élément **non conforme** était valide quand il a été écrit et l'est devenu après une modification du schéma : il est **toléré et signalé** (R-SCH-04). Un changement **non représentable** (hors schéma ou de valeur invalide) ne l'a jamais été : il est **refusé à l'application** (R-SCH-06). |
 
 Exemple :
 
@@ -218,7 +223,7 @@ Fournis par la plateforme, **non configurables**, car la mécanique en dépend.
 
 | Types noyau | Relations noyau |
 |---|---|
-| `Document`, `Batch`, `Claim`, `Edit`, `Draft`, `Proposal`, `Scenario`, `ScenarioVersion`, `Playthrough`, `Sheet` | `concerns` (édition/piste → entité), `asserts` (document → affirmation), `has_sheet` (entité → fiche), `conforms_to` (fiche → catégorie de système), `same_as` (entité ↔ entité) |
+| `Document`, `Batch`, `Claim`, `Edit`, `Draft`, `Proposal`, `Scenario`, `ScenarioVersion`, `Playthrough`, `Sheet` | `concerns` (édition/piste → entité), `asserts` (document → affirmation), `has_sheet` (entité → fiche), `conforms_to` (fiche → catégorie de système), `same_as` (entité ↔ entité), `counterpart_of` (élément du monde → élément d'un système ; **provisoire**, lacune L1) |
 
 | ID | Règle |
 |---|---|
@@ -247,7 +252,7 @@ flowchart LR
 | R-FAI-02 | Tout fait **doit** porter une **notoriété** (4.9). |
 | R-FAI-03 | Tout fait **peut** porter une **fenêtre de validité diégétique** (`diegetic_window`) ; champ préparé, non exploité par la fondation. |
 | R-FAI-04 | Un fait n'existe que dans un **état** : il est créé, modifié ou retiré par des changements (§6.1). |
-| R-FAI-05 | Tout fait **doit** avoir une **clé de fait** (`fact_key`), déduite du schéma ; deux faits de même clé ne peuvent coexister dans un état. Attribut : `(entity, attribute)` ; attribut à valeurs multiples (`list[...]`) : `(entity, attribute, value)`, une clé par valeur. Relation, selon sa cardinalité (R-SCH-01) : `many_to_many` → `(from, relation, to)` ; `one_to_many` → `(relation, to)` ; `many_to_one` → `(from, relation)` ; `one_to_one` → les deux clés précédentes. Relation symétrique : extrémités rangées dans un ordre canonique. L'existence d'une entité a pour clé `(entity)`. La clé fonde la détection des contradictions et des dépendances (R-EDI-03, §6.3). |
+| R-FAI-05 | Tout fait **doit** avoir une **clé de fait** (`fact_key`), déduite du schéma ; deux faits de même clé ne peuvent coexister dans un état. Attribut : `(entity, attribute)` ; attribut à valeurs multiples (`list[...]`) : `(entity, attribute, value)`, une clé par valeur. Relation, selon sa cardinalité (R-SCH-01) : `many_to_many` → `(from, relation, to)` ; `one_to_many` → `(relation, to)` ; `many_to_one` → `(from, relation)` ; `one_to_one` → les deux clés précédentes. Relation symétrique : extrémités rangées dans un ordre canonique ; en `one_to_one`, les rôles `from` et `to` étant interchangeables, une clé `(extrémité, relation)` par extrémité (`spouse_of(mervin, isabeau)` occupe `(mervin, spouse_of)` et `(isabeau, spouse_of)`). L'existence d'une entité a pour clé `(entity)`. La clé fonde la détection des contradictions et des dépendances (R-EDI-03, §6.3). |
 | R-FAI-06 | Un fait d'origine documentaire qui perd son dernier support (passage supprimé à la ré-ingestion) **doit** être signalé comme **orphelin** (`orphan_fact`) ; il n'est **jamais retiré d'office** (R-PRI-01). |
 
 ### 4.6 Méta : systèmes et fiches
@@ -276,9 +281,9 @@ flowchart LR
 | R-MET-01 | Le méta **doit** vivre hors de l'univers : dans les systèmes (règles, catégories, attributs) et les fiches (valeurs par entité et par système). |
 | R-MET-02 | Une entité **peut** avoir une fiche par système. |
 | R-MET-03 | Critère de classement : *une information qui reste vraie si l'on change de système de règles est diégétique ; sinon elle est méta.* |
-| R-MET-04 | Un élément à double face (sort, capacité nommée) **doit** être représenté par deux nœuds reliés : un dans l'univers, un dans le système. |
+| R-MET-04 | Un élément à double face (sort, capacité nommée) **doit** être représenté par deux nœuds reliés : un dans l'univers, un dans le système. Le lien est la relation noyau `counterpart_of`, provisoire jusqu'à ce que la lacune L1 soit tranchée. |
 | R-MET-05 | Fiches et systèmes **suivent le même historique** que l'univers ; une édition peut toucher lore, fiche, système et schéma à la fois. |
-| R-MET-06 | Un système **doit** signaler les fiches non conformes et les fiches manquantes, sans les modifier. |
+| R-MET-06 | Un système **doit** signaler les fiches non conformes et les fiches manquantes, sans les modifier. Les fiches exigées sont **déclarées par le monde** (`sheets`) : pour chaque système, les types du monde (sous-types compris) qui exigent une fiche et la catégorie attendue — le Loup de cendre, `Creature`, exige une fiche `Monster` dans le système B. Un système reste ainsi réutilisable d'un monde à l'autre. |
 
 ### 4.7 Documents, lots et affirmations
 

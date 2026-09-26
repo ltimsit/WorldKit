@@ -2,8 +2,8 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v21** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
-**Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation).
+**Statut :** analyse pré-cahier des charges, **v22** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1).
 
 Légende utilisée dans tout le document :
 
@@ -47,6 +47,7 @@ Ajouts v2/v3 :
 > - **v19** : lacune L3 tranchée — la résolution d'entités voit les créations proposées par les lots en attente (00.33) ; cadre technique v2.3.
 > - **v20** : lacune L4 tranchée — la qualification d'une affirmation porte sa propre notoriété (00.34) ; cadre de la fondation v1.14.
 > - **v21** : lacune L7 tranchée — étiquette d'origine `curation` pour les décisions sur les sources (00.35) ; cadre de la fondation v1.15. Plus aucune lacune bloquante avant J3.
+> - **v22** : décisions du jalon J1 (validateur de schéma) — valeur invalide non applicable (00.36), lien double face en relation noyau provisoire (00.37), fiches exigées déclarées par le monde (00.38), précisions du validateur (00.39) ; cadre de la fondation v1.16, cadre technique v2.6.
 
 ### 00.1 Vision reformulée
 
@@ -839,6 +840,53 @@ Conséquence sur l'ordre : le cœur du module de contradictions (collisions, lec
 
 **Bilan.** Les lacunes L3, L4, L5 et L7 sont tranchées : plus rien ne bloque le jalon J3 côté cadre. Restent L1, L2 et L6, à trancher avant J8 (méta et schémas).
 
+### 00.36 Valeur invalide à l'écriture (v22)
+
+> Décision du 26 septembre 2026, soulevée par l'implémentation du validateur (jalon J1).
+
+**Problème.** Le cadre distinguait deux cas : le hors schéma (élément non déclaré, refusé, R-SCH-06) et la non-conformité (élément valide à son écriture devenu invalide, tolérée, R-SCH-10). Il ne disait rien d'un changement qui cite des éléments **déclarés** avec une valeur invalide dès l'écriture : une fiche du Loup à 12 PV quand le système A borne à 10, « Odon gouverne Aldren » alors que `rules` vise un lieu, `set_attribute` sur les vœux des Veilleurs.
+
+**Voies comparées.**
+- *Appliquer et signaler comme non-conformité* : plus fidèle au texte ingéré, mais des états seraient invalides dès leur création, et la distinction de R-SCH-10 (« le schéma a changé après coup ») se brouillerait. Écartée.
+- *Refuser comme le hors schéma* : un état reste conforme au schéma sous lequel il est écrit ; l'auteur adapte le changement ou modifie le schéma dans la même édition. **Retenue.**
+
+**Décision.** R-SCH-06 porte désormais sur le changement **non représentable** : hors schéma (`out_of_schema`) ou de valeur invalide (`invalid_value` : type ou bornes d'une valeur, type d'une extrémité de relation, attribut requis vidé ou absent d'une entité créée, opération inadaptée à un attribut `list[...]`). R-SCH-10 est reformulée en conséquence.
+
+### 00.37 Lien double face : relation noyau provisoire (v22)
+
+> Décision du 26 septembre 2026, lacune L1 (00.31), rencontrée par le jalon J1.
+
+**Problème.** L'état de base relie le concept « la Flamme d'azur » à la capacité `system-a:azure-flame` par `counterpart_of` (R-MET-04). Aucun schéma ne déclare cette relation et le cadre ne la nomme pas : strictement, le changement est hors schéma, et l'état de base ne pourrait pas être construit en J2.
+
+**Voies comparées.**
+- *Hors schéma, bloquant* : lecture stricte ; oblige à trancher L1 avant J2. Écartée.
+- *Exception « lacune connue » dans le validateur* : porte dérobée à R-SCH-06. Écartée.
+- *Relation noyau provisoire* : le lien entre un élément du monde et un élément de système relève de la plateforme, comme `same_as`, pas du schéma diégétique. **Retenue.**
+
+**Décision.** `counterpart_of` rejoint les relations noyau (§4.4 du cadre de la fondation), marquée provisoire ; M1 l'accepte avec un signalement non bloquant qui cite L1. Trancher L1 ne demandera plus qu'un renommage ou un ajustement de cardinalité (`many_to_many` provisoire).
+
+### 00.38 Fiches exigées déclarées par le monde (v22)
+
+> Décision du 26 septembre 2026, soulevée par l'implémentation de R-MET-06 (jalon J1).
+
+**Problème.** Le parcours W01 attend que le Loup de cendre soit signalé sans fiche dans le système B. Rien ne disait quelles entités doivent avoir une fiche dans quel système : le système B déclare une catégorie `Monster` qu'aucun lien ne rattache au type `Creature` du monde.
+
+**Voies comparées.**
+- *Correspondance par le nom* (une catégorie homonyme d'un type du monde l'exige) : le Loup n'est pas signalé dans B. Écartée.
+- *Comparaison entre systèmes* (une fiche dans un système, pas dans un autre) : faux positifs dès qu'un système couvre des catégories qu'un autre ignore. Écartée.
+- *Correspondance déclarée par le monde* : explicite, déterministe ; déclarée côté monde pour qu'un système reste réutilisable d'un monde à l'autre. **Retenue.**
+
+**Décision.** La déclaration du monde associe à chaque système ses fiches exigées (`sheets` : type du monde → catégorie), sous-types compris (R-MET-06). Une correspondance devenue caduque après une modification de schéma est signalée, non bloquante. La lacune L2 (forme d'une fiche dans les changements) reste ouverte.
+
+### 00.39 Précisions du validateur (v22)
+
+> Décisions du 26 septembre 2026, plan du jalon J1.
+
+- **Relation symétrique entre types différents** : refusée (R-SCH-01) ; une relation symétrique implique `from → to` si et seulement si `to → from`, ce qui suppose les mêmes types aux deux bouts.
+- **Identifiants anglais (R-SCH-07)** : vérifiés par une heuristique de forme (ASCII ; `PascalCase` pour les types, `snake_case` pour attributs et relations), sans dictionnaire. Un contrôle lexical a été écarté : fragile, et coûteux pour un gain faible.
+- **Clés des éléments de schéma** : clé provisoire `(portée, type|relation, nom[, attribut])` en attendant la lacune L6.
+- **Relation symétrique `one_to_one`** : appliquée à la lettre, la règle (ranger les extrémités, puis prendre les deux clés `(from, r)` et `(r, to)`) laissait passer une contradiction — `spouse_of(mervin, isabeau)` et `spouse_of(mervin, zoe)` ne partageaient aucune clé, Mervin tombant d'un côté puis de l'autre après tri. *Revenir au texte* est écarté (contraire à l'invariant 4) ; **retenu** : une clé `(extrémité, relation)` par extrémité (R-FAI-05), et une relation symétrique n'admet que `one_to_one` ou `many_to_many` (R-SCH-01).
+
 ---
 
 ## 0. Comment lire ce document
@@ -1423,6 +1471,11 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 59. Un lot peut-il citer une entité seulement proposée par un autre lot en attente ? — **Réponse (v19) :** ✅ Oui : la résolution reprend l'identifiant proposé, et la proposition dépend de la création (00.33).
 60. Qui voit qu'une affirmation publique a été qualifiée fausse ? — **Réponse (v20) :** ✅ Personne en vue publique par défaut : la qualification a sa propre notoriété, non qualifiée par défaut (00.34).
 61. Quelle étiquette d'origine pour déclarer un document obsolète ? — **Réponse (v21) :** ✅ `curation`, réservée aux changements de statut de document (00.35).
+62. Un changement qui cite des éléments déclarés avec une valeur invalide est-il applicable ? — **Réponse (v22) :** ✅ Non : il est non représentable, comme le hors schéma (00.36).
+63. Comment représenter le lien double face tant que L1 n'est pas tranchée ? — **Réponse (v22) :** ✅ Relation noyau provisoire `counterpart_of`, signalée (00.37).
+64. Qui déclare quelles entités doivent avoir une fiche dans un système ? — **Réponse (v22) :** ✅ Le monde, par une correspondance type du monde → catégorie, par système (00.38).
+65. Comment vérifier que les identifiants de monde sont en anglais ? — **Réponse (v22) :** ✅ Heuristique de forme (ASCII, casse), sans dictionnaire (00.39).
+66. Quelles clés pour une relation symétrique `one_to_one` ? — **Réponse (v22) :** ✅ Une clé `(extrémité, relation)` par extrémité ; symétrie limitée à `one_to_one` et `many_to_many` (00.39).
 
 ---
 
