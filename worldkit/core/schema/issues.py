@@ -34,6 +34,13 @@ class IssueCode(StrEnum):
     # Conformité d'un état
     NON_CONFORMING = "non_conforming"
     MISSING_SHEET = "missing_sheet"
+    MASKED_PUBLIC_FACT = "masked_public_fact"
+    # Application d'une édition (M2, M4)
+    EDIT_RULE = "edit_rule"
+    KEY_COLLISION = "key_collision"
+    INTERNAL_CONTRADICTION = "internal_contradiction"
+    MISSING_FACT = "missing_fact"
+    STALE_EDIT = "stale_edit"
 
 
 @dataclass(frozen=True)
