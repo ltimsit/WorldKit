@@ -22,7 +22,20 @@ from worldkit.core.schema.metaschema import ScalarKind
 from .extraction import Extraction, ExtractionContext
 from .llm.adapters import LLMAdapter, LLMError, Profile
 
-PROMPT_VERSION = "1"
+PROMPT_VERSION = "2"
+
+# Champs utiles de chaque opération : les autres sont ignorés (le modèle remplit parfois `type` partout).
+OP_FIELDS: dict[str, tuple[str, ...]] = {
+    "create_entity": ("entity", "type"),
+    "set_attribute": ("entity", "attribute", "value"),
+    "unset_attribute": ("entity", "attribute"),
+    "add_value": ("entity", "attribute", "value"),
+    "remove_value": ("entity", "attribute", "value"),
+    "add_relation": ("from", "relation", "to"),
+    "remove_relation": ("from", "relation", "to"),
+    "close_entity": ("entity",),
+    "set_visibility": ("target",),
+}
 
 OPS = ["create_entity", "set_attribute", "unset_attribute", "add_value", "remove_value",
        "add_relation", "remove_relation", "close_entity", "set_visibility"]
@@ -71,7 +84,11 @@ Règles :
 8. Si l'énonciation est « in_world », le passage est la voix d'un document du monde : ne produis AUCUN
    changement ; mets chaque affirmation dans claims (text : l'affirmation reformulée brièvement ;
    claimed : le changement revendiqué s'il est exprimable avec le schéma, sinon null).
-9. Les champs inutilisés d'un changement valent null. value est toujours une chaîne.
+9. Valeurs : reprends les mots du texte, en français, sous leur forme la plus courte (« régent », pas
+   « régent de Brume » ; « capitale », pas « capital » ; « taverne » pour une taverne). Ne traduis jamais une valeur.
+10. N'extrais que les faits du monde : pas d'entité pour un nom commun incident (un serment, une séance,
+   une halle) ; pas de relation qui n'est pas dite (« depuis la Chute » ne dit pas que quelqu'un y a participé).
+11. Les champs inutilisés d'un changement valent null. value est toujours une chaîne.
 """
 
 
@@ -94,6 +111,11 @@ class LLMExtractor:
     adapter: LLMAdapter
     profile: Profile
     retries: int = 1
+
+    @property
+    def concurrency(self) -> int:
+        """Appels simultanés (option `concurrency` du profil, 4 par défaut)."""
+        return int(self.profile.options.get("concurrency", 4))
 
     @property
     def version(self) -> str:
@@ -142,12 +164,14 @@ def _coerce(value: str | None, attribute: str | None, entity_type: str | None, s
 def to_draft(change: dict[str, Any], schema: Schema, types: dict[str, str]) -> dict[str, Any]:
     op = change["op"]
     out: dict[str, Any] = {"op": op}
-    for f in ("entity", "type", "attribute", "from", "relation", "to", "target"):
-        if change.get(f) is not None:
+    if op in ("add_relation", "remove_relation") and change.get("from") is None and change.get("entity"):
+        change = {**change, "from": change["entity"]}  # sujet mis dans `entity` par le modèle
+    for f in OP_FIELDS.get(op, ()):
+        if f != "value" and change.get(f) is not None:
             out[f] = change[f]
     if op == "set_visibility":
         out["value"] = change.get("visibility") or "secret"
-    elif change.get("value") is not None:
+    elif "value" in OP_FIELDS.get(op, ()) and change.get("value") is not None:
         out["value"] = _coerce(change["value"], change.get("attribute"), types.get(change.get("entity", "")), schema)
     return out
 

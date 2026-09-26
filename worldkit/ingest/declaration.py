@@ -85,6 +85,15 @@ def normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+_ARTICLE = re.compile(r"^(?:(?:les|le|la)\s+|l['’]\s*)", re.IGNORECASE)
+
+
+def name_key(name: str) -> str:
+    """Nom normalisé d'une entité (T-ING-08) : sans casse, espaces superflus ni article initial
+    (« Le conseil des marchands » = « conseil des marchands »)."""
+    return _ARTICLE.sub("", normalize(name).casefold(), count=1)
+
+
 def fingerprint(text: str) -> str:
     return hashlib.sha256(normalize(text).encode("utf-8")).hexdigest()[:16]
 

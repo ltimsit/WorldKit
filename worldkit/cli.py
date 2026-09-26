@@ -130,11 +130,12 @@ def _run_eval(world: Any, args: argparse.Namespace) -> int:
     import yaml as _yaml
     declared = _yaml.safe_load(Path(args.batches).read_text(encoding="utf-8"))["batches"]
     batches = args.batch or [b["id"] for b in declared]
-    paths = [p for b in batches for p in batch_documents(args.batches, b)]
+    paths = [batch_documents(args.batches, b) for b in batches]
     extractor = _llm_extractor(args)
-    print(f"extracteur : {extractor.version} ; {len(paths)} document(s) ; répétitions : {args.repeat}")
+    print(f"extracteur : {extractor.version} ; {sum(map(len, paths))} document(s) ; répétitions : {args.repeat}")
+    state = world.state()
     report = evaluate(extractor, OracleExtractor(Path(args.oracle)), Path(args.oracle), paths,
-                      extraction_context(world, world.state()), args.repeat)
+                      extraction_context(world, state), args.repeat, state)
     summary = report.summary()
     for k, v in summary.items():
         if k != "per_op":

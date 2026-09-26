@@ -77,12 +77,15 @@ class ClaudeCodeAdapter:
 
     model: str
     command: list[str] | None = None
+    effort: str | None = None
     timeout: float = 300.0
 
     def complete(self, system: str, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         command = (self.command or find_claude_code()) + [
             "-p", "--output-format", "json", "--json-schema", json.dumps(schema, ensure_ascii=False),
             "--model", self.model, "--system-prompt", system, "--tools", "", "--no-session-persistence"]
+        if self.effort:
+            command += ["--effort", self.effort]
         try:
             run = subprocess.run(command, input=prompt, capture_output=True, text=True, encoding="utf-8",
                                  timeout=self.timeout)
@@ -176,7 +179,7 @@ ADAPTERS = {"claude-code", "anthropic-api", "ollama"}
 
 def make_adapter(profile: Profile) -> LLMAdapter:
     if profile.adapter == "claude-code":
-        return ClaudeCodeAdapter(profile.model, command=profile.options.get("command"))
+        return ClaudeCodeAdapter(profile.model, command=profile.options.get("command"), effort=profile.effort)
     if profile.adapter == "anthropic-api":
         return AnthropicApiAdapter(profile.model, profile.effort)
     if profile.adapter == "ollama":

@@ -232,3 +232,26 @@ def test_measure_counts_misses_extras_and_traps():
     assert summary["traps_fallen"] == 1 and 0 < summary["recall"] < 1
     lieux_p4 = next(r for r in report.passages if r.doc == "lieux-de-valmont" and r.index == 4)
     assert lieux_p4.traps and not (lieux_p4.found & lieux_p4.expected)
+
+
+def test_batch_merges_new_entities_by_type_and_name_T_ING_07():
+    """Deux passages extraits isolément créent chacun « le conseil » sous deux étiquettes : une seule entité."""
+    world = base_world()
+    answers = {**NOTES, "Odon siège lui-même": {"changes": [
+        change("create_entity", entity="new:conseil-des-marchands", type="Faction"),
+        change("set_attribute", entity="new:conseil-des-marchands", attribute="name", value="Le conseil des marchands"),
+        change("add_relation", from_="odon", relation="member_of", to="new:conseil-des-marchands")],
+        "claims": [], "attribution": False}}
+    report = ingest(world, "b1", B1[:1], LLMExtractor(FakeAdapter(answers), PROFILE))
+    assert [e.id for e in report.new_entities] == ["conseil"]
+    p4 = next(p for p in load(world) if p.passage == 4)
+    assert [c.change.op for c in p4.changes] == ["add_relation"] and p4.changes[0].change.to == "conseil"
+    assert p4.depends_on == ["b1.notes-baron.p3.1"]
+
+
+def test_irrelevant_fields_filled_by_the_model_are_dropped():
+    world = base_world()
+    noisy = {"Odon": {"changes": [change("set_attribute", entity="odon", type="Character", attribute="title",
+                                         value="régent", relation="rules")], "claims": [], "attribution": False}}
+    ex = LLMExtractor(FakeAdapter(noisy), PROFILE).extract("x", "Odon …", extraction_context(world, world.state()))
+    assert ex.drafts == ({"op": "set_attribute", "entity": "odon", "attribute": "title", "value": "régent"},)

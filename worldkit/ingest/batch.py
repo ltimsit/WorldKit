@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -26,7 +27,7 @@ from worldkit.periphery.extraction import Extraction, ExtractionContext, Extract
 from worldkit.periphery.llm.adapters import LLMError
 
 from .declaration import DocumentVersion, Nature, Voice, read_document
-from .declaration import normalize
+from .declaration import name_key, normalize
 from .proposals import NEW, Item, NewEntity, ProposalDraft, Qualified, assemble, depends, new_entities, resolve
 from .queue import StoredProposal, load, name_index, pending_new_entities, refresh, save_change
 from .store import dumps, ensure_tables
@@ -91,14 +92,44 @@ def extraction_context(world: World, head: Any) -> ExtractionContext:
     return ExtractionContext(head.world, tuple(entities))
 
 
+def passage_context(context: ExtractionContext, doc: DocumentVersion, passage: Any) -> ExtractionContext:
+    speakers = passage.speakers()
+    return replace(context, voice="in_world" if speakers or doc.axes.voice == "in_world" else "author",
+                   speaker=speakers[0] if speakers else doc.axes.speaker)
+
+
+def _parallel(extractor: Extractor, doc: DocumentVersion, passages: list[Any], context: ExtractionContext,
+              conn: Any, schema_fp: str) -> dict[int, Extraction | LLMError]:
+    """Extrait en parallèle les passages absents du cache ; l'ordre des résultats ne dépend que des passages."""
+    missing = [p for p in passages if conn.execute(
+        "SELECT 1 FROM extraction_cache WHERE passage_fp = ? AND schema_fp = ? AND extractor = ?",
+        (p.fingerprint, schema_fp, extractor.version)).fetchone() is None]
+
+    def one(p: Any) -> Extraction | LLMError:
+        try:
+            return extractor.extract(doc.doc_id, p.text, passage_context(context, doc, p))
+        except LLMError as e:
+            return e
+
+    workers = max(1, int(getattr(extractor, "concurrency", 1)))
+    if workers == 1 or len(missing) < 2:
+        return {p.index: one(p) for p in missing}
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return dict(zip((p.index for p in missing), pool.map(one, missing)))
+
+
 def _extract(world: World, extractor: Extractor, doc: DocumentVersion, schema_fp: str,
              report: BatchReport, skip: set[str], context: ExtractionContext) -> list[tuple[int, Extraction]]:
     out = []
     conn = world.store.conn
+    todo = []
     for p in doc.passages:
         if p.fingerprint in skip:
             report.unchanged += 1
             continue
+        todo.append(p)
+    fresh = _parallel(extractor, doc, todo, context, conn, schema_fp)
+    for p in todo:
         row = conn.execute("SELECT payload FROM extraction_cache WHERE passage_fp = ? AND schema_fp = ?"
                            " AND extractor = ?", (p.fingerprint, schema_fp, extractor.version)).fetchone()
         if row is not None:
@@ -107,13 +138,9 @@ def _extract(world: World, extractor: Extractor, doc: DocumentVersion, schema_fp
                             d["nature"])
             report.cached += 1
         else:
-            speakers = p.speakers()
-            ctx = replace(context, voice="in_world" if speakers or doc.axes.voice == "in_world" else "author",
-                          speaker=speakers[0] if speakers else doc.axes.speaker)
-            try:
-                ex = extractor.extract(doc.doc_id, p.text, ctx)
-            except LLMError as e:  # T-ING-17 : erreur d'extraction, jamais une proposition ; non mise en cache
-                report.errors[f"{doc.doc_id} p{p.index}"] = str(e)
+            ex = fresh[p.index]
+            if isinstance(ex, LLMError):  # T-ING-17 : erreur d'extraction, jamais une proposition ; non mise en cache
+                report.errors[f"{doc.doc_id} p{p.index}"] = str(ex)
                 out.append((p.index, Extraction(flags=("extraction_error",))))
                 continue
             conn.execute("INSERT INTO extraction_cache VALUES (?, ?, ?, ?)",
@@ -187,11 +214,12 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
             label = entity[len(NEW):]
             types = {x.get("type") for _, _, _, x, _ in raw if x.get("op") == "create_entity" and x.get("entity") == entity}
             for t in types:
-                match = by_name.get((t, normalize(str(d["value"])).casefold()))
+                match = by_name.get((t, name_key(str(d["value"]))))
                 if match:
                     reused[label] = match
     raw = [r for r in raw if not (r[3].get("op") == "create_entity" and isinstance(r[3].get("entity"), str)
                                   and r[3]["entity"].startswith(NEW) and r[3]["entity"][len(NEW):] in reused)]
+    raw = _merge_new_labels(raw)
     taken = set(head.entities) | {r[0] for r in conn.execute("SELECT entity_id FROM new_entities")}
     own = new_entities([r[3] for r in raw], taken)
     new = {**reused, **own}
@@ -263,6 +291,46 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
                 world.store.update_pending(p.id, status=EditStatus.ABANDONED)
                 conn.execute("UPDATE proposals SET closed_reason = 'remembered' WHERE edit_id = ?", (p.id,))
     return report
+
+
+def _merge_new_labels(raw: list[tuple[Any, int, int, dict[str, Any], bool]]) -> list[tuple[Any, int, int, dict[str, Any], bool]]:
+    """Regroupement au niveau du lot (T-ING-07) : deux étiquettes `new:` de même type et de même nom
+    normalisé désignent une seule entité ; seule la première création est gardée. Un extracteur qui
+    traite chaque passage isolément recrée sinon l'entité à chaque mention."""
+    types: dict[str, str] = {}
+    names: dict[str, str] = {}
+    for _, _, _, d, _ in raw:
+        e = d.get("entity")
+        if isinstance(e, str) and e.startswith(NEW):
+            if d.get("op") == "create_entity":
+                types.setdefault(e, str(d.get("type")))
+            elif d.get("op") == "set_attribute" and d.get("attribute") == "name":
+                names.setdefault(e, name_key(str(d.get("value"))))
+    canonical: dict[str, str] = {}
+    first: dict[tuple[str, str], str] = {}
+    for label, t in types.items():
+        if label in names:
+            canonical[label] = first.setdefault((t, names[label]), label)
+
+    def sub(v: Any) -> Any:
+        if isinstance(v, str):
+            if v in canonical:
+                return canonical[v]
+            if " " in v:
+                return " ".join(canonical.get(t, t) for t in v.split(" "))
+        return v
+
+    out, seen = [], set()
+    for doc, index, i, d, optional in raw:
+        d = {k: sub(v) for k, v in d.items()}
+        signature = (d.get("op"), d.get("entity"), d.get("attribute"), name_key(str(d.get("value"))))
+        if d.get("op") in ("create_entity", "set_attribute") and isinstance(d.get("entity"), str) \
+                and d["entity"].startswith(NEW) and (d["op"] == "create_entity" or d.get("attribute") == "name"):
+            if signature in seen:
+                continue  # création ou nom déjà proposés par un autre passage du lot
+            seen.add(signature)
+        out.append((doc, index, i, d, optional))
+    return out
 
 
 def _remembered(world: World, branch: str, proposals: list[ProposalDraft],
