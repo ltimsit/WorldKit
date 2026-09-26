@@ -128,8 +128,19 @@ def test_document_order_does_not_change_proposals_R_PRI_03(views):
     assert _signature(reversed_world) == _signature(straight)
 
 
-def test_unchanged_passages_come_from_the_cache_T_ING_09():
+def test_reingesting_the_same_document_asks_nothing_T_ING_10():
+    world = base_world()
+    ingest(world, "b1", B1, ORACLE)
+    again = ingest(world, "b1-bis", B1[:1], ORACLE)
+    assert (again.unchanged, again.extracted, again.cached, len(again.proposals)) == (7, 0, 0, 0)
+
+
+def test_known_passage_text_comes_from_the_cache_T_ING_09(tmp_path):
+    """Le cache est indexé par l'empreinte du passage : un autre document au même texte n'est pas réextrait."""
     world = base_world()
     first = ingest(world, "b1", B1, ORACLE)
-    again = ingest(world, "b1-bis", B1[:1], ORACLE)
-    assert first.cached == 0 and again.extracted == 0 and again.cached == 7
+    copy = tmp_path / "copie.md"
+    copy.write_text(B1[0].read_text(encoding="utf-8").replace("id: notes-baron", "id: notes-baron-copie"),
+                    encoding="utf-8")
+    again = ingest(world, "b1-copie", [copy], ORACLE)
+    assert first.cached == 0 and (again.extracted, again.cached) == (0, 7)

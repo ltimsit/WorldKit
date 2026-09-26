@@ -48,6 +48,9 @@ class BatchReport:
     flagged: dict[str, list[str]] = field(default_factory=dict)  # « doc p3 » → drapeaux
     extracted: int = 0   # passages envoyés à l'extracteur
     cached: int = 0      # passages relus dans le cache
+    unchanged: int = 0   # passages déjà ingérés pour ce document : ni extraits ni reproposés (T-ING-10)
+    removed: int = 0     # passages disparus depuis la version précédente : supports retirés (T-ING-11)
+    remembered: int = 0  # changements dont la décision passée est reprise sans question (R-PRI-04)
 
 
 def schema_fingerprint(state: Any) -> str:
@@ -56,11 +59,25 @@ def schema_fingerprint(state: Any) -> str:
     return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
 
+def _known_passages(world: World, branch: str, doc_id: str) -> dict[str, list[tuple[str, int]]]:
+    """Passages déjà ingérés d'un document sur la branche : empreinte → [(version, indice)]."""
+    out: dict[str, list[tuple[str, int]]] = {}
+    for fp, vfp, idx in world.store.conn.execute(
+            "SELECT DISTINCT p.passage_fp, p.version_fp, p.idx FROM passages p"
+            " JOIN batch_documents d ON d.doc_id = p.doc_id AND d.version_fp = p.version_fp"
+            " JOIN batches b ON b.batch_id = d.batch_id WHERE b.branch_id = ? AND p.doc_id = ?", (branch, doc_id)):
+        out.setdefault(fp, []).append((vfp, idx))
+    return out
+
+
 def _extract(world: World, extractor: Extractor, doc: DocumentVersion, schema_fp: str,
-             report: BatchReport) -> list[tuple[int, Extraction]]:
+             report: BatchReport, skip: set[str]) -> list[tuple[int, Extraction]]:
     out = []
     conn = world.store.conn
     for p in doc.passages:
+        if p.fingerprint in skip:
+            report.unchanged += 1
+            continue
         row = conn.execute("SELECT payload FROM extraction_cache WHERE passage_fp = ? AND schema_fp = ?"
                            " AND extractor = ?", (p.fingerprint, schema_fp, extractor.version)).fetchone()
         if row is not None:
@@ -97,9 +114,16 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
     # Extraction (ou cache), puis brouillons à résoudre.
     raw: list[tuple[DocumentVersion, int, int, dict[str, Any], bool]] = []
     passage_flags: dict[tuple[str, int], list[str]] = {}
+    retracted: list[tuple[str, str, int]] = []
     with conn:
         for doc in docs:
-            for index, ex in _extract(world, extractor, doc, schema_fp, report):
+            known = _known_passages(world, branch, doc.doc_id)
+            current = {p.fingerprint for p in doc.passages}
+            for fp, places in known.items():
+                if fp not in current:  # passage supprimé ou modifié : ses supports sont retirés (T-ING-10, T-ING-11)
+                    retracted += [(doc.doc_id, vfp, idx) for vfp, idx in places]
+                    report.removed += 1
+            for index, ex in _extract(world, extractor, doc, schema_fp, report, set(known)):
                 flags = list(ex.flags)
                 nature = Nature(ex.nature) if ex.nature in Nature._value2member_map_ else None
                 passage = doc.passages[index - 1]
@@ -153,10 +177,14 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
     supports, proposals = assemble(batch_id, items, head, new)
     others = [p for p in load(world, branch) if p.batch != batch_id]
     _across_batches(proposals, others)
+    states = _remembered(world, branch, proposals, report)
     report.supports, report.proposals, report.new_entities = supports, proposals, list(own.values())
     report.flagged = {f"{d} p{i}": f for (d, i), f in sorted(passage_flags.items()) if f}
 
     with conn:
+        for doc_id, vfp, idx in retracted:
+            conn.execute("DELETE FROM supports WHERE doc_id = ? AND version_fp = ? AND passage_idx = ?",
+                         (doc_id, vfp, idx))
         conn.execute("INSERT INTO batches VALUES (?, ?, ?, ?, (SELECT COUNT(*) FROM batches))",
                      (batch_id, branch, base.seq, base.schema_rev))
         for pos, doc in enumerate(docs):
@@ -185,8 +213,9 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
                          " issues) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                          (p.id, batch_id, p.doc_id, p.version_fp, p.passage, p.subject, p.kind, dumps(p.issues)))
             for i, q in enumerate(p.items):
-                conn.execute("INSERT INTO proposal_changes (edit_id, idx, fingerprint, tags, detail)"
-                             " VALUES (?, ?, ?, ?, ?)", (p.id, i, q.fingerprint, dumps(sorted(q.tags)), dumps(q.detail)))
+                conn.execute("INSERT INTO proposal_changes (edit_id, idx, fingerprint, tags, detail, state)"
+                             " VALUES (?, ?, ?, ?, ?, ?)", (p.id, i, q.fingerprint, dumps(sorted(q.tags)),
+                                                            dumps(q.detail), states.get((p.id, i), "open")))
                 for k in q.keys:
                     conn.execute("INSERT OR IGNORE INTO proposal_keys VALUES (?, ?, ?, ?)",
                                  (p.id, i, dumps(k), dumps(q.value)))
@@ -195,7 +224,30 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
         for other in others:
             for c in other.changes:
                 save_change(world, other.id, c)  # étiquettes « concurrente » ajoutées de l'autre côté
+        for p in proposals:
+            if all(states.get((p.id, i)) == "refused" for i in range(len(p.items))):
+                world.store.update_pending(p.id, status=EditStatus.ABANDONED)
+                conn.execute("UPDATE proposals SET closed_reason = 'remembered' WHERE edit_id = ?", (p.id,))
     return report
+
+
+def _remembered(world: World, branch: str, proposals: list[ProposalDraft],
+                report: BatchReport) -> dict[tuple[str, int], str]:
+    """Mémoire des décisions (T-ING-08, R-PRI-04) : un changement dont l'empreinte a déjà été refusée
+    pour ce document sur la branche l'est de nouveau, sans question. Une acceptation passée n'a rien à
+    reprendre : le fait est dans l'état, le changement y est un support."""
+    out: dict[tuple[str, int], str] = {}
+    for p in proposals:
+        for i, q in enumerate(p.items):
+            row = world.store.conn.execute(
+                "SELECT action, proposal FROM decisions WHERE fingerprint = ? AND doc_id = ? AND branch_id = ?"
+                " ORDER BY decision_id DESC LIMIT 1", (q.fingerprint, p.doc_id, branch)).fetchone()
+            if row and row[0] in ("refuse", "abandon"):
+                out[(p.id, i)] = "refused"
+                q.tags.add("remembered")
+                q.detail["remembered"] = {"action": row[0], "proposal": row[1]}
+                report.remembered += 1
+    return out
 
 
 def _across_batches(proposals: list[ProposalDraft], others: list[StoredProposal]) -> None:

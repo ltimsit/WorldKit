@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from worldkit.core.journal.models import BaseState, EditStatus
-from worldkit.core.schema import Change
+from worldkit.core.schema import Change, Issue, IssueCode, Severity
 from worldkit.core.schema.changes import (
     AddClaim, AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, RemoveRelation, RemoveValue, SetAttribute,
     SetVisibility, UnsetAttribute,
@@ -15,7 +15,7 @@ from worldkit.core.schema.changes import (
 from worldkit.core.world import World
 
 from .queue import load, refresh
-from .store import ensure_tables, loads_key
+from .store import dumps, ensure_tables, loads_key
 
 # Ordre d'affichage des étiquettes : ce qui demande l'attention d'abord.
 TAG_ORDER = ["out_of_schema", "invalid_value", "unresolved", "anomaly", "intention", "internal_contradiction",
@@ -127,3 +127,29 @@ def flagged_passages(world: World, batch: str | None = None) -> list[tuple[str, 
                         " WHERE (? IS NULL OR d.batch_id = ?) ORDER BY d.batch_id, d.position, p.idx",
                         (batch, batch)).fetchall()
     return [(d, i, json.loads(f)) for d, i, f in rows if json.loads(f)]
+
+
+def orphan_facts(world: World, branch: str | None = None) -> list[Issue]:
+    """R-FAI-06 : faits établis par l'ingestion qui n'ont plus aucun support documentaire.
+    Signalés, jamais retirés (R-PRI-01). Un fait d'édition structurée n'est jamais orphelin (T-ING-11)."""
+    conn = world.store.conn
+    ensure_tables(conn)
+    branch = branch or world.reference_branch
+    head = world.state(branch)
+    documentary = {e.id for _, e in world.store.journal(branch) if "ingestion" in e.tags}
+    keys_of: dict[Any, list[Any]] = {}
+    for k, fid in head.occupancy.items():
+        keys_of.setdefault(fid, []).append(k)
+    out = []
+    for f in sorted(head.facts.values(), key=lambda f: repr(f.id)):
+        if f.established_by not in documentary:
+            continue
+        value = dumps(list(f.id) if f.kind == "rel" else True if f.kind == "value" else f.value)
+        supported = any(conn.execute("SELECT 1 FROM supports WHERE fact_key = ? AND value = ?", (dumps(k), value))
+                        .fetchone() for k in keys_of.get(f.id, []))
+        if not supported:
+            label = f"{f.name}({f.subject}, {f.target})" if f.kind == "rel" else f"{f.subject}.{f.name}"
+            out.append(Issue(IssueCode.ORPHAN_FACT,
+                             f"{label} n'a plus aucun support documentaire (établi par {f.established_by}) ; "
+                             "conservé dans l'état", "R-FAI-06", Severity.WARNING, label))
+    return out

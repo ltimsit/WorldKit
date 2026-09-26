@@ -268,6 +268,10 @@ def qualify_item(item: Item, base: State, ctx: SchemaContext) -> Qualified:
         case UnsetAttribute() | RemoveValue() | RemoveRelation() | CloseEntity() | DeleteEntity():
             q.value = ("removed",)
             q.tags.add(_conflict_tag(item.mode))  # le document dit que quelque chose a cessé (R-PRI-01)
+            if isinstance(c, UnsetAttribute):
+                old = base.facts.get(("attr", qualify(c.entity, sc), c.attribute))
+                if old is not None:
+                    q.detail["occupied_by"] = {"fact": list(old.id), "value": old.value}
     return q
 
 

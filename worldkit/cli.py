@@ -130,6 +130,8 @@ def _run_decision(world: Any, args: argparse.Namespace) -> int:
                                for pid in args.proposals])
     if cmd == "choose":
         return _print_decided(decide.choose(world, args.proposal, args.reason))
+    if cmd == "abandon":
+        return _print_decided([decide.abandon(world, pid, args.reason) for pid in args.proposals])
     if cmd == "qualify":
         return _print_decided([decide.qualify(world, args.target, args.value, args.visibility, args.reason)])
     if cmd == "promote":
@@ -278,7 +280,10 @@ def _run_world(args: argparse.Namespace) -> int:
             print(export_json(state, Filter(args.filter)))
             return 0
         if args.command == "check":
+            from worldkit.ingest.review import orphan_facts
             issues = state_report(state)
+            if args.point in (None, "head"):
+                issues += orphan_facts(world, args.branch)
             print(f"{state.branch}, rang {state.seq} : {len(issues)} signalement(s)")
             _print_issues(issues)
             return 0
@@ -354,6 +359,8 @@ def build_parser() -> argparse.ArgumentParser:
     ref = review_cmds.add_parser("refuse", help="refuser (tout, ou --changes)")
     ref.add_argument("proposals", nargs="+")
     ref.add_argument("--changes", help="indices des changements refusés")
+    abd = review_cmds.add_parser("abandon", help="abandonner (ex. un diff du mode edit)")
+    abd.add_argument("proposals", nargs="+")
     cho = review_cmds.add_parser("choose", help="trancher un conflit : accepter celle-ci, refuser les autres")
     cho.add_argument("proposal")
     ada = review_cmds.add_parser("adapt", help="confirmer en adaptant (édition dérivée)")
@@ -371,7 +378,7 @@ def build_parser() -> argparse.ArgumentParser:
     pro = review_cmds.add_parser("promote", help="promouvoir une affirmation en fait")
     pro.add_argument("proposal")
     pro.add_argument("--visibility", choices=["public", "secret", "unqualified"], default=None)
-    for p in (acc, ref, cho, ada, dis, qua, pro):
+    for p in (acc, ref, abd, cho, ada, dis, qua, pro):
         p.add_argument("--reason", default=None)
 
     view_opts(commands.add_parser("export", help="graphe filtré en JSON, pour un LLM (R-LLM-01)"))

@@ -19,7 +19,9 @@ from worldkit.core.schema.changes import AddClaim, AddRelation, QualifyClaim, Re
 from worldkit.core.schema.keys import UnknownRelation
 from worldkit.core.world import World
 
-from .queue import StoredChange, StoredProposal, close, load, load_one, passage_fp, refresh, save_change
+from .queue import (
+    StoredChange, StoredProposal, close, load, load_one, passage_fp, record_support, refresh, save_change,
+)
 from .store import dumps, ensure_tables
 
 
@@ -121,6 +123,8 @@ def _apply(world: World, p: StoredProposal, kept: list[StoredChange], before: li
             c.state = "accepted"
             save_change(world, p.id, c)
             _trace(world, p, c, action, edit_id, reason)
+            if "claim" not in c.tags and "hint_visibility" not in c.tags:
+                record_support(world, p, c)  # le passage qui a produit le fait le soutient (T-ING-11)
         for c in refused:
             c.state = "refused"
             save_change(world, p.id, c)
@@ -149,6 +153,11 @@ def accept(world: World, pid: str, keep: list[int] | None = None, drop_optional:
         if other is not None and other.status is EditStatus.PENDING:
             return _fail(pid, "accept", f"dépend de {dep}, encore en attente : la décider d'abord", "T-ING-05")
     return _apply(world, p, kept, [], "accept", refused, reason)
+
+
+def abandon(world: World, pid: str, reason: str | None = None) -> Decided:
+    """Abandonner une édition en attente, par exemple un diff du mode edit (R-CYC-02, R-CYC-04)."""
+    return refuse(world, pid, reason=reason, action="abandon")
 
 
 def refuse(world: World, pid: str, changes: list[int] | None = None, reason: str | None = None,

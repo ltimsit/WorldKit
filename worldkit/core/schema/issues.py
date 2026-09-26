@@ -36,6 +36,7 @@ class IssueCode(StrEnum):
     NON_CONFORMING = "non_conforming"
     MISSING_SHEET = "missing_sheet"
     MASKED_PUBLIC_FACT = "masked_public_fact"
+    ORPHAN_FACT = "orphan_fact"
     # Application d'une édition (M2, M4)
     EDIT_RULE = "edit_rule"
     KEY_COLLISION = "key_collision"
