@@ -1,7 +1,7 @@
 # Cadre conceptuel de la fondation
 
 **Objet :** base de vérité du modèle conceptuel de la fondation. Sert d'entrée à la conception technique.
-**Version :** 1.16 — 26 septembre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v22, section 00).
+**Version :** 1.17 — 26 septembre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v23, section 00).
 **Statut :** de référence. En cas de divergence avec l'analyse ou avec le cadre technique, ce document prévaut.
 
 **Conventions**
@@ -252,7 +252,7 @@ flowchart LR
 | R-FAI-02 | Tout fait **doit** porter une **notoriété** (4.9). |
 | R-FAI-03 | Tout fait **peut** porter une **fenêtre de validité diégétique** (`diegetic_window`) ; champ préparé, non exploité par la fondation. |
 | R-FAI-04 | Un fait n'existe que dans un **état** : il est créé, modifié ou retiré par des changements (§6.1). |
-| R-FAI-05 | Tout fait **doit** avoir une **clé de fait** (`fact_key`), déduite du schéma ; deux faits de même clé ne peuvent coexister dans un état. Attribut : `(entity, attribute)` ; attribut à valeurs multiples (`list[...]`) : `(entity, attribute, value)`, une clé par valeur. Relation, selon sa cardinalité (R-SCH-01) : `many_to_many` → `(from, relation, to)` ; `one_to_many` → `(relation, to)` ; `many_to_one` → `(from, relation)` ; `one_to_one` → les deux clés précédentes. Relation symétrique : extrémités rangées dans un ordre canonique ; en `one_to_one`, les rôles `from` et `to` étant interchangeables, une clé `(extrémité, relation)` par extrémité (`spouse_of(mervin, isabeau)` occupe `(mervin, spouse_of)` et `(isabeau, spouse_of)`). L'existence d'une entité a pour clé `(entity)`. La clé fonde la détection des contradictions et des dépendances (R-EDI-03, §6.3). |
+| R-FAI-05 | Tout fait **doit** avoir une **clé de fait** (`fact_key`), déduite du schéma ; deux faits de même clé ne peuvent coexister dans un état. Attribut : `(entity, attribute)` ; attribut à valeurs multiples (`list[...]`) : `(entity, attribute, value)`, une clé par valeur. Relation, selon sa cardinalité (R-SCH-01) : `many_to_many` → `(from, relation, to)` ; `one_to_many` → `(relation, to)` ; `many_to_one` → `(from, relation)` ; `one_to_one` → les deux clés précédentes. Relation symétrique : extrémités rangées dans un ordre canonique ; en `one_to_one`, les rôles `from` et `to` étant interchangeables, une clé `(extrémité, relation)` par extrémité (`spouse_of(mervin, isabeau)` occupe `(mervin, spouse_of)` et `(isabeau, spouse_of)`). L'existence d'une entité a pour clé `(entity)`. La clé fonde la détection des contradictions et des dépendances (R-EDI-03, §6.3). Un ajout sur une clé occupée par un autre fait n'est applicable que si la même édition retire ce fait (« le conseil gouverne Brume » exige de retirer « Odon gouverne Brume ») ; seule `set_attribute` remplace une valeur, puisque l'opération signifie « modifier ». |
 | R-FAI-06 | Un fait d'origine documentaire qui perd son dernier support (passage supprimé à la ré-ingestion) **doit** être signalé comme **orphelin** (`orphan_fact`) ; il n'est **jamais retiré d'office** (R-PRI-01). |
 
 ### 4.6 Méta : systèmes et fiches
@@ -321,7 +321,7 @@ Sens : **notoriété dans le monde** (ce qu'un habitant pourrait savoir), pas ce
 | ID | Règle |
 |---|---|
 | R-NOT-01 | Valeurs de `visibility` : `secret`, `public`, `unqualified` (défaut). |
-| R-NOT-02 | Granularité : entités, attributs, relations, affirmations, qualifications d'affirmations, documents. |
+| R-NOT-02 | Granularité : entités, attributs, relations, affirmations, qualifications d'affirmations, documents. La clôture et la suppression d'une entité n'ont pas de notoriété propre : elles suivent celle de l'entité (Aldren, public, est vu clos en vue publique). |
 | R-NOT-03 | Tout filtre public **doit** traiter le *non qualifié* comme *secret*. |
 | R-NOT-04 | La **notoriété effective** (`effective_visibility`) d'un fait est **plafonnée** par celle des entités qu'il mentionne : un fait qui mentionne une entité secrète ou non qualifiée n'est pas public, quelle que soit sa notoriété déclarée. La propagation est **levable au cas par cas**, par un indicateur explicite (`propagation_lifted`) porté par `set_visibility` : le fait s'affiche alors en vue publique **sans révéler l'entité**, présentée comme non publique. |
 | R-NOT-05 | Les affirmations héritent de la notoriété de leur document. |

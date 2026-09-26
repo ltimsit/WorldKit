@@ -1,7 +1,7 @@
 # Cadre technique de la fondation
 
 **Objet :** décisions techniques de la fondation : éléments structurants, découpage en modules, architecture, articulation entre le noyau et l'ingestion, stratégie de test et étapes de construction.
-**Version :** 2.6 — 26 septembre 2026. S'appuie sur *cadre-fondation.md* v1.16, qu'il cite sans le dupliquer.
+**Version :** 2.7 — 26 septembre 2026. S'appuie sur *cadre-fondation.md* v1.17, qu'il cite sans le dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (argumenté, en attente de validation). En cas de divergence, *cadre-fondation.md* prévaut.
 
 **Conventions**
