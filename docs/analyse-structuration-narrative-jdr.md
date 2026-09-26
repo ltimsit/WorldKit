@@ -885,6 +885,7 @@ Conséquence sur l'ordre : le cœur du module de contradictions (collisions, lec
 - **Relation symétrique entre types différents** : refusée (R-SCH-01) ; une relation symétrique implique `from → to` si et seulement si `to → from`, ce qui suppose les mêmes types aux deux bouts.
 - **Identifiants anglais (R-SCH-07)** : vérifiés par une heuristique de forme (ASCII ; `PascalCase` pour les types, `snake_case` pour attributs et relations), sans dictionnaire. Un contrôle lexical a été écarté : fragile, et coûteux pour un gain faible.
 - **Clés des éléments de schéma** : clé provisoire `(portée, type|relation, nom[, attribut])` en attendant la lacune L6.
+- **Relation symétrique `one_to_one`** : appliquée à la lettre, la règle (ranger les extrémités, puis prendre les deux clés `(from, r)` et `(r, to)`) laissait passer une contradiction — `spouse_of(mervin, isabeau)` et `spouse_of(mervin, zoe)` ne partageaient aucune clé, Mervin tombant d'un côté puis de l'autre après tri. *Revenir au texte* est écarté (contraire à l'invariant 4) ; **retenu** : une clé `(extrémité, relation)` par extrémité (R-FAI-05), et une relation symétrique n'admet que `one_to_one` ou `many_to_many` (R-SCH-01).
 
 ---
 
@@ -1474,6 +1475,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 63. Comment représenter le lien double face tant que L1 n'est pas tranchée ? — **Réponse (v22) :** ✅ Relation noyau provisoire `counterpart_of`, signalée (00.37).
 64. Qui déclare quelles entités doivent avoir une fiche dans un système ? — **Réponse (v22) :** ✅ Le monde, par une correspondance type du monde → catégorie, par système (00.38).
 65. Comment vérifier que les identifiants de monde sont en anglais ? — **Réponse (v22) :** ✅ Heuristique de forme (ASCII, casse), sans dictionnaire (00.39).
+66. Quelles clés pour une relation symétrique `one_to_one` ? — **Réponse (v22) :** ✅ Une clé `(extrémité, relation)` par extrémité ; symétrie limitée à `one_to_one` et `many_to_many` (00.39).
 
 ---
 

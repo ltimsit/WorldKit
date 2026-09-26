@@ -58,7 +58,7 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 ## État d'avancement
 
 - **J0 — fait** : corpus synthétique v1.
-- **J1 — en cours** : validateur de schéma et calcul des clés de fait. Fiche de démarrage : `docs/j1-brief.md`.
+- **J1 — fait** (branche `j1-schema`) : validateur de schéma, clés de fait, vérification des changements et de la conformité (`worldkit/core/schema/`). Fiche : `docs/j1-brief.md`.
 - Ensuite : J2 (journal, projection, collisions, vues, une branche), J3 (ingestion déterministe + extracteur oracle), J4 (extraction LLM)… (cadre technique §7).
 - Points ouverts à trancher avant J8 : lacunes L1, L2, L6 du corpus (`corpus/valmont-v1/README.md` §5).
 
