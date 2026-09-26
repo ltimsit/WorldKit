@@ -29,6 +29,7 @@ class IssueCode(StrEnum):
     MALFORMED_CHANGE = "malformed_change"
     OUT_OF_SCHEMA = "out_of_schema"
     INVALID_VALUE = "invalid_value"
+    MISSING_REQUIRED = "missing_required"
     UNKNOWN_ENTITY = "unknown_entity"
     PROVISIONAL_CORE_RELATION = "provisional_core_relation"
     # Conformité d'un état
