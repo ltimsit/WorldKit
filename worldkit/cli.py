@@ -10,6 +10,8 @@
     worldkit --db valmont.db wiki render --out <dossier> [--filter …] [--point …]
     worldkit --db valmont.db export [--filter …] [--point …]
     worldkit --db valmont.db check [--point …]
+    worldkit --db valmont.db ingest <lot> [documents…] [--batches batches.yaml] --oracle <gold/>
+    worldkit --db valmont.db review list [--batch LOT] | review show <proposition>
 
 Code de sortie : 0 succès, 1 refus ou signalement bloquant, 2 entrée illisible.
 """
@@ -67,6 +69,76 @@ def _read_edits(path: str, only: list[str] | None) -> list[Any]:
     return edits
 
 
+TAG_FR = {
+    "out_of_schema": "hors schéma", "invalid_value": "valeur invalide", "unresolved": "entité inconnue",
+    "anomaly": "anomalie", "intention": "intention", "internal_contradiction": "contradiction interne",
+    "batch_conflict": "conflit dans le lot", "competing": "concurrente", "hint_visibility": "indice de notoriété",
+    "enrichment": "enrichissement", "optional": "facultatif", "support": "support",
+}
+
+
+def _tags(tags: list[str]) -> str:
+    return ", ".join(TAG_FR.get(t, t) for t in tags)
+
+
+def _run_ingest(world: Any, args: argparse.Namespace) -> int:
+    from worldkit.ingest.batch import batch_documents, ingest
+    from worldkit.periphery.extraction import OracleExtractor
+    paths = list(args.documents) or (batch_documents(args.batches, args.batch) if args.batches else [])
+    if not paths:
+        print("ERREUR : aucun document (donner les fichiers, ou --batches)")
+        return 2
+    report = ingest(world, args.batch, paths, OracleExtractor(Path(args.oracle)))
+    base = report.base
+    print(f"lot {report.batch_id} : base {base.branch}, rang {base.seq} (schema_rev {base.schema_rev})")
+    print(f"  {len(report.documents)} document(s), passages extraits {report.extracted}, relus du cache {report.cached}")
+    print(f"  {len(report.proposals)} proposition(s) en attente, {len(report.supports)} support(s) enregistré(s)")
+    if report.new_entities:
+        print("  entités nouvelles : " + ", ".join(f"{e.id} ({e.type})" for e in report.new_entities))
+    for where, flags in report.flagged.items():
+        print(f"  {where} : {', '.join(flags)}")
+    return 0
+
+
+def _run_review(world: Any, args: argparse.Namespace) -> int:
+    from worldkit.ingest.review import flagged_passages, proposals, supports
+    if args.review_command == "list":
+        views = proposals(world, args.batch)
+        for v in views:
+            recheck = " (à revérifier)" if v.needs_recheck else ""
+            print(f"{v.id}{recheck}  [{_tags(v.tags)}]")
+            for c in v.changes:
+                print(f"    {c.text}")
+        print(f"{len(views)} proposition(s) en attente ; {len(supports(world, args.batch))} support(s)")
+        for doc, idx, flags in flagged_passages(world, args.batch):
+            print(f"  passage {doc} p{idx} : {', '.join(flags)}")
+        return 0
+    found = [v for v in proposals(world, None, None) if v.id == args.proposal]
+    if not found:
+        print(f"proposition inconnue : {args.proposal}")
+        return 1
+    v = found[0]
+    base = f"rang {v.base.seq}, schema_rev {v.base.schema_rev}" if v.base else "?"
+    print(f"{v.id} — {v.status}{' (à revérifier)' if v.needs_recheck else ''}")
+    print(f"lot {v.batch}, document {v.doc}, passage {v.passage} ; sujet {v.subject} ; base {base}")
+    for c in v.changes:
+        print(f"  {c.text}   [{_tags(c.tags)}]")
+        occ = c.detail.get("occupied_by")
+        if occ:
+            fact = occ["fact"]
+            held = f"{fact[2]}({fact[1]}, {fact[3]})" if fact[0] == "rel" else f"{fact[1]}.{fact[2]} = {occ.get('value')!r}"
+            print(f"      la base contient : {held}")
+        for label in c.detail.get("contradicts", []):
+            print(f"      contredit {label} (même document)")
+        for label in c.detail.get("conflicts_with", []):
+            print(f"      en conflit avec {label} (même lot, aucune ne l'emporte)")
+    for d in v.depends_on:
+        print(f"  dépend de {d}")
+    for i in v.issues:
+        print(f"  {i}")
+    return 0
+
+
 def _run_world(args: argparse.Namespace) -> int:
     from worldkit.core.journal.models import EditStatus
     from worldkit.core.views import Filter, View, export_json, render_page, state_report
@@ -79,6 +151,10 @@ def _run_world(args: argparse.Namespace) -> int:
 
     world = World.open(args.db)
     try:
+        if args.command == "ingest":
+            return _run_ingest(world, args)
+        if args.command == "review":
+            return _run_review(world, args)
         if args.command == "edit":
             if args.edit_command in ("apply", "submit"):
                 status = 0
@@ -200,6 +276,17 @@ def build_parser() -> argparse.ArgumentParser:
     render = wiki_cmds.add_parser("render")
     render.add_argument("--out", required=True)
     view_opts(render)
+
+    ing = commands.add_parser("ingest", help="ingérer un lot de documents (propositions en attente)")
+    ing.add_argument("batch", help="identifiant du lot (b1…)")
+    ing.add_argument("documents", nargs="*", help="documents du lot (sinon : --batches)")
+    ing.add_argument("--batches", help="fichier batches.yaml qui déclare les documents du lot")
+    ing.add_argument("--oracle", required=True, help="dossier gold/ lu par l'extracteur oracle (T-ING-19)")
+
+    review = commands.add_parser("review", help="file de revue des propositions")
+    review_cmds = review.add_subparsers(dest="review_command", required=True)
+    review_cmds.add_parser("list").add_argument("--batch", default=None)
+    review_cmds.add_parser("show").add_argument("proposal")
 
     view_opts(commands.add_parser("export", help="graphe filtré en JSON, pour un LLM (R-LLM-01)"))
     view_opts(commands.add_parser("check", help="non-conformités, fiches manquantes, faits masqués"), False)
