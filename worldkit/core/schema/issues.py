@@ -43,6 +43,7 @@ class IssueCode(StrEnum):
     INTERNAL_CONTRADICTION = "internal_contradiction"
     MISSING_FACT = "missing_fact"
     STALE_EDIT = "stale_edit"
+    DOCUMENT_OBSOLETE = "document_obsolete"
 
 
 @dataclass(frozen=True)

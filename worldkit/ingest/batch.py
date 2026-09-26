@@ -49,6 +49,7 @@ class BatchReport:
     extracted: int = 0   # passages envoyés à l'extracteur
     cached: int = 0      # passages relus dans le cache
     unchanged: int = 0   # passages déjà ingérés pour ce document : ni extraits ni reproposés (T-ING-10)
+    obsolete: list[str] = field(default_factory=list)  # documents obsolètes : rien d'ingéré (R-DOC-05)
     removed: int = 0     # passages disparus depuis la version précédente : supports retirés (T-ING-11)
     remembered: int = 0  # changements dont la décision passée est reprise sans question (R-PRI-04)
 
@@ -110,6 +111,10 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
     if len({d.doc_id for d in docs}) != len(docs):
         raise BatchError("un même document figure deux fois dans le lot")
     report = BatchReport(batch_id, base, [d.doc_id for d in docs], [], [], [])
+    # Un document obsolète ne produit rien, pas même l'enregistrement de ses passages : à la levée du
+    # statut, une nouvelle ingestion le traitera comme neuf (R-DOC-05, décision J3.4).
+    report.obsolete = [d.doc_id for d in docs if head.obsolete_documents.get(d.doc_id)]
+    docs = [d for d in docs if d.doc_id not in report.obsolete]
 
     # Extraction (ou cache), puis brouillons à résoudre.
     raw: list[tuple[DocumentVersion, int, int, dict[str, Any], bool]] = []

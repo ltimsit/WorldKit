@@ -14,7 +14,7 @@ from worldkit.core.schema.changes import (
 )
 from worldkit.core.world import World
 
-from .queue import load, refresh
+from .queue import blocked, load, refresh
 from .store import dumps, ensure_tables, loads_key
 
 # Ordre d'affichage des étiquettes : ce qui demande l'attention d'abord.
@@ -85,6 +85,7 @@ class ProposalView:
     depends_on: list[str] = field(default_factory=list)
     issues: list[str] = field(default_factory=list)
     closed_reason: str | None = None
+    blocked: bool = False  # document obsolète (R-DOC-05)
 
     @property
     def tags(self) -> list[str]:
@@ -95,9 +96,10 @@ def proposals(world: World, batch: str | None = None,
               status: EditStatus | None = EditStatus.PENDING) -> list[ProposalView]:
     """Propositions, requalifiées contre la tête au préalable (T-ING-06)."""
     refresh(world)
+    head = world.state()
     return [ProposalView(p.id, p.status, p.needs_recheck, p.batch, p.doc, p.passage, p.subject, p.kind, p.base,
                          [ChangeView(c.change, sort_tags(sorted(c.tags)), c.detail, c.fingerprint, c.state)
-                          for c in p.changes], p.depends_on, p.issues, p.closed_reason)
+                          for c in p.changes], p.depends_on, p.issues, p.closed_reason, blocked(head, p.doc))
             for p in load(world, None, None, status) if batch is None or p.batch == batch]
 
 

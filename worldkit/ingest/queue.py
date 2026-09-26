@@ -101,6 +101,12 @@ def load(world: World, branch: str | None = None, only: str | None = None,
     return out
 
 
+def blocked(state: State, doc_id: str) -> bool:
+    """Proposition bloquée : son document est obsolète dans l'état (R-DOC-05, décision J3.4).
+    Bloquée n'est pas close : la levée du statut la réactive telle quelle."""
+    return bool(state.obsolete_documents.get(doc_id, False))
+
+
 def load_one(world: World, pid: str) -> StoredProposal | None:
     found = load(world, None, pid, None)
     return found[0] if found else None

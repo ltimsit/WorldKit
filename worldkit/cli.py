@@ -102,6 +102,11 @@ def _run_ingest(world: Any, args: argparse.Namespace) -> int:
         print("  entités nouvelles : " + ", ".join(f"{e.id} ({e.type})" for e in report.new_entities))
     for where, flags in report.flagged.items():
         print(f"  {where} : {', '.join(flags)}")
+    if report.unchanged or report.removed or report.remembered:
+        print(f"  passages inchangés {report.unchanged}, retirés {report.removed} ;"
+              f" décisions reprises sans question {report.remembered}")
+    for doc in report.obsolete:
+        print(f"  {doc} : document obsolète, rien d'ingéré (R-DOC-05)")
     return 0
 
 
@@ -155,7 +160,7 @@ def _run_review(world: Any, args: argparse.Namespace) -> int:
     if args.review_command == "list":
         views = proposals(world, args.batch)
         for v in views:
-            recheck = " (à revérifier)" if v.needs_recheck else ""
+            recheck = " (bloquée : document obsolète)" if v.blocked else ""
             print(f"{v.id}{recheck}  [{_tags(v.tags)}]")
             for c in v.changes:
                 if c.state == "open":

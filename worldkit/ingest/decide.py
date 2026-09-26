@@ -20,7 +20,7 @@ from worldkit.core.schema.keys import UnknownRelation
 from worldkit.core.world import World
 
 from .queue import (
-    StoredChange, StoredProposal, close, load, load_one, passage_fp, record_support, refresh, save_change,
+    StoredChange, StoredProposal, blocked, close, load, load_one, passage_fp, record_support, refresh, save_change,
 )
 from .store import dumps, ensure_tables
 
@@ -50,6 +50,10 @@ def _pending(world: World, pid: str, action: str) -> StoredProposal | Decided:
         return _fail(pid, action, f"proposition inconnue : {pid}", "R-CYC-04")
     if p.status is not EditStatus.PENDING:
         return _fail(pid, action, f"proposition close ({p.status}, {p.closed_reason})", "R-EDI-08")
+    if action not in ("refuse", "abandon") and blocked(world.state(), p.doc):
+        return Decided(pid, action, issues=[Issue(
+            IssueCode.DOCUMENT_OBSOLETE, f"le document {p.doc} est obsolète : proposition bloquée, "
+            "réactivée si le statut est levé (set_document_obsolete false)", "R-DOC-05")])
     return p
 
 
@@ -227,6 +231,9 @@ def qualify(world: World, target: str, value: str, visibility: str | None = None
     refresh(world)
     p = load_one(world, target)
     if p is not None and p.status is EditStatus.PENDING:
+        if blocked(world.state(), p.doc):
+            return Decided(target, "qualify", issues=[Issue(
+                IssueCode.DOCUMENT_OBSOLETE, f"le document {p.doc} est obsolète : proposition bloquée", "R-DOC-05")])
         claim = _claim(p)
         if claim is None:
             return _fail(target, "qualify", "seule une affirmation se qualifie", "R-DOC-07")
