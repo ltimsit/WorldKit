@@ -61,13 +61,16 @@ def schema_fingerprint(state: Any) -> str:
 
 
 def _known_passages(world: World, branch: str, doc_id: str) -> dict[str, list[tuple[str, int]]]:
-    """Passages déjà ingérés d'un document sur la branche : empreinte → [(version, indice)]."""
+    """Passages de la dernière version ingérée d'un document sur la branche : empreinte → [(version, indice)]."""
+    latest = world.store.conn.execute(
+        "SELECT d.version_fp FROM batch_documents d JOIN batches b ON b.batch_id = d.batch_id"
+        " WHERE b.branch_id = ? AND d.doc_id = ? ORDER BY b.opened DESC LIMIT 1", (branch, doc_id)).fetchone()
     out: dict[str, list[tuple[str, int]]] = {}
-    for fp, vfp, idx in world.store.conn.execute(
-            "SELECT DISTINCT p.passage_fp, p.version_fp, p.idx FROM passages p"
-            " JOIN batch_documents d ON d.doc_id = p.doc_id AND d.version_fp = p.version_fp"
-            " JOIN batches b ON b.batch_id = d.batch_id WHERE b.branch_id = ? AND p.doc_id = ?", (branch, doc_id)):
-        out.setdefault(fp, []).append((vfp, idx))
+    if latest is None:
+        return out
+    for fp, idx in world.store.conn.execute(
+            "SELECT passage_fp, idx FROM passages WHERE doc_id = ? AND version_fp = ?", (doc_id, latest[0])):
+        out.setdefault(fp, []).append((latest[0], idx))
     return out
 
 

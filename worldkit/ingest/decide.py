@@ -128,7 +128,10 @@ def _apply(world: World, p: StoredProposal, kept: list[StoredChange], before: li
             save_change(world, p.id, c)
             _trace(world, p, c, action, edit_id, reason)
             if "claim" not in c.tags and "hint_visibility" not in c.tags:
-                record_support(world, p, c)  # le passage qui a produit le fait le soutient (T-ING-11)
+                record_support(world, p, c.change)  # le passage qui a produit le fait le soutient (T-ING-11)
+        if action == "promote":
+            for change in after:
+                record_support(world, p, change)  # le passage affirmait la valeur promue
         for c in refused:
             c.state = "refused"
             save_change(world, p.id, c)

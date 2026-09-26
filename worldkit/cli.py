@@ -110,8 +110,11 @@ def _run_ingest(world: Any, args: argparse.Namespace) -> int:
     return 0
 
 
-def _indices(text: str | None) -> list[int] | None:
-    return [int(i) for i in text.split(",")] if text else None
+def _indices(parts: list[str] | None) -> list[int] | None:
+    """« 0,1 », « 0 1 » ou « 0, 1 » : PowerShell passe 0,1 non entre guillemets comme deux arguments."""
+    if not parts:
+        return None
+    return [int(i) for part in parts for i in part.split(",") if i.strip()]
 
 
 def _print_decided(results: list[Any]) -> int:
@@ -261,7 +264,8 @@ def _run_world(args: argparse.Namespace) -> int:
 
         state = world.state(args.branch, args.point)
         if args.command == "wiki":
-            view = View(state, Filter(args.filter))
+            from worldkit.ingest.review import sources
+            view = View(state, Filter(args.filter), sources(world, args.branch))
             if args.wiki_command == "page":
                 page = view.page(args.entity)
                 if page is None:
@@ -359,11 +363,11 @@ def build_parser() -> argparse.ArgumentParser:
     review_cmds.add_parser("show").add_argument("proposal")
     acc = review_cmds.add_parser("accept", help="accepter (tout, ou --keep)")
     acc.add_argument("proposals", nargs="+")
-    acc.add_argument("--keep", help="indices des changements gardés (0,1…) ; les autres sont refusés")
+    acc.add_argument("--keep", nargs="+", help="indices des changements gardés (0,1 ou 0 1) ; les autres sont refusés")
     acc.add_argument("--drop-optional", action="store_true", help="écarter les changements facultatifs")
     ref = review_cmds.add_parser("refuse", help="refuser (tout, ou --changes)")
     ref.add_argument("proposals", nargs="+")
-    ref.add_argument("--changes", help="indices des changements refusés")
+    ref.add_argument("--changes", nargs="+", help="indices des changements refusés (0,1 ou 0 1)")
     abd = review_cmds.add_parser("abandon", help="abandonner (ex. un diff du mode edit)")
     abd.add_argument("proposals", nargs="+")
     cho = review_cmds.add_parser("choose", help="trancher un conflit : accepter celle-ci, refuser les autres")

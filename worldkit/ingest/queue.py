@@ -17,8 +17,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from worldkit.core.journal.models import BaseState, EditStatus
-from worldkit.core.projection.state import State
-from worldkit.core.schema import Change, FactKey
+from worldkit.core.projection.state import State, relation_fact_id
+from worldkit.core.schema import Change, FactKey, fact_keys
+from worldkit.core.schema.changes import AddRelation, AddValue, SetAttribute
+from worldkit.core.schema.keys import UnknownRelation
 from worldkit.core.world import World
 
 from .declaration import Mode, normalize
@@ -149,10 +151,27 @@ def close(world: World, p: StoredProposal, status: EditStatus, reason: str) -> N
     world.store.conn.execute("UPDATE proposals SET closed_reason = ? WHERE edit_id = ?", (reason, p.id))
 
 
-def record_support(world: World, p: StoredProposal, c: StoredChange) -> None:
-    for k in c.keys:
+def record_support(world: World, p: StoredProposal, change: Change, state: State | None = None) -> None:
+    """Le passage de la proposition soutient ce changement (T-ING-11). Clés et valeur sont calculées
+    contre l'état courant : un changement hors schéma à l'ingestion n'avait pas de clé, il en a une
+    une fois le schéma étendu (W09)."""
+    state = state or world.state()
+    ctx = state.context()
+    try:
+        keys = fact_keys(change, ctx)
+    except UnknownRelation:
+        return
+    if isinstance(change, SetAttribute):
+        value: Any = change.value
+    elif isinstance(change, AddValue):
+        value = True
+    elif isinstance(change, AddRelation):
+        value = list(relation_fact_id(change.from_, change.relation, change.to, change.scope, ctx))
+    else:
+        return
+    for k in keys:
         world.store.conn.execute("INSERT OR IGNORE INTO supports VALUES (?, ?, ?, ?, ?, ?)",
-                                 (p.doc, p.version_fp, p.passage, dumps(k), c.value or "null", p.batch))
+                                 (p.doc, p.version_fp, p.passage, dumps(k), dumps(value), p.batch))
 
 
 def refresh(world: World, branch: str | None = None) -> list[str]:
@@ -176,7 +195,7 @@ def refresh(world: World, branch: str | None = None) -> list[str]:
                                      head, ctx)
                     if q.tags == {"support"} or (q.tags - {"optional"}) == {"support"}:
                         c.tags, c.state = {"support"}, "support"
-                        record_support(world, p, c)
+                        record_support(world, p, c.change, head)
                     else:
                         c.tags = q.tags | (c.tags & STICKY)
                         if "internal_contradiction" in c.tags:

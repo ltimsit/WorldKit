@@ -133,3 +133,44 @@ def test_accepting_an_intention_is_an_evolution(w11):
     result = decide.accept(w11, rules.id)
     applied = w11.store.edit(result.edit_id).edit
     assert applied.origin == "evolution" and [c.op for c in applied.changes] == ["remove_relation", "add_relation"]
+
+
+# --- Non-régression : défauts trouvés en préparant le test humain de J3 ---
+
+def test_adapted_and_promoted_facts_are_supported_not_orphans():
+    """vassal_of (hors schéma à l'ingestion, adapté) et la date promue de la Chronique ont un support."""
+    from worldkit.core.schema import parse_change
+    w = after_w05()
+    schema = parse_change({"op": "schema_set_relation", "relation": "vassal_of",
+                           "definition": {"from": "Character", "to": "Character", "cardinality": "many_to_one"}})
+    assert decide.adapt(w, "b1.notes-baron.p2.1", [schema]).ok
+    ingest(w, "b2", docs("b2"), ORACLE)
+    assert decide.promote(w, "b2.chronique-de-la-chute-extraits.p5.1", visibility="public").ok
+    assert {i.path for i in orphan_facts(w)} == set()
+
+
+def test_identical_reingestion_removes_nothing_twice(tmp_path):
+    w = after_w05()
+    first = ingest(w, "b6", docs("b6"), ORACLE)
+    again = ingest(w, "b6-bis", docs("b6"), ORACLE)
+    assert first.removed == 3 and (again.removed, again.unchanged) == (0, 6)
+
+
+def test_pages_list_their_source_documents_R_VUE_02():
+    from worldkit.core.views import Filter, View
+    from worldkit.ingest.review import sources
+    w = after_w05()
+    page = View(w.state(), Filter.AUTHOR, sources(w)).page("odon")
+    assert page.documents == ["notes-baron", "notes-conseil"]
+    assert View(w.state(), Filter.PLAYER, sources(w)).page("odon").documents == []  # documents non qualifiés
+
+
+def test_cli_keep_accepts_powershell_split_arguments(tmp_path, capsys):
+    from worldkit.cli import main
+    db = str(tmp_path / "v.db")
+    run = lambda *a: main(["--db", db, *a])  # noqa: E731
+    run("world", "init", str(VALMONT / "world.yaml"))
+    run("edit", "apply", str(VALMONT / "edits" / "base.yaml"))
+    run("ingest", "b1", "--batches", str(VALMONT / "docs" / "batches.yaml"), "--oracle", str(VALMONT / "gold"))
+    assert run("review", "accept", "b1.notes-baron.p3.1", "--keep", "0", "1") == 0  # PowerShell : 0,1 → « 0 » « 1 »
+    assert "accept" in capsys.readouterr().out

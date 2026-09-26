@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from worldkit.core.journal.models import BaseState, EditStatus
-from worldkit.core.schema import Change, Issue, IssueCode, Severity
+from worldkit.core.schema import Change, Issue, IssueCode, Severity, Visibility
 from worldkit.core.schema.changes import (
     AddClaim, AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, RemoveRelation, RemoveValue, SetAttribute,
     SetVisibility, UnsetAttribute,
@@ -155,3 +155,21 @@ def orphan_facts(world: World, branch: str | None = None) -> list[Issue]:
                              f"{label} n'a plus aucun support documentaire (établi par {f.established_by}) ; "
                              "conservé dans l'état", "R-FAI-06", Severity.WARNING, label))
     return out
+
+
+def sources(world: World, branch: str | None = None) -> dict[str, list[tuple[str, Visibility]]]:
+    """Documents qui soutiennent au moins un fait de chaque entité (R-VUE-02, R-DOC-04), avec la
+    notoriété déclarée du document (absente = non qualifiée, R-NOT-01)."""
+    conn = world.store.conn
+    ensure_tables(conn)
+    head = world.state(branch)
+    visibility: dict[str, Visibility] = {}
+    for doc, axes in conn.execute("SELECT doc_id, axes FROM document_versions"):
+        declared = json.loads(axes).get("visibility")
+        visibility[doc] = Visibility(declared) if declared else Visibility.UNQUALIFIED
+    out: dict[str, set[str]] = {}
+    for doc, key in conn.execute("SELECT DISTINCT doc_id, fact_key FROM supports"):
+        for part in loads_key(key):
+            if isinstance(part, str) and part in head.entities:
+                out.setdefault(part, set()).add(doc)
+    return {e: [(d, visibility.get(d, Visibility.UNQUALIFIED)) for d in sorted(docs)] for e, docs in out.items()}

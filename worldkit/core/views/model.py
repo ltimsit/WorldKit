@@ -12,6 +12,7 @@ les entités distinctes ailleurs.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -173,13 +174,16 @@ class EntityPage:
     sheets: list[SheetSummary] = field(default_factory=list)
     claims: list[ClaimLine] = field(default_factory=list)
     drafts: list[str] = field(default_factory=list)     # pistes ouvertes : J6
-    documents: list[str] = field(default_factory=list)  # documents sources : J3
+    documents: list[str] = field(default_factory=list)  # documents sources (R-VUE-02)
 
 
 @dataclass(frozen=True)
 class View:
     state: State
     filter: Filter
+    # Documents sources par entité, avec leur notoriété (R-VUE-02, R-NOT-02) : fournis par l'ingestion,
+    # que le noyau ne connaît pas.
+    sources: Mapping[str, list[tuple[str, Visibility]]] = field(default_factory=dict)
 
     def _duplicates(self) -> dict[str, list[str]]:
         return _groups(self.state, {"duplicate"}, self.filter)
@@ -250,8 +254,11 @@ class View:
                          for f in s.facts_of(sid) if f.kind != "rel" and fact_visible(f, s, flt)]
                 sheets.append(SheetSummary(sid, srec.sheet.system, srec.sheet.category, lines))
 
+        documents = sorted({doc for m in members for doc, vis in self.sources.get(m, [])
+                            if flt is Filter.AUTHOR or vis is Visibility.PUBLIC})
         return EntityPage(entity, sorted(members), rec.type, self.title(entity), rec.closed,
-                          rec.visibility, attributes, relations, identities, sheets, self.claims_of(members))
+                          rec.visibility, attributes, relations, identities, sheets, self.claims_of(members),
+                          documents=documents)
 
     def claims_of(self, members: set[str]) -> list[ClaimLine]:
         """Affirmations dont l'énonciateur est sur la page (R-DOC-06, R-DOC-07, R-NOT-05)."""
