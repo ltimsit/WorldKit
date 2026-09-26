@@ -88,7 +88,7 @@ def test_ref_value_must_point_to_declared_type(ctx):
 
 def test_created_entity_without_required_attribute_is_refused(ctx):
     edit = [parse_change({"op": "create_entity", "entity": "conseil", "type": "Faction"})]
-    assert {(i.code, i.rule) for i in check_edit(edit, ctx).issues} == {INVALID}
+    assert {(i.code, i.rule) for i in check_edit(edit, ctx).issues} == {(IssueCode.MISSING_REQUIRED, "R-SCH-06")}
     edit.append(parse_change({"op": "set_attribute", "entity": "conseil", "attribute": "name",
                               "value": "le conseil des marchands"}))
     assert check_edit(edit, ctx).issues == []
