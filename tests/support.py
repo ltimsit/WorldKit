@@ -82,3 +82,49 @@ def naive_snapshot(changes: list[Change], ctx: SchemaContext) -> StateSnapshot:
 
 def strip_gold(change: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in change.items() if k not in GOLD_FIELDS}
+
+
+# --- J2 : monde en mémoire ---
+
+def new_world():
+    """Monde Valmont vierge (e000 appliquée), en mémoire."""
+    from worldkit.core.world import World
+    return World.create(":memory:", VALMONT / "world.yaml")
+
+
+def base_world():
+    """Monde Valmont à l'état de base (@base), en mémoire."""
+    from worldkit.core.journal.models import parse_edit
+    world = new_world()
+    for raw in base_edits():
+        outcome = world.apply(parse_edit(raw))
+        assert outcome.status == "applied", [str(i) for i in outcome.issues]
+    world.set_point("@base")
+    return world
+
+
+_counter = [0]
+
+
+def edit(*changes: dict[str, Any], origin: str = "enrichment", id: str | None = None, **extra: Any):
+    """Édition de test à identifiant unique."""
+    from worldkit.core.journal.models import parse_edit
+    _counter[0] += 1
+    return parse_edit({"id": id or f"t{_counter[0]:04d}", "origin": origin, "changes": list(changes), **extra})
+
+
+def rel(src: str, relation: str, dst: str, **extra: Any) -> dict[str, Any]:
+    return {"op": "add_relation", "from": src, "relation": relation, "to": dst, **extra}
+
+
+def unrel(src: str, relation: str, dst: str) -> dict[str, Any]:
+    return {"op": "remove_relation", "from": src, "relation": relation, "to": dst}
+
+
+def attr(entity: str, attribute: str, value: Any, **extra: Any) -> dict[str, Any]:
+    return {"op": "set_attribute", "entity": entity, "attribute": attribute, "value": value, **extra}
+
+
+def create(entity: str, type_: str, name: str, visibility: str | None = None) -> list[dict[str, Any]]:
+    vis = {"visibility": visibility} if visibility else {}
+    return [{"op": "create_entity", "entity": entity, "type": type_, **vis}, attr(entity, "name", name, **vis)]
