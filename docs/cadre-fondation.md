@@ -1,7 +1,7 @@
 # Cadre conceptuel de la fondation
 
 **Objet :** base de vérité du modèle conceptuel de la fondation. Sert d'entrée à la conception technique.
-**Version :** 1.17 — 26 septembre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v23, section 00).
+**Version :** 1.18 — 27 septembre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v25, section 00).
 **Statut :** de référence. En cas de divergence avec l'analyse ou avec le cadre technique, ce document prévaut.
 
 **Conventions**
@@ -293,7 +293,7 @@ flowchart LR
 | R-DOC-02 | Un document **doit** porter : `mode`, `nature`, `voice` (et `speaker` si `in_world`) (5.2), `status` ; et **peut** porter une `authority` (préparée). |
 | R-DOC-03 | La prose rédigée dans l'outil **est un document** comme un autre. |
 | R-DOC-04 | Un document **doit** rester attaché aux faits qu'il a produits ou confirmés (éditions et supports, R-FAI-01) ; sa réécriture entraîne une ré-ingestion et un diff. |
-| R-DOC-05 | Statut d'un document (`status`) : *intégré* (`integrated`), *partiellement contredit* (`partially_contradicted`), *obsolète* (`obsolete`). Le statut se déduit, pour chaque vue, de ses affirmations, de ses supports et de l'état ; *obsolète* est une décision humaine, prise par une édition d'origine `curation` (`set_document_obsolete`, R-EDI-09), et bloque toute nouvelle proposition issue du document. Ce statut est **réversible** : le lever rend le document ré-ingérable ; modalités à étudier (10.1). |
+| R-DOC-05 | Statut d'un document (`status`) : *intégré* (`integrated`), *partiellement contredit* (`partially_contradicted`), *obsolète* (`obsolete`). Le statut se déduit, pour chaque vue, de ses affirmations, de ses supports et de l'état ; *obsolète* est une décision humaine, prise par une édition d'origine `curation` (`set_document_obsolete`, R-EDI-09). Il **bloque sans clore** : les propositions en attente issues du document ne peuvent plus être acceptées (elles peuvent être refusées), et une ingestion du document ne produit rien. Ce statut est **réversible** : le lever réactive telles quelles les propositions bloquées et rend le document ré-ingérable ; les décisions déjà tracées restent valables (R-PRI-04). |
 | R-DOC-06 | Un document **in-world** **doit** être une entité de l'univers ; son contenu produit des **affirmations**, pas des faits. |
 | R-DOC-07 | Une affirmation **peut** être qualifiée *vraie*, *fausse* ou *non établie* (`true` / `false` / `undetermined`) par rapport aux faits, et **peut** être promue en fait (édition combinant `qualify_claim` et les changements qui établissent le fait). La **qualification porte sa propre notoriété**, indépendante de celle de l'affirmation : non qualifiée par défaut, donc masquée en vue publique (R-NOT-03). Exemple : la Chronique, publique, affirme qu'Aldren est mort au combat ; qualifiée fausse, elle reste lue telle quelle par les joueurs tant que l'auteur ne rend pas la qualification publique. |
 | R-DOC-08 | Faits et affirmations contradictoires **coexistent** ; ce n'est pas une contradiction au sens de 7. |
@@ -433,7 +433,7 @@ flowchart TD
 | R-EDI-02 | Une édition **appliquée** se transpose ou s'écarte **en bloc**. Une édition en attente s'applique en bloc, sauf confirmation partielle ou adaptée (R-EDI-08). |
 | R-EDI-03 | Une édition **doit** enregistrer les faits qu'elle **lit** et ceux qu'elle **modifie** (détection de dépendances), identifiés par leur clé (R-FAI-05). |
 | R-EDI-04 | Une édition est écrite **par rapport à un état**. |
-| R-EDI-05 | Une édition **doit** porter une étiquette d'origine (`origin`) et **peut** porter des étiquettes libres (`tags`). |
+| R-EDI-05 | Une édition **appliquée doit** porter une étiquette d'origine (`origin`) et **peut** porter des étiquettes libres (`tags`). L'origine d'une proposition confirmée est déduite de ses changements acceptés : sans contradiction, `enrichment` ; anomalie acceptée (mode `source`), `redefinition` ponctuelle ; intention acceptée (mode `edit`), `evolution`. |
 | R-EDI-06 | Le catalogue d'opérations est **fermé** : toute écriture dans l'état passe par l'une des opérations ci-dessous. |
 | R-EDI-07 | `delete_entity` n'est autorisée que dans une édition d'origine `correction`. Elle ne retire rien de l'historique (R-CYC-01) : l'entité et ses faits disparaissent des états suivants seulement. |
 | R-EDI-08 | Une édition en attente **peut** être confirmée **partiellement** ou **adaptée**. L'édition appliquée est alors une nouvelle édition qui référence l'originale (`derived_from`) ; l'originale n'est pas modifiée, et chaque changement écarté fait l'objet d'une décision tracée (R-CYC-02, R-PRI-04). Une proposition confirmée, même partiellement, est close ; une piste de scénario reste disponible pour d'autres déroulés (R-SCN-06). |
@@ -475,7 +475,8 @@ Les opérations sur les faits valent pour le lore comme pour les fiches (la cibl
 | Enrichissement | `enrichment` | Ajout sans contradiction |
 | Conséquence de scénario | `scenario_consequence` | Piste confirmée ou édition libre d'un déroulé |
 | Piste retenue | `adopted_draft` | Piste d'auteur appliquée hors scénario |
-| Redéfinition ponctuelle / rétroactive | `redefinition` (`point` / `retroactive`) | Choix explicite lors d'un retcon |
+| Redéfinition ponctuelle / rétroactive | `redefinition` (`point` / `retroactive`) | Choix explicite lors d'un retcon ; une anomalie d'ingestion acceptée est une redéfinition ponctuelle |
+| Évolution | `evolution` | Intention acceptée : le monde change dans son histoire (document en mode `edit`), sans que la vérité passée soit corrigée |
 | Correction | `correction` | Erreur technique (extraction, doublon) |
 | Décision sur les sources | `curation` | Changement du statut d'un document, sans effet sur le monde (R-EDI-09) |
 
@@ -688,7 +689,6 @@ flowchart LR
 | Critères distinguant piste d'auteur et action de scénario | Identiques dans la fondation (R-SCN-02) |
 | Application automatique des enrichissements | `auto_enrichment` : seuil de confiance au-delà duquel un ajout non contradictoire et conforme est appliqué sans validation (R-PRI-05) |
 | Défaire une édition passée | Mécanisme de *rollback* ciblé compatible avec un historique qui ne fait que s'allonger : édition inverse (`revert`) ajoutée à la branche, ou nouvelle branche depuis l'état antérieur |
-| Documents obsolètes | Effets de la levée du statut : ré-ingestion complète, ou réactivation des seules propositions bloquées ; sort des décisions déjà tracées (R-DOC-05) |
 
 ### 10.2 Entrées de la conception technique
 

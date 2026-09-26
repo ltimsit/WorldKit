@@ -153,8 +153,8 @@ class World:
 
     # --- Écriture ---
 
-    def _preflight(self, edit: Edit) -> list[Issue]:
-        issues = edit_rule_issues(edit)
+    def _preflight(self, edit: Edit, applying: bool = True) -> list[Issue]:
+        issues = edit_rule_issues(edit, applying)
         if self.store.has_edit(edit.id):
             issues.append(Issue(IssueCode.EDIT_RULE, f"identifiant d'édition déjà utilisé : {edit.id}", "R-CYC-01"))
         if edit.branch not in self.store.branches():
@@ -189,7 +189,7 @@ class World:
 
     def submit(self, edit: Edit) -> Outcome:
         """Met une édition en attente, même non applicable en l'état (R-SCH-06 : signalée, mise en attente)."""
-        issues = self._preflight(edit)
+        issues = self._preflight(edit, applying=False)
         if issues:
             return Outcome(edit.id, issues)
         head = self.state(edit.branch)
@@ -214,7 +214,10 @@ class World:
         if isinstance(rec, Outcome):
             return rec
         assert rec.base is not None
-        stale = rec.needs_recheck or Effects(rec.reads, rec.writes).touches(
+        rule_issues = edit_rule_issues(rec.edit)
+        if rule_issues:
+            return Outcome(edit_id, rule_issues, EditStatus.PENDING)
+        stale =rec.needs_recheck or Effects(rec.reads, rec.writes).touches(
             self.store.writes_since(rec.edit.branch, rec.base.seq))
         if stale:
             with self.store.conn:

@@ -2,8 +2,8 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v24** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
-**Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2).
+**Statut :** analyse pré-cahier des charges, **v25** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3).
 
 Légende utilisée dans tout le document :
 
@@ -50,6 +50,7 @@ Ajouts v2/v3 :
 > - **v22** : décisions du jalon J1 (validateur de schéma) — valeur invalide non applicable (00.36), lien double face en relation noyau provisoire (00.37), fiches exigées déclarées par le monde (00.38), précisions du validateur (00.39) ; cadre de la fondation v1.16, cadre technique v2.6.
 > - **v23** : décisions du jalon J2 (journal, projection, vues) — ajout sur une clé occupée (00.40), notoriété d'une clôture (00.41) ; cadre de la fondation v1.17.
 > - **v24** : précisions techniques du jalon J2 (00.42) ; cadre technique v2.8.
+> - **v25** : décisions du jalon J3 (ingestion) — anomalie acceptée (00.43), origine des propositions confirmées (00.44), document obsolète (00.45) ; cadre de la fondation v1.18, cadre technique v2.9.
 
 ### 00.1 Vision reformulée
 
@@ -924,6 +925,43 @@ Conséquence sur l'ordre : le cœur du module de contradictions (collisions, lec
 - **Vocabulaire** : un nom donné à un rang du journal (`@base`) est un *point nommé*, distinct du *point de sauvegarde* de T-STO-01, dont la fréquence est reportée faute de besoin mesuré.
 - **Vues** : identifiants affichés tels quels (libellés préparés, R-SCH-08) ; un groupe de doublons est représenté par l'entité créée en premier.
 
+### 00.43 Accepter une anomalie (v25)
+
+> Décision du 27 septembre 2026, jalon J3.
+
+**Problème.** Les notes sur le baron proposent « le conseil gouverne Brume » alors que l'état dit « Odon gouverne Brume ». Depuis 00.40, un ajout sur une clé occupée exige le retrait explicite du fait occupant. Que produit l'acceptation de cette anomalie ?
+
+**Voies comparées.**
+- *Refuser l'acceptation tant que l'auteur n'a pas adapté la proposition* : explicite, mais chaque anomalie acceptée demande une réécriture. Écartée.
+- *Ajouter le retrait automatiquement dans l'édition dérivée, montré avant confirmation* : le retrait est écrit et visible (« Odon perd Brume ») ; l'auteur n'a rien à réécrire. **Retenue.**
+
+**Décision.** Accepter une anomalie ou une intention portant sur une relation produit une édition dérivée qui commence par le retrait du fait occupant (T-ING-04). `set_attribute` n'en a pas besoin : l'opération remplace.
+
+### 00.44 Origine d'une proposition confirmée (v25)
+
+> Décision du 27 septembre 2026, jalon J3.
+
+**Problème.** Toute édition appliquée porte une origine (R-EDI-05), mais aucune ne convenait à une proposition qui remplace un fait : `enrichment` signifie « sans contradiction », `correction` vise les erreurs techniques, `scenario_consequence` suppose un déroulé.
+
+**Voies comparées.**
+- *Une étiquette unique `revision`* : simple, mais confond redéfinition et évolution, et les vues antérieures ne signaleraient rien. Écartée.
+- *Déduire selon le cas* : anomalie acceptée → `redefinition` ponctuelle (la vérité est autre à partir de maintenant ; les vues antérieures signalent « redéfini plus tard », R-VUE-03) ; intention acceptée → nouvelle étiquette `evolution` (le monde change dans son histoire, distinction « redéfinition ou évolution » de 00.7). **Retenue.**
+
+**Décision.** R-EDI-05 précise la déduction ; nouvelle étiquette d'origine `evolution`. Une proposition en attente n'a pas encore d'origine : elle est fixée à la confirmation.
+
+### 00.45 Document obsolète et levée du statut (v25)
+
+> Décision du 27 septembre 2026, jalon J3 ; point ouvert §10.1 du cadre, désormais tranché.
+
+**Problème.** Le cadre disait qu'un document obsolète bloque toute nouvelle proposition, sans dire ce que deviennent les propositions déjà en attente, ni l'effet de la levée du statut sur les décisions passées.
+
+**Voies comparées.**
+- *Clore puis tout reproposer* : double emploi avec la mémoire des décisions, et réextraction de passages inchangés. Écartée.
+- *Clore et oublier les décisions à la levée* : repose des questions tranchées (contraire à R-PRI-04). Écartée.
+- *Bloquer sans clore, puis réactiver* : l'obsolescence devient un interrupteur réversible ; rien ne se perd. **Retenue.**
+
+**Décision.** R-DOC-05 : pendant l'obsolescence, les propositions du document sont bloquées (refusables, non acceptables) et une ingestion du document ne produit ni n'enregistre rien ; la levée les réactive telles quelles ; les décisions tracées restent valables. Le point ouvert §10.1 « Documents obsolètes » est retiré.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1516,6 +1554,9 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 67. Que devient l'ajout d'un fait sur une clé déjà occupée ? — **Réponse (v23) :** ✅ Refusé, sauf si la même édition retire le fait occupant ; `set_attribute` remplace (00.40).
 68. Une clôture porte-t-elle sa propre notoriété ? — **Réponse (v23) :** ✅ Non : elle suit celle de l'entité (00.41).
 69. Remplacer une valeur sans préciser de notoriété change-t-il sa notoriété ? — **Réponse (v24) :** ✅ Non : la notoriété du fait est gardée (00.42).
+70. Accepter une anomalie qui vise une clé occupée : qui retire l'ancien fait ? — **Réponse (v25) :** ✅ L'édition dérivée, automatiquement, et le diff le montre (00.43).
+71. Quelle origine pour une proposition confirmée qui remplace un fait ? — **Réponse (v25) :** ✅ `redefinition` ponctuelle pour une anomalie, `evolution` pour une intention (00.44).
+72. Que devient un document obsolète, et que produit la levée du statut ? — **Réponse (v25) :** ✅ Propositions bloquées sans être closes, réactivées à la levée ; décisions conservées (00.45).
 
 ---
 

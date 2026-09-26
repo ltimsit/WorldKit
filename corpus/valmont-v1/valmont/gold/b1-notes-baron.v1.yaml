@@ -27,8 +27,8 @@ passages:
     changes:
       - { op: create_entity, entity: "new:conseil-marchands", type: Faction, outcome: enrichment }
       - { op: set_attribute, entity: "new:conseil-marchands", attribute: name, value: "le conseil des marchands", outcome: enrichment }
-      - { op: add_relation, from: "new:conseil-marchands", relation: rules, to: brume, outcome: anomaly, collides_with: "odon rules brume (clé (rules, brume))" }
-    rules: [R-FAI-05, R-PRI-01, T-ING-03]
+      - { op: add_relation, from: "new:conseil-marchands", relation: rules, to: brume, outcome: anomaly, collides_with: "odon rules brume (clé (rules, brume)) ; et passage 1 du même document", internal_contradiction: true }
+    rules: [R-FAI-05, R-PRI-01, T-ING-03, R-ING-02]
 
   - index: 4
     starts_with: "Odon siège lui-même au conseil des marchands"

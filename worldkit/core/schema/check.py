@@ -244,6 +244,12 @@ def _check_relation(source: str, relation: str, target: str, scope: str, ctx: Sc
 # API : changement, édition
 # ---------------------------------------------------------------------------
 
+def check_fact_change(change: Change, ctx: SchemaContext) -> list[Issue]:
+    """Vérifie un changement de fait seul, sans le contrôle des attributs requis d'une entité créée,
+    qui porte sur l'édition entière (voir `check_edit`)."""
+    return _check_fact_change(change, ctx)
+
+
 def check_change(change: Change, ctx: SchemaContext) -> list[Issue]:
     """Vérifie un changement isolé contre l'état visé (édition à un seul changement)."""
     return check_edit([change], ctx).issues
@@ -318,7 +324,8 @@ def check_edit(changes: Iterable[Change], ctx: SchemaContext) -> EditCheck:
             continue
         for name, attr in owner[1].attributes_of(owner[2]).items():
             if attr.required and (entity, name) not in filled:
-                issues.append(_invalid(f"« {entity} » est créée sans l'attribut requis « {name} »"))
+                issues.append(Issue(IssueCode.MISSING_REQUIRED,
+                                    f"« {entity} » est créée sans l'attribut requis « {name} »", "R-SCH-06"))
     return EditCheck(issues, ctx)
 
 

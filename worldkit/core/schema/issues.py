@@ -29,18 +29,21 @@ class IssueCode(StrEnum):
     MALFORMED_CHANGE = "malformed_change"
     OUT_OF_SCHEMA = "out_of_schema"
     INVALID_VALUE = "invalid_value"
+    MISSING_REQUIRED = "missing_required"
     UNKNOWN_ENTITY = "unknown_entity"
     PROVISIONAL_CORE_RELATION = "provisional_core_relation"
     # Conformité d'un état
     NON_CONFORMING = "non_conforming"
     MISSING_SHEET = "missing_sheet"
     MASKED_PUBLIC_FACT = "masked_public_fact"
+    ORPHAN_FACT = "orphan_fact"
     # Application d'une édition (M2, M4)
     EDIT_RULE = "edit_rule"
     KEY_COLLISION = "key_collision"
     INTERNAL_CONTRADICTION = "internal_contradiction"
     MISSING_FACT = "missing_fact"
     STALE_EDIT = "stale_edit"
+    DOCUMENT_OBSOLETE = "document_obsolete"
 
 
 @dataclass(frozen=True)

@@ -163,9 +163,14 @@ class SetVisibility(_Change):
 # --- Affirmations et documents ---
 
 class AddClaim(_Change):
+    """Affirmation d'une voix du monde (R-DOC-06) : n'est pas un fait. `claimed` : le changement
+    revendiqué, sous forme brute, quand il est exprimable (T-ING-12)."""
+
     op: Literal["add_claim"]
     claim: str
     document: str | None = None
+    speaker: str | None = None  # entité énonciatrice (la Chronique)
+    text: str | None = None
     claimed: Any = None
 
 

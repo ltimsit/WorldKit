@@ -224,7 +224,8 @@ def apply_change(state: State, change: Change, edit_id: str) -> None:
                 lifted = old.propagation_lifted if change.propagation_lifted is None else change.propagation_lifted
                 state.facts[fid] = replace(old, visibility=change.value, propagation_lifted=lifted)
         case AddClaim():
-            state.claims[change.claim] = {"document": change.document, "claimed": change.claimed,
+            state.claims[change.claim] = {"document": change.document, "speaker": change.speaker,
+                                          "text": change.text, "claimed": change.claimed,
                                           "visibility": change.visibility, "established_by": edit_id}
         case QualifyClaim():
             state.qualifications[change.claim] = {"value": change.value, "visibility": change.visibility,

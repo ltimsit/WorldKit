@@ -24,6 +24,7 @@ class Origin(StrEnum):
     SCENARIO_CONSEQUENCE = "scenario_consequence"
     ADOPTED_DRAFT = "adopted_draft"
     REDEFINITION = "redefinition"
+    EVOLUTION = "evolution"  # intention acceptée : le monde change dans son histoire (décision J3.2)
     CORRECTION = "correction"
     CURATION = "curation"
 
@@ -46,7 +47,7 @@ class Edit(BaseModel):
 
     id: str
     branch: str = REFERENCE_BRANCH  # T-BRA-01 : présent partout dès J2
-    origin: Origin
+    origin: Origin | None = None  # déduite à la confirmation pour une proposition ; requise pour appliquer
     redefinition: RedefinitionKind | None = None
     tags: list[str] = Field(default_factory=list)
     derived_from: str | None = None  # R-EDI-08
@@ -64,9 +65,11 @@ class BaseState(BaseModel):
     schema_rev: int
 
 
-def edit_rule_issues(edit: Edit) -> list[Issue]:
-    """Règles propres à l'édition, indépendantes de l'état (R-EDI-07, R-EDI-09)."""
+def edit_rule_issues(edit: Edit, applying: bool = True) -> list[Issue]:
+    """Règles propres à l'édition, indépendantes de l'état (R-EDI-05, R-EDI-07, R-EDI-09)."""
     issues: list[Issue] = []
+    if applying and edit.origin is None:
+        issues.append(Issue(IssueCode.EDIT_RULE, "une édition appliquée porte une étiquette d'origine", "R-EDI-05"))
     if edit.origin is not Origin.CORRECTION and any(isinstance(c, DeleteEntity) for c in edit.changes):
         issues.append(Issue(IssueCode.EDIT_RULE,
                             "delete_entity n'est permise que dans une édition d'origine correction", "R-EDI-07"))

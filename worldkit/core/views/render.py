@@ -60,13 +60,24 @@ def render_page(page: EntityPage, view: View) -> str:
         for i in page.identities:
             out.append(f"- même que `{i.other}` ({i.kind})" + _meta(flt, i.visibility, i.provenance))
 
+    if page.claims:
+        out += ["", "## Affirmations"]
+        labels = {"true": "vraie", "false": "fausse", "undetermined": "non établie"}
+        for c in page.claims:
+            verdict = f" — qualifiée {labels.get(c.qualification, c.qualification)}" if c.qualification else ""
+            meta = _meta(flt, f"{c.visibility} ; qualification {c.qualification_visibility}"
+                         if c.qualification else c.visibility, c.provenance)
+            out.append(f"- « {c.text} »{verdict}{meta}")
+
     out += ["", "## Fiches"]
     for sh in page.sheets:
         values = ", ".join(f"{a.name} {a.value}" for a in sh.attributes) or "vide"
         out.append(f"- {sh.system} ({sh.category}) : {values}")
     if not page.sheets:
         out.append("- (aucune)")
-    out += ["", "## Pistes ouvertes", "- (aucune)", "", "## Documents sources", "- (aucun)", ""]
+    out += ["", "## Pistes ouvertes", "- (aucune)", "", "## Documents sources"]
+    out += [f"- {d}" for d in page.documents] or ["- (aucun)"]
+    out.append("")
     return "\n".join(out)
 
 
@@ -94,8 +105,12 @@ def export_graph(state: State, flt: Filter) -> dict[str, Any]:
     identities = [{"a": f.subject, "b": f.target, "kind": f.same_as_kind}
                   for f in sorted(state.facts.values(), key=lambda f: repr(f.id))
                   if f.name == "same_as" and fact_visible(f, state, flt)]
+    claims = []
+    for eid in view.entity_ids():
+        for c in view.claims_of({eid}):
+            claims.append({"speaker": eid, "text": c.text, "qualification": c.qualification})
     return {"branch": state.branch, "seq": state.seq, "filter": str(flt),
-            "entities": entities, "relations": relations, "identities": identities}
+            "entities": entities, "relations": relations, "identities": identities, "claims": claims}
 
 
 def export_json(state: State, flt: Filter) -> str:
