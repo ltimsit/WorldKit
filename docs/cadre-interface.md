@@ -1,12 +1,12 @@
 # Cadre de l'interface
 
 **Objet :** vision, principes, découpage et points à trancher de l'interface de `worldkit`, conçue d'abord comme un **banc d'essai** : tester, suivre l'efficacité, contrôler, et obtenir des retours complets et explicites.
-**Version :** 0.1 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
+**Version :** 0.2 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (en attente). En cas de divergence, le cadre de la fondation puis le cadre technique prévalent.
 
 **Conventions**
 - Les décisions d'interface portent un identifiant stable `I-XXX-nn`. Les règles et décisions des autres cadres sont citées par leur identifiant (`R-XXX-nn`, `T-XXX-nn`).
-- Les questions ouvertes sont numérotées `QI-nn` (§11) et tranchées une à une, avec des options et une recommandation.
+- Les questions sont numérotées `QI-nn` (§11) et tranchées une à une, avec des options et une recommandation ; chaque réponse devient une décision `I-XXX-nn` (§8).
 - Nommage technique en anglais, prose en français (comme les autres cadres).
 
 ---
@@ -26,17 +26,17 @@ L'interface n'est pas d'abord un outil d'écriture confortable. C'est un **instr
 | I-OBJ-07 | **Voir** : le graphe, le wiki (auteur et joueur), les branches et l'historique. |
 | I-OBJ-08 | **Alimenter** : saisie directe d'éditions (brouillon) et imports (documents, lots, fichiers d'éditions, scénarios). |
 
-## 2. Principes (proposés)
+## 2. Principes
 
 | ID | Principe |
 |---|---|
 | I-PRI-01 | **Clarté avant beauté.** Tables denses, identifiants visibles, textes bruts accessibles, aucune information cachée derrière une animation. Le maximum de réponse rendue et d'indicateurs. |
-| I-PRI-02 | **Aucune logique métier dans l'interface.** Elle appelle les mêmes fonctions que la ligne de commande (noyau, ingestion, périphérie), par une couche de service mince. Même entrée, même sortie (T-ARC-01). |
+| I-PRI-02 | **Aucune logique métier dans l'interface.** Les règles du domaine (clés, collisions, notoriété, qualification, transposition, rejeu) sont calculées par le service, jamais par l'interface, qui recueille une saisie, appelle le service et affiche ce qui revient. Elle garde la **présentation** : mise en page, tri, recherche dans ce qu'elle a reçu, disposition du graphe, surlignage. Un **filtre de vue** (auteur ou joueur, branche, point) est du métier : il décide de ce qui existe à l'écran. Une seule vérité (T-ARC-01, R-SCH-02) ; ce qui s'affiche est ce qui est testé. En cas de doute, le calcul va au service. *(validé)* |
 | I-PRI-03 | **Tout résultat est traçable** : entrée, sortie, règle citée (`R-…`, `T-…`), version du code et de l'extracteur, durée. |
-| I-PRI-04 | **Essai avant écriture** : une exécution de test ne modifie jamais le monde de travail sans confirmation (bac à sable, QI-03). |
+| I-PRI-04 | **Essai avant écriture** : une exécution de test ne modifie jamais le monde de travail sans confirmation (bac à sable, I-SBX-01). *(validé)* |
 | I-PRI-05 | **Le déterminisme se voit** : rejouer une exécution et comparer ; une différence sur une étape déterministe est une anomalie signalée. |
-| I-PRI-06 | **Le coût se voit et se contrôle** : toute étape qui appelle un modèle affiche une estimation (nombre d'appels) et demande confirmation ; le cache d'extraction est visible (T-ING-09). |
-| I-PRI-07 | **Parité avec la ligne de commande** (à trancher, QI-09) : ce que fait l'interface reste faisable en ligne de commande, pour les tests automatiques et la reproductibilité. |
+| I-PRI-06 | **Le coût se voit et se contrôle** : toute étape qui appelle un modèle affiche une estimation (nombre d'appels) et demande confirmation ; le cache d'extraction est visible (T-ING-09, I-LLM-01). *(validé)* |
+| I-PRI-07 | **Parité avec la ligne de commande** : ce que fait l'interface reste faisable en ligne de commande, pour les tests automatiques et la reproductibilité (I-CLI-01). *(validé)* |
 
 ## 3. Ce qu'on teste : catalogue des mécanismes
 
@@ -97,7 +97,7 @@ flowchart LR
 | E11 Application | éditions | journal, état | oui |
 | E12 Vues | état | pages, export, signalements | oui |
 
-Aujourd'hui, `ingest` enchaîne E1 à E9 d'un bloc et n'expose que le résultat. Découper ces étapes est un **travail côté noyau et ingestion** (refactorisation sans changement de comportement, vérifiée par les tests existants), préalable au banc de pipeline (QI-04).
+Aujourd'hui, `ingest` enchaîne E1 à E9 d'un bloc et n'expose que le résultat. Découper ces étapes est un **travail côté ingestion** : refactorisation sans changement de comportement, vérifiée par les tests existants, préalable au banc de pipeline (I-PIP-01).
 
 ## 5. Espaces de l'interface (proposés)
 
@@ -154,23 +154,33 @@ Chaque exécution (mécanisme, étape, pipeline) rend un **résultat** de même 
 | indicateurs | propres à l'étape (§6) |
 | trace | durée, versions (code, schéma, extracteur, prompt), appels au modèle, graine du bac à sable |
 
-## 8. Architecture (proposée, à trancher)
+## 8. Architecture et décisions
 
 ```mermaid
 flowchart LR
-  UI["Interface"] --> SVC["Couche de service<br/>(exécutions, artefacts, bac à sable)"]
+  UI["Interface web locale<br/>HTML + htmx, Cytoscape.js, Mermaid"] -->|"HTTP"| API["API FastAPI"]
   CLI["Ligne de commande"] --> SVC
+  API --> SVC["Couche de service<br/>(résultats, exécutions, bacs à sable)"]
   SVC --> CORE["Noyau (worldkit/core)"]
   SVC --> ING["Ingestion (worldkit/ingest)"]
   SVC --> PER["Périphérie (worldkit/periphery)"]
-  SVC --> RUNS[("Exécutions et artefacts")]
-  CORE --> DB[("Monde SQLite")]
+  SVC --> RUNS[("monde.runs.db<br/>exécutions, artefacts")]
+  SVC --> SBX[("monde.sandbox-n.db<br/>bacs à sable")]
+  CORE --> DB[("monde.db")]
 ```
 
-- **Couche de service** : une API Python qui expose les mécanismes (§3) et les étapes (§4) sous la forme commune d'un résultat (§7). L'interface et, à terme, la ligne de commande passent par elle (I-PRI-02, I-PRI-07).
-- **Exécutions et artefacts** : où et comment ils sont enregistrés (QI-05).
-- **Bac à sable** : une copie du monde pour essayer sans risque (QI-03).
-- **Technologie de l'interface** : à trancher (QI-01).
+| ID | Sujet | Décision | Alternatives écartées | Statut | Question |
+|---|---|---|---|---|---|
+| I-TEC-01 | Technologie | **Web local** : la couche de service est exposée par une **API FastAPI** (JSON) ; les pages sont du **HTML rendu par le serveur**, rendu interactif par **htmx** ; **Cytoscape.js** pour le graphe, **Mermaid** pour les branches ; bibliothèques JS copiées dans le projet, sans étape de compilation ni Node : l'outil fonctionne hors ligne. Chaque résultat est aussi consultable en JSON brut. | NiceGUI (tout Python, mais API non séparée par construction, graphe riche par JS ajouté) ; Streamlit (réexécution du script à chaque interaction : mal adapté au pas à pas, à la revue, aux rejeux) ; bureau Qt (lourd, graphe pauvre). | validé | QI-01 |
+| I-INC-01 | Premier incrément | **Service et lecture d'abord** : couche de service et forme commune d'un résultat, puis tableau de bord, wiki auteur et joueur, branches et historique en lecture seule. Premier test humain : relire le retcon d'Aldren entre les deux branches. | Revue d'abord (écrans d'action avant ceux de lecture dont ils dépendent) ; banc de pipeline d'abord (long avant le premier écran). | validé | QI-02 |
+| I-SBX-01 | Bac à sable | Une **copie du fichier du monde** par bac à sable (`monde.sandbox-<n>.db`, sauvegarde SQLite cohérente) : l'essai y est complet, inspectable, comparable au monde de travail, jetable. **Rendre réel** = rejouer sur le monde de travail les **actions enregistrées** de l'essai (jamais copier le fichier, R-HIS-01) ; une extraction LLM est relue depuis son artefact (aucun appel, résultat identique) ; toute divergence est signalée avant d'appliquer. Les mécanismes qui n'écrivent rien s'exécutent directement sur le monde de travail. | Transaction annulée (le code valide au fil de l'eau ; rien d'inspectable après) ; monde en mémoire (perdu à la fermeture) ; branche d'essai dans le monde (journal pollué, lots, cache et décisions non propres à une branche). | validé | QI-03 |
+| I-PIP-01 | Étapes et artefacts | Les **12 étapes** E1 à E12 (§4) sont des fonctions du service : artefact d'entrée + état de base → résultat (§7) portant l'artefact de sortie. Un **modèle pydantic par étape** valide l'artefact injecté ; artefacts enregistrés en **JSON canonique** (clés triées, version du format) ; YAML accepté en saisie. L'étape humaine E10 prend, dans un pipeline scripté, un artefact « décisions ». `ingest` devient l'enchaînement E1 à E9 ; la refactorisation est vérifiée par les tests existants, inchangés. | Six regroupements (isole mal traduction, garde, résolution) ; plus de douze étapes (état intermédiaire illisible ; le banc de mécanismes couvre ce besoin). | validé | QI-04 |
+| I-RUN-01 | Exécutions | Un fichier SQLite d'exécutions **par monde** (`monde.runs.db`), distinct du monde, seule source de vérité de l'univers. On garde tout : entrées, artefacts, indicateurs, trace, prompts et réponses brutes. Conservation illimitée, **purge manuelle** (sans effet sur l'histoire du monde). Bacs à sable et exécutions y sont référencés ; export JSON d'une exécution possible. Le cache d'extraction reste dans le monde (T-ING-09). | Tables dans le fichier du monde (mêle histoire et traces jetables) ; un fichier JSON par exécution (comparaison et tri difficiles). | validé | QI-05 |
+| I-ACC-01 | Parcours d'acceptation | Les parcours W00 à W17 s'exécutent **pas à pas** dans un bac à sable (étapes `do:`) ; à côté de chaque attendu en prose, le corpus reçoit progressivement une **vérification structurée** (`check: fact`, `check: pending`…), en commençant par W15 et W08. L'interface montre chaque étape et chaque attendu (réussi, échoué, non structuré). **pytest et l'interface partagent l'exécuteur** ; les tests écrits à la main restent tant qu'un parcours n'est pas entièrement structuré. Évolution du format provisoire du corpus. | Lancer pytest et afficher le résultat (ni étapes ni artefacts) ; étapes exécutées mais attendus en prose seulement (rien de vérifié, deux descriptions). | validé | QI-06 |
+| I-GRA-01 | Graphe | **Voisinage** d'une entité choisie par défaut (profondeur réglable), vue complète à un clic ; **couches** à activer (monde, éléments de système, fiches avec `has_sheet` et `conforms_to` calculées, contreparties, identités, affirmations, documents) ; **style** encodant notoriété, fait masqué, redéfini plus tard, orphelin, entité close ; survol : identifiant, clé, provenance ; **mode comparaison** de deux états (branches ou points) avec ajouts, retraits, changements ; table des éléments affichés sous le graphe. Données fournies par le service (branche, point, filtre). | Graphe complet filtré (illisible à grande taille, comparaison noyée) ; table d'abord (perd la vue d'ensemble). | validé | QI-07 |
+| I-SAI-01 | Saisie | **Éditeur YAML** (police fixe, numéros de ligne) **vérifié en direct par le service**, sans écrire : clés, lectures et écritures, collisions, signalements rattachés à la ligne de `changes[i]`, aperçu de l'état après en diff. Aides : gabarit par opération, panneau des entités connues, choix de branche, point de base et destination (appliquer, soumettre, bac à sable). Formulaires possibles plus tard, écrivant dans l'éditeur. | Formulaires par opération (long à construire, format caché) ; les deux synchronisés d'emblée (double travail, source d'erreurs). | validé | QI-08 |
+| I-CLI-01 | Parité | **Parité par le service** : toute opération du service est accessible en ligne de commande (`worldkit run stages`, `worldkit sandbox`, `worldkit walkthrough run`, `worldkit runs`…) ; seul le purement visuel reste propre à l'interface. Les commandes actuelles passent progressivement par le service ; les tests visent le service. | Parité souhaitée seulement (opérations non scriptables) ; ligne de commande figée (perte de la reproductibilité). | validé | QI-09 |
+| I-LLM-01 | Coût des modèles | Avant toute extraction par un modèle : **estimation exacte** (passages absents du cache pour ce profil et ce prompt), **confirmation explicite** (dialogue ; `--yes` en ligne de commande), **plafond par exécution** (`max_calls_per_run` dans `worldkit-llm.yaml`, 30 par défaut ; au-delà, arrêt propre, passages restants marqués « non extrait : plafond atteint », repris à la relance). Chaque exécution relève ses appels, durées, modèle et version du prompt ; le tableau de bord les cumule. Oracle et cache ne demandent rien ; les tests n'appellent aucun modèle. | Confirmation seule (sans filet) ; relevé après coup (contraire à I-PRI-06). | validé | QI-10 |
 
 ## 9. Périmètre
 
@@ -178,34 +188,34 @@ flowchart LR
 |---|---|---|
 | Usage local, un seul utilisateur (l'auteur) ; tout ce qui est décrit aux §3 à §7 | Édition confortable du wiki, mise en forme soignée ; lecture par les joueurs | Multi-utilisateur, comptes, déploiement en ligne (cadre de la fondation §1.4) |
 
-## 10. Jalons (proposés, à ajuster après les questions)
+## 10. Jalons
 
 | Jalon | Contenu | Test |
 |---|---|---|
 | I0 | Cadre d'interface validé (ce document) | — |
-| I1 | Couche de service et forme commune d'un résultat ; exécutions enregistrées | tests automatiques de la couche |
-| I2 | Squelette de l'interface : tableau de bord, wiki, branches (lecture seule) | tests humains de lecture |
-| I3 | Banc de mécanismes et saisie d'éditions en brouillon | retcon d'Aldren (J7) |
-| I4 | Découpage du pipeline (E1 à E12) et banc de pipeline, de x à y | Loup sous deux systèmes (J8) |
-| I5 | Revue complète (propositions, nature, rejeu) | sessions de curation chronométrées |
-| I6 | Graphe, mesures T2, comparaison d'exécutions | choix du modèle sur le second jet du corpus |
+| I1 | Couche de service et forme commune d'un résultat (§7) ; exécutions enregistrées (`monde.runs.db`) ; bacs à sable (créer, lister, jeter) ; commandes correspondantes (I-CLI-01) | tests automatiques du service |
+| I2 | Application FastAPI et squelette : tableau de bord, wiki auteur et joueur, branches et historique, en lecture seule ; JSON brut de chaque résultat | relire le retcon d'Aldren entre `reference` et `reference-r1` |
+| I3 | Saisie YAML vérifiée en direct (I-SAI-01) ; banc de mécanismes ; rendre réel un essai de bac à sable (I-SBX-01) | refaire le retcon d'Aldren dans un bac à sable, puis le rendre réel |
+| I4 | Découpage du pipeline (E1 à E12, I-PIP-01) ; banc de pipeline de x à y ; contrôle du coût (I-LLM-01) | Loup sous deux systèmes (J8), de E1 à E12 et par morceaux |
+| I5 | Revue complète (propositions, questions de nature, rejeu) ; parcours exécutables, W15 et W08 structurés d'abord (I-ACC-01) | sessions de curation chronométrées |
+| I6 | Graphe (I-GRA-01), mesures T2 et leur historique, comparaison d'exécutions | choix du modèle sur le second jet du corpus |
 
-## 11. Questions ouvertes
+## 11. Questions
 
-À trancher une à une, dans cet ordre (chacune peut en faire naître d'autres) :
+Toutes tranchées le 27 septembre 2026 (§8) :
 
-| # | Question |
-|---|---|
-| QI-01 | **Technologie** : application web locale en Python seul (NiceGUI, Streamlit…), web local avec une API et une page HTML/JS (FastAPI + bibliothèques de graphe), ou application de bureau ? |
-| QI-02 | **Premier incrément** : par quoi commencer pour débloquer au plus vite les tests humains ? |
-| QI-03 | **Bac à sable** : où s'exécutent les essais (copie du fichier du monde, transaction annulée, monde en mémoire) et comment un essai devient-il réel ? |
-| QI-04 | **Découpage du pipeline** : granularité des étapes (celle du §4 ?) et format des artefacts intermédiaires (JSON, YAML) réinjectables. |
-| QI-05 | **Exécutions** : enregistrées où (dans le fichier du monde, dans un fichier à côté) et combien de temps ; ce qu'on garde (entrées, sorties, prompts, réponses brutes). |
-| QI-06 | **Tests d'acceptation** : rendre les parcours W00–W17 exécutables depuis l'interface (et donc hors `pytest`), avec leurs attendus vérifiés ? |
-| QI-07 | **Graphe** : bibliothèque de rendu, disposition, taille visée, filtres ; branches dessinées comment. |
-| QI-08 | **Saisie** : éditeur YAML avec validation en direct, formulaires, ou les deux. |
-| QI-09 | **Parité avec la ligne de commande** : obligatoire, souhaitée, ou abandonnée pour l'interface. |
-| QI-10 | **Coût des modèles** : confirmation avant appel, plafond par exécution, affichage du cache. |
+| # | Question | Décision |
+|---|---|---|
+| QI-01 | Technologie | I-TEC-01 |
+| QI-02 | Premier incrément | I-INC-01 |
+| QI-03 | Bac à sable | I-SBX-01 |
+| QI-04 | Découpage du pipeline et artefacts | I-PIP-01 |
+| QI-05 | Exécutions | I-RUN-01 |
+| QI-06 | Parcours d'acceptation | I-ACC-01 |
+| QI-07 | Graphe | I-GRA-01 |
+| QI-08 | Saisie | I-SAI-01 |
+| QI-09 | Parité avec la ligne de commande | I-CLI-01 |
+| QI-10 | Coût des modèles | I-LLM-01 |
 
 ## 12. Glossaire de l'interface
 

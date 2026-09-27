@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v31** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v32** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -1050,6 +1050,36 @@ Conséquence sur l'ordre : le cœur du module de contradictions (collisions, lec
 
 **Décision.** Voir R-DEC-04, R-DEC-05 et T-ING-20. En chemin, les changements de schéma sont désormais qualifiés comme des faits (support, enrichissement, anomalie) : un passage peut ainsi corroborer une règle de système.
 
+### 00.52 Une interface conçue comme banc d'essai (v32)
+
+> Décision du 27 septembre 2026, après J8. Cadre : *cadre-interface.md*.
+
+**Problème.** Les jalons J0 à J8 sont faits, mais les tests humains (retcon d'Aldren, Loup sous deux systèmes) restent difficiles à juger en ligne de commande. L'auteur demande une interface orientée **test, suivi de l'efficacité, contrôle et retours explicites**, capable de :
+- tester un pipeline entier, un mécanisme seul, ou un pipeline de l'étape x à l'étape y ;
+- alimenter le monde en brouillon ou par import ;
+- voir le graphe, le wiki et les branches ;
+- privilégier la clarté sur la beauté.
+
+**Voies comparées.** Les dix questions QI-01 à QI-10 du cadre d'interface opposaient chaque fois une voie plus rapide à une voie plus traçable :
+- Python seul ou Streamlit, face à une API séparée ;
+- transaction annulée, face à une copie du monde ;
+- gros regroupements d'étapes, face à des étapes fines ;
+- traces dans le monde, face à un fichier à part ;
+- pytest affiché, face à des parcours exécutables ;
+- graphe complet, face au voisinage et à la comparaison ;
+- formulaires, face au YAML vérifié ;
+- ligne de commande figée, face à la parité ;
+- aucun garde-fou, face à l'estimation et au plafond.
+
+La voie **traçable** est retenue partout où elle ne retarde pas le premier écran.
+
+**Décision.** Web local : API FastAPI, HTML et htmx, Cytoscape.js, Mermaid.
+- Une couche de service unique, sans logique propre, partagée avec la ligne de commande.
+- Des bacs à sable qui copient le monde ; rendre un essai réel, c'est rejouer ses actions.
+- Le pipeline découpé en 12 étapes aux artefacts JSON typés, et des exécutions enregistrées à côté du monde.
+- Des parcours d'acceptation exécutables, avec des attendus structurés progressivement.
+- L'ordre de construction : service et lecture d'abord (I1, I2).
+
 ---
 
 ## 0. Comment lire ce document
@@ -1651,6 +1681,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 76. Comment redéfinir « depuis toujours » sans réécrire l'histoire, et que devient ce qui dépendait de l'ancienne version ? — **Réponse (v29) :** ✅ Nouvelle branche et rejeu en session stockée, suspendable, reprenable et abandonnable. L'ancienne branche est archivée, la référence bascule par un historique en ajout seul. Points, pistes, propositions et déroulés sont reportés, avec « à revérifier » quand ils sont concernés. Les variantes sont signalées. Une qualification d'affirmation lit la clé revendiquée (00.49).
 77. Comment relier les deux faces d'un élément, rattacher une fiche, et adresser un élément de schéma ? — **Réponse (v30) :** ✅ `counterpart_of` avec une contrepartie par système ; une fiche naît avec un rattachement immuable, une par système, `has_sheet` et `conforms_to` calculées ; la clé de schéma est définitive, écrite par les seules éditions de schéma, la dépendance aux définitions passant par la revalidation (00.50).
 78. Comment ingérer le méta sans que la détection décide ? — **Réponse (v31) :** ✅ La nature se déclare par l'en-tête ou par `[meta]` ; la destination se lit dans chaque changement ; un changement contraire à la déclaration est signalé, non ingéré ; une nature détectée pose une question par passage, avant toute proposition ; le LLM décrit une fiche sous une forme réduite que le noyau traduit (00.51).
+79. Quelle interface pour tester, suivre et contrôler le système ? — **Réponse (v32) :** ✅ Un banc d'essai web local (FastAPI, HTML et htmx, Cytoscape.js), au-dessus d'une couche de service partagée avec la ligne de commande : bacs à sable, exécutions enregistrées, pipeline en 12 étapes exécutable de x à y, parcours d'acceptation exécutables, coût des modèles contrôlé (00.52, *cadre-interface.md*).
 
 ---
 
