@@ -116,3 +116,9 @@ def test_serve_command_refuses_a_missing_world(tmp_path, capsys):
     from worldkit.cli import main
     assert main(["--db", str(tmp_path / "absent.db"), "serve", "--no-browser"]) == 2
     assert "introuvable" in capsys.readouterr().out
+
+
+def test_navigation_errors_are_never_silent_and_the_server_says_its_version(client):
+    page = client.get("/").text
+    assert 'id="htmx-error"' in page and "htmx:responseError" in page and "htmx:sendError" in page
+    assert "serveur démarré à" in page and "worldkit " in page

@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS runs (
     status TEXT NOT NULL, params TEXT NOT NULL, result TEXT NOT NULL, created TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE TABLE IF NOT EXISTS sandboxes (
     sandbox_id INTEGER PRIMARY KEY AUTOINCREMENT, file TEXT NOT NULL, origin TEXT NOT NULL, heads TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'active', created TEXT NOT NULL DEFAULT (datetime('now')), note TEXT);
+    status TEXT NOT NULL DEFAULT 'active', created TEXT NOT NULL DEFAULT (datetime('now')), note TEXT,
+    after_run INTEGER NOT NULL DEFAULT 0);
 """
 
 
@@ -49,9 +50,10 @@ class Sandbox:
     file: str
     origin: str            # "world" ou "sandbox:<n>"
     heads: dict[str, int]  # rang de tête de chaque branche au moment de la copie
-    status: str            # active | dropped
+    status: str            # active | dropped | promoted (rendu réel, I3)
     created: str
     note: str | None = None
+    after_run: int = 0     # dernière exécution enregistrée au moment de la copie (chaîne de rejeu, I3)
 
     @property
     def target(self) -> str:
@@ -63,6 +65,9 @@ class RunStore:
         self.path = Path(path)
         self.conn = sqlite3.connect(str(self.path))
         self.conn.executescript(_DDL)
+        cols = {r[1] for r in self.conn.execute("PRAGMA table_info(sandboxes)")}
+        if "after_run" not in cols:  # journaux créés avant I3
+            self.conn.execute("ALTER TABLE sandboxes ADD COLUMN after_run INTEGER NOT NULL DEFAULT 0")
 
     def close(self) -> None:
         self.conn.close()
@@ -109,10 +114,14 @@ class RunStore:
 
     # --- Bacs à sable ---
 
+    def last_run(self) -> int:
+        row = self.conn.execute("SELECT MAX(run_id) FROM runs").fetchone()
+        return row[0] or 0
+
     def add_sandbox(self, file: str, origin: str, heads: dict[str, int], note: str | None) -> int:
         with self.conn:
-            cur = self.conn.execute("INSERT INTO sandboxes (file, origin, heads, note) VALUES (?, ?, ?, ?)",
-                                    (file, origin, json.dumps(heads, sort_keys=True), note))
+            cur = self.conn.execute("INSERT INTO sandboxes (file, origin, heads, note, after_run) VALUES (?, ?, ?, ?, ?)",
+                                    (file, origin, json.dumps(heads, sort_keys=True), note, self.last_run()))
         return int(cur.lastrowid or 0)
 
     def next_sandbox_id(self) -> int:
@@ -120,9 +129,9 @@ class RunStore:
         return (row[0] if row else 0) + 1
 
     def sandboxes(self, include_dropped: bool = False) -> list[Sandbox]:
-        rows = self.conn.execute("SELECT sandbox_id, file, origin, heads, status, created, note FROM sandboxes"
-                                 " ORDER BY sandbox_id").fetchall()
-        out = [Sandbox(r[0], r[1], r[2], json.loads(r[3]), r[4], r[5], r[6]) for r in rows]
+        rows = self.conn.execute("SELECT sandbox_id, file, origin, heads, status, created, note, after_run"
+                                 " FROM sandboxes ORDER BY sandbox_id").fetchall()
+        out = [Sandbox(r[0], r[1], r[2], json.loads(r[3]), r[4], r[5], r[6], r[7]) for r in rows]
         return out if include_dropped else [s for s in out if s.status == "active"]
 
     def sandbox(self, sandbox_id: int) -> Sandbox:
@@ -132,5 +141,15 @@ class RunStore:
         raise KeyError(f"bac à sable inconnu : {sandbox_id}")
 
     def drop_sandbox(self, sandbox_id: int) -> None:
+        self.set_status(sandbox_id, "dropped")
+
+    def set_status(self, sandbox_id: int, status: str) -> None:
         with self.conn:
-            self.conn.execute("UPDATE sandboxes SET status = 'dropped' WHERE sandbox_id = ?", (sandbox_id,))
+            self.conn.execute("UPDATE sandboxes SET status = ? WHERE sandbox_id = ?", (status, sandbox_id))
+
+    def writes(self, target: str, upto: int | None = None) -> list[RunRecord]:
+        """Écritures réussies d'une cible, dans l'ordre (matière de « rendre réel », I-SBX-01)."""
+        rows = self.conn.execute(
+            "SELECT run_id, operation, kind, target, status, params, created FROM runs WHERE target = ? AND kind = 'write'"
+            " AND (? IS NULL OR run_id <= ?) ORDER BY run_id", (target, upto, upto)).fetchall()
+        return [RunRecord(r[0], r[1], r[2], r[3], r[4], json.loads(r[5]), r[6]) for r in rows]

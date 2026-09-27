@@ -70,7 +70,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **I0 — fait** : cadre d'interface validé (`docs/cadre-interface.md` v0.2, décisions I-TEC-01 à I-LLM-01).
 - **I1 — fait** (branche `i1-service`) : couche de service (`worldkit/service/`), registre d'opérations, résultat de forme commune, exécutions `monde.runs.db`, bacs à sable ; commandes `ops`, `call`, `sandbox`, `runs` (I-SVC-01 à I-SVC-04). Fiche : `docs/i1-brief.md`.
 - **I2 — fait** (branche `i2-lecture`) : application web locale en lecture (`worldkit/web/`, `worldkit serve`) : tableau de bord, wiki, comparaison de deux lectures (`wiki.compare`), branches, journal, exécutions (I-WEB-01 à I-WEB-03). Fiche : `docs/i2-brief.md`.
-- **Prochain : I3** (saisie YAML vérifiée en direct, banc de mécanismes, rendre réel un essai de bac). En parallèle, côté auteur : second jet du corpus (choix du LLM, T-TST-01).
+- **I3 — fait** (branche `i3-saisie`) : éditeur YAML vérifié en direct (`/editor`), banc de mécanismes (`/bench`), rendre réel un bac (`sandbox.promote`, `worldkit sandbox promote N [--yes]`), rejeu exposé par le service ; écriture dans un bac par défaut (I-ACT-01 à I-ACT-04). Fiche : `docs/i3-brief.md`.
+- **Prochain : I4** (découpage du pipeline en étapes E1 à E12, banc de pipeline de x à y, contrôle du coût LLM). En parallèle, côté auteur : second jet du corpus (choix du LLM, T-TST-01).
 - Lacunes L1, L2, L6 du corpus tranchées avant J8 (cadre R-MET-02, R-MET-04, T-FAI-01 ; analyse 00.50) : toutes les lacunes du corpus v1 sont closes.
 
 ## Carte du code
@@ -100,6 +101,7 @@ La branche de référence n'est plus forcément `reference` : après un rejeu, c
 - Windows, PowerShell 5.1 : `@base` doit s'écrire `'@base'` ou `base` (le `@` est facultatif) ; `0,1` devient deux arguments (les options d'indices l'acceptent) ; les guillemets d'un argument JSON passé à un exécutable natif sont mangés (passer par Python).
 - LLM : l'adaptateur `claude-code` appelle `claude -p` avec l'abonnement de l'auteur (usage personnel), binaire trouvé dans l'extension VS Code. Une mesure `worldkit eval extraction` consomme le quota : demander avant d'en lancer une complète.
 - Pour modifier un fichier par script, écrire le script dans le dossier temporaire de session puis l'exécuter : les apostrophes françaises cassent les here-docs de bash.
+- Un script `.ps1` contenant des accents doit être enregistré en UTF-8 **avec BOM** : PowerShell 5.1 lit sinon le fichier en ANSI (« fièvre » devient « fiÃ¨vre »).
 
 ## Façon de travailler (établie)
 

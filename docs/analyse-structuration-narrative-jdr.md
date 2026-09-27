@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v34** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v35** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -1107,6 +1107,19 @@ La voie **traçable** est retenue partout où elle ne retarde pas le premier éc
 
 **Décision.** I-WEB-01 et I-WEB-02 (*cadre-interface.md* §8.2). Le lancement et la mise en forme (I-WEB-03) sont proposés.
 
+### 00.55 Écrire depuis l'interface, et rendre réel un essai (v35)
+
+> Décision du 27 septembre 2026, jalon I3.
+
+**Problème.** L'interface doit permettre d'écrire, sans jamais écrire par mégarde dans une histoire qui ne fait que s'allonger (R-HIS-01). Un essai concluant dans un bac à sable doit pouvoir passer dans le monde de travail sans risque, même si le monde a avancé entre-temps.
+
+**Voies comparées.**
+- *Destination par défaut* : le monde, ou demander à chaque fois, sont écartés au profit d'**un bac à sable**.
+- *Rendre réel* : une application directe arrêtée à la première divergence, ou un choix des écritures à reprendre, sont écartés au profit d'**une répétition à blanc puis d'une application en tout ou rien**.
+- *Banc de mécanismes* : des écrans dédiés sont écartés au profit d'**une console générique sur le registre**.
+
+**Décision.** I-ACT-01 à I-ACT-03 (*cadre-interface.md* §8.3). L'éditeur (I-ACT-04) est proposé. Le rejeu rétroactif devient une suite d'écritures du service, donc promouvable : le retcon d'Aldren se fait dans un bac, puis se rend réel.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1711,6 +1724,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 79. Quelle interface pour tester, suivre et contrôler le système ? — **Réponse (v32) :** ✅ Un banc d'essai web local (FastAPI, HTML et htmx, Cytoscape.js), au-dessus d'une couche de service partagée avec la ligne de commande : bacs à sable, exécutions enregistrées, pipeline en 12 étapes exécutable de x à y, parcours d'acceptation exécutables, coût des modèles contrôlé (00.52, *cadre-interface.md*).
 80. Comment l'interface, la ligne de commande et les tests appellent-ils le système ? — **Réponse (v33) :** ✅ Par un registre d'opérations nommées à paramètres typés, derrière un point d'entrée unique qui rend un résultat de forme commune ; calculs, écritures et administration sont enregistrés dans `monde.runs.db`, à côté des bacs à sable (00.53).
 81. Comment lire et comparer l'état d'un monde à l'écran ? — **Réponse (v34) :** ✅ Une application web locale en lecture, dont chaque adresse porte son contexte (cible, branche, point, filtre) et reproduit la même lecture ; deux lectures se comparent en deux colonnes, le service désignant les faits ajoutés, retirés ou changés (00.54).
+82. Comment écrire depuis l'interface sans risque, et faire passer un essai dans le monde ? — **Réponse (v35) :** ✅ Toute écriture va par défaut dans un bac à sable, et le monde exige un choix confirmé. Rendre réel, c'est une répétition à blanc sur le monde tel qu'il est, où chaque écriture est jugée identique, en écart ou en divergence, puis une application en tout ou rien, seulement sans divergence (00.55).
 
 ---
 

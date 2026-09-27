@@ -124,6 +124,55 @@ class Session:
         self.runs.drop_sandbox(sandbox_id)
         return self.runs.sandbox(sandbox_id)
 
+    # --- Rendre réel (I-SBX-01, décision I3) ---
+
+    def chain(self, sandbox_id: int) -> list[tuple[Sandbox, int | None]]:
+        """Bacs de la racine au bac donné, chacun avec sa borne : les écritures d'un bac parent ne comptent
+        que jusqu'à la copie de son enfant (`after_run`)."""
+        out: list[tuple[Sandbox, int | None]] = []
+        box, upto = self.runs.sandbox(sandbox_id), None
+        while True:
+            out.append((box, upto))
+            if box.origin == WORLD:
+                break
+            upto = box.after_run
+            box = self.runs.sandbox(int(box.origin.split(":", 1)[1]))
+        return list(reversed(out))
+
+    def promote(self, sandbox_id: int, confirm: bool = False) -> dict[str, Any]:
+        """Répétition à blanc sur une copie du monde **tel qu'il est maintenant**, puis, si rien ne diverge et
+        si c'est confirmé, application en tout ou rien sur le monde de travail. Jamais de copie de fichier."""
+        box = self.runs.sandbox(sandbox_id)
+        if box.status != "active":
+            raise ValueError(f"bac à sable {sandbox_id} {box.status} : rien à rendre réel")
+        steps = [(rec, self.runs.result(rec.id)) for b, upto in self.chain(sandbox_id)
+                 for rec in self.runs.writes(b.target, upto)]
+        rehearsal = self.create_sandbox(WORLD, note=f"répétition du bac {sandbox_id}")
+        report: list[dict[str, Any]] = []
+        try:
+            for rec, recorded in steps:
+                entry = {"run": rec.id, "from": rec.target, "operation": rec.operation, "params": rec.params,
+                         "recorded": recorded.status}
+                if recorded.status not in ("ok", "pending"):
+                    report.append({**entry, "verdict": "ignored", "detail": "refusée ou en erreur dans l'essai"})
+                    continue
+                again = self.call(rec.operation, rec.params, rehearsal.target, record=False)
+                report.append({**entry, "rehearsed": again.status, **_verdict(recorded, again)})
+        finally:
+            self.drop_sandbox(rehearsal.id)
+        divergences = [r for r in report if r["verdict"] == "divergence"]
+        applied: list[dict[str, Any]] = []
+        if confirm and not divergences:
+            for r in report:
+                if r["verdict"] == "ignored":
+                    continue
+                done = self.call(r["operation"], r["params"], WORLD)
+                applied.append({"from_run": r["run"], "run": done.trace.run_id, "status": done.status})
+            self.runs.set_status(sandbox_id, "promoted")
+        return {"sandbox": sandbox_id, "chain": [b.id for b, _ in self.chain(sandbox_id)], "steps": report,
+                "divergences": len(divergences), "gaps": sum(1 for r in report if r["verdict"] == "gap"),
+                "applied": applied, "confirmed": confirm}
+
     # --- Appel ---
 
     def call(self, name: str, params: dict[str, Any] | None = None, target: str | int | None = None,
@@ -164,6 +213,30 @@ class Session:
         if record if record is not None else op.kind != "read":
             self.runs.record(result)
         return result
+
+
+def _verdict(recorded: Result, again: Result) -> dict[str, Any]:
+    """Même statut et mêmes signalements : identique ; sortie seule différente (un rang décalé parce que le
+    monde a avancé) : écart, signalé sans bloquer ; statut ou signalements différents : divergence."""
+    def signals(r: Result) -> list[tuple[str, str, str, str]]:
+        return sorted((i.code, i.rule, i.path, i.severity) for i in r.issues)
+    if recorded.status != again.status or signals(recorded) != signals(again):
+        head = f"statut {recorded.status} → {again.status}" if recorded.status != again.status else \
+            "signalements différents"
+        detail = head + "".join(f" ; [{i.rule}] {i.code} : {i.message}" for i in again.issues)
+        return {"verdict": "divergence", "detail": detail, "issues": [i.model_dump() for i in again.issues]}
+    if recorded.output != again.output:
+        return {"verdict": "gap", "detail": "sortie différente (ex. rang décalé) : " + _changed(recorded.output,
+                                                                                               again.output)}
+    return {"verdict": "same", "detail": ""}
+
+
+def _changed(a: Any, b: Any) -> str:
+    if isinstance(a, dict) and isinstance(b, dict):
+        keys = sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))
+        return ", ".join(f"{k} : {a.get(k)!r} → {b.get(k)!r}" if not isinstance(a.get(k), (dict, list)) else k
+                         for k in keys)
+    return "contenu"
 
 
 def _error(name: str, kind: str, target: str, raw: dict[str, Any], issues: list[IssueView]) -> Result:

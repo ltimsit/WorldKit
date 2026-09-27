@@ -537,3 +537,260 @@ def wiki_compare(ctx: Context, p: CompareParams) -> Output:
     return Output({"entity": p.entity, "left": {"where": where_l, "page": left},
                    "right": {"where": where_r, "page": right}, "diff": diff}, issues, counts,
                   status="ok" if left is not None or right is not None else None)
+
+
+# ---------------------------------------------------------------------------
+# Mécanismes du catalogue (cadre d'interface §3 ; banc de mécanismes, décision I3)
+# ---------------------------------------------------------------------------
+
+class SchemaParams(Params):
+    schema_: dict[str, Any] | None = Field(None, alias="schema", description="schéma en YAML (monde ou système)")
+    file: str | None = Field(None, description="ou un fichier de schéma")
+
+
+@operation("schema.validate", "compute", SchemaParams, "valider un schéma de monde ou de système (validateur unique)",
+           ("R-SCH-01", "R-SCH-02", "T-SCH-01"), needs_world=False,
+           example={"file": "corpus/valmont-v1/valmont/systems/system-a.yaml"})
+def schema_validate(ctx: Context, p: SchemaParams) -> Output:
+    from worldkit.core.schema import read_yaml, validate_schema
+    doc = p.schema_ if p.schema_ is not None else read_yaml(p.file) if p.file else None
+    if doc is None:
+        raise ValueError("donner `schema` (YAML) ou `file`")
+    issues = validate_schema(doc)
+    return Output({"schema": doc.get("schema") if isinstance(doc, dict) else None, "valid": not issues}, issues,
+                  {"issues": len(issues)})
+
+
+class ChangeParams(Where):
+    change: dict[str, Any] = Field(description="un changement au format du corpus")
+
+
+@operation("change.keys", "compute", ChangeParams, "clés de fait d'un changement et sa vérification contre un état",
+           ("R-FAI-05", "T-FAI-01", "R-SCH-06"),
+           example={"change": {"op": "add_relation", "from": "odon", "relation": "rules", "to": "brume"}})
+def change_keys(ctx: Context, p: ChangeParams) -> Output:
+    from worldkit.core.schema import fact_keys, format_key, parse_change
+    from worldkit.core.schema.check import check_fact_change
+    from worldkit.core.schema.keys import UnknownRelation
+    w = ctx.world
+    assert w is not None
+    state = w.state(_branch(ctx, p.branch), p.point)
+    change = parse_change(p.change)
+    sctx = state.context()
+    try:
+        keys = fact_keys(change, sctx)
+    except UnknownRelation as e:
+        return Output({"keys": []}, [Issue(IssueCode.OUT_OF_SCHEMA, str(e), "R-SCH-06")])
+    occupied = {format_key(k): state.occupancy.get(k) for k in keys}
+    return Output({"keys": keys, "readable": [format_key(k) for k in keys], "occupied_by": occupied},
+                  check_fact_change(change, sctx),
+                  {"keys": len(keys), "occupied": sum(1 for v in occupied.values() if v)})
+
+
+class TransposeParams(Params):
+    edit: str
+    to: str = Field(description="branche cible")
+
+
+@operation("transpose.analyse", "compute", TransposeParams,
+           "une édition confrontée à une autre branche : indépendante, dépendante ou contradictoire",
+           ("R-HIS-05", "§6.3"), example={"edit": "e201", "to": "reference"})
+def transpose_analyse(ctx: Context, p: TransposeParams) -> Output:
+    assert ctx.world is not None
+    a = ctx.world.analyse_transposition(p.edit, p.to)
+    return Output({"edit": a.edit_id, "source": a.source, "source_seq": a.source_seq, "target": a.target,
+                   "relation": a.relation,
+                   "divergences": [{"key": d.key, "kind": d.kind, "written": d.written, "text": d.describe()}
+                                   for d in a.divergences]},
+                  [], {"divergences": len(a.divergences), "relation": a.relation})
+
+
+class RedefineParams(Params):
+    changes: list[dict[str, Any]]
+    anchor: str | int = Field(description="édition (e003), rang ou point nommé")
+    source: str | None = None
+
+
+@operation("redefine.preview", "compute", RedefineParams,
+           "aperçu d'impact d'une redéfinition rétroactive, sans rien écrire", ("R-RED-01",),
+           example={"anchor": "e003", "changes": [
+               {"op": "set_attribute", "entity": "aldren-ii", "attribute": "death_cause", "value": "fièvre",
+                "visibility": "secret"},
+               {"op": "remove_relation", "from": "mervin", "relation": "killed", "to": "aldren-ii"}]})
+def redefine_preview(ctx: Context, p: RedefineParams) -> Output:
+    from worldkit.core.schema import format_key, parse_change
+    from worldkit.core.workflows import replay as R
+    assert ctx.world is not None
+    impact = R.preview(ctx.world, [parse_change(c) for c in p.changes], p.anchor, p.source)
+
+    def touch(t: Any) -> dict[str, Any]:
+        return {"edit": t.edit_id, "seq": t.seq, "title": t.title, "keys": [format_key(k) for k in t.keys]}
+    return Output({"source": impact.source, "anchor_seq": impact.anchor_seq,
+                   "writes": sorted(format_key(k) for k in impact.writes), "later": impact.later,
+                   "edits": [touch(t) for t in impact.edits], "pending": [touch(t) for t in impact.pending]},
+                  impact.issues, {"later": impact.later, "edits": len(impact.edits), "pending": len(impact.pending)})
+
+
+class DocumentParams(Params):
+    file: str | None = None
+    text: str | None = Field(None, description="ou le texte du document, en-tête compris")
+
+
+@operation("document.declare", "compute", DocumentParams,
+           "déclaration d'un document : axes, passages, segments, empreintes, nature déclarée",
+           ("R-DOC-02", "R-ING-01", "R-DEC-01", "R-DEC-04", "T-ING-10"), needs_world=False,
+           example={"file": "corpus/valmont-v1/valmont/docs/b4/bestiaire-loup-de-cendre.md"})
+def document_declare(ctx: Context, p: DocumentParams) -> Output:
+    from worldkit.ingest.declaration import DeclarationError, parse_document, read_document
+    from worldkit.ingest.meta import passage_nature
+    try:
+        doc = read_document(p.file) if p.file else parse_document(p.text or "", "(texte)")
+    except DeclarationError as e:
+        return Output(None, [Issue(IssueCode.EDIT_RULE, str(e), "R-DOC-02")])
+    passages = [{"index": q.index, "fingerprint": q.fingerprint, "nature": passage_nature(doc, q), "text": q.text,
+                 "segments": [{"text": s.text, "voice": s.voice, "speaker": s.speaker, "nature": s.nature,
+                               "declared_by": s.declared_by} for s in q.segments]} for q in doc.passages]
+    natures: dict[str, int] = {}
+    for q in passages:
+        natures[q["nature"]] = natures.get(q["nature"], 0) + 1
+    return Output({"document": doc.doc_id, "title": doc.title, "fingerprint": doc.fingerprint, "axes": doc.axes,
+                   "passages": passages}, [], {"passages": len(passages), "natures": natures})
+
+
+class PromoteParams(Params):
+    id: int
+    confirm: bool = Field(False, description="appliquer au monde de travail si rien ne diverge")
+
+
+@operation("sandbox.promote", "admin", PromoteParams,
+           "rendre réel un bac : répétition à blanc, puis application en tout ou rien", ("I-SBX-01", "R-HIS-01"),
+           needs_world=False)
+def sandbox_promote(ctx: Context, p: PromoteParams) -> Output:
+    report = ctx.session.promote(p.id, p.confirm)
+    if report["divergences"]:
+        status = "refused"
+    elif report["applied"] or not report["steps"]:
+        status = "ok"
+    else:
+        status = "pending"  # répétition réussie, en attente de confirmation
+    issues = [Issue(IssueCode.STALE_EDIT, f"exécution #{s['run']} {s['operation']} : {s['detail']}", "I-SBX-01")
+              for s in report["steps"] if s["verdict"] == "divergence"]
+    verdicts: dict[str, int] = {}
+    for s in report["steps"]:
+        verdicts[s["verdict"]] = verdicts.get(s["verdict"], 0) + 1
+    return Output(report, issues, {"steps": len(report["steps"]), **verdicts, "applied": len(report["applied"])},
+                  status=status)
+
+
+# Exemples Valmont des opérations existantes, pour le banc de mécanismes (décision I3).
+_EXAMPLES: dict[str, dict[str, Any]] = {
+    "wiki.page": {"entity": "aldren-ii", "filter": "player"},
+    "wiki.compare": {"entity": "aldren-ii", "left": {"filter": "author"}, "right": {"filter": "player"}},
+    "edit.check": {"edit": {"id": "essai-1", "origin": "enrichment", "changes": [
+        {"op": "add_relation", "from": "mervin", "relation": "rules", "to": "brume"}]}},
+    "edit.apply": {"edit": {"id": "essai-1", "origin": "enrichment", "changes": [
+        {"op": "set_attribute", "entity": "odon", "attribute": "condition", "value": "las"}]}},
+    "edit.show": {"id": "e003"},
+    "journal.list": {"limit": 10},
+    "ingest.batch": {"batch_id": "b4", "batches": "corpus/valmont-v1/valmont/docs/batches.yaml",
+                     "oracle": "corpus/valmont-v1/valmont/gold"},
+    "review.nature": {"document": "bestiaire-loup-de-cendre", "passage": 6, "decision": "accept"},
+}
+
+
+def _add_examples() -> None:
+    import dataclasses
+    for name, example in _EXAMPLES.items():
+        REGISTRY[name] = dataclasses.replace(REGISTRY[name], example=example)
+
+
+_add_examples()
+
+
+# ---------------------------------------------------------------------------
+# Redéfinition rétroactive et rejeu (§6.4, T-RED-01) : écritures rejouables, donc promouvables (I3)
+# ---------------------------------------------------------------------------
+
+def _replay_report(report: Any) -> Output:
+    r = report.replay
+    value = {"replay": r, "replayed": report.replayed, "current": report.current, "carried": report.carried,
+             "conflict": None if report.conflict is None else {
+                 "edit": report.conflict.edit_id, "relation": report.conflict.relation,
+                 "divergences": [{"key": d.key, "kind": d.kind, "written": d.written, "text": d.describe()}
+                                 for d in report.conflict.divergences]}}
+    status = None
+    if r is not None and r.status == "open" and report.conflict is not None and not report.issues:
+        status = "pending"  # suspendu sur un conflit : décision humaine attendue (R-RED-02)
+    return Output(value, report.issues, {"replayed": len(report.replayed), "carried": len(report.carried)}, status)
+
+
+class ReplayStart(Params):
+    changes: list[dict[str, Any]]
+    anchor: str | int = Field(description="édition (e003), rang ou point nommé")
+    source: str | None = None
+    branch: str | None = Field(None, description="nom de la nouvelle branche (défaut : <source>-<rejeu>)")
+    id: str | None = Field(None, description="identifiant du rejeu (défaut : r1, r2…)")
+    title: str | None = None
+    limit: int | None = Field(None, description="suspendre après N éditions rejouées")
+
+
+@operation("replay.start", "write", ReplayStart,
+           "redéfinition rétroactive : nouvelle branche, redéfinition, rejeu ordonné", ("R-RED-01", "R-RED-02"),
+           example={"anchor": "e003", "changes": [
+               {"op": "set_attribute", "entity": "aldren-ii", "attribute": "death_cause", "value": "fièvre",
+                "visibility": "secret"},
+               {"op": "remove_relation", "from": "mervin", "relation": "killed", "to": "aldren-ii"}]})
+def replay_start(ctx: Context, p: ReplayStart) -> Output:
+    from worldkit.core.schema import parse_change
+    from worldkit.core.workflows import replay as R
+    assert ctx.world is not None
+    return _replay_report(R.start(ctx.world, [parse_change(c) for c in p.changes], p.anchor, source=p.source,
+                                  branch=p.branch, replay_id=p.id, title=p.title, limit=p.limit))
+
+
+class ReplayDecide(Params):
+    id: str
+    action: Literal["keep", "adapt", "discard"]
+    changes: list[dict[str, Any]] | None = None
+    reason: str | None = None
+    limit: int | None = None
+
+
+@operation("replay.decide", "write", ReplayDecide, "décision sur l'édition en conflit, puis reprise du rejeu",
+           ("R-RED-02", "R-HIS-05"), example={"id": "r1", "action": "keep"})
+def replay_decide(ctx: Context, p: ReplayDecide) -> Output:
+    from worldkit.core.schema import parse_change
+    from worldkit.core.workflows import replay as R
+    assert ctx.world is not None
+    changes = [parse_change(c) for c in p.changes] if p.changes is not None else None
+    return _replay_report(R.decide(ctx.world, p.id, p.action, changes, p.reason, p.limit))
+
+
+class ReplayId(Params):
+    id: str
+    limit: int | None = None
+
+
+@operation("replay.resume", "write", ReplayId, "reprendre un rejeu suspendu", ("R-RED-02",), example={"id": "r1"})
+def replay_resume(ctx: Context, p: ReplayId) -> Output:
+    from worldkit.core.workflows import replay as R
+    assert ctx.world is not None
+    return _replay_report(R.advance(ctx.world, p.id, p.limit))
+
+
+@operation("replay.abandon", "write", ReplayId, "abandonner un rejeu (tout reste tracé)", ("R-RED-02", "R-HIS-01"),
+           example={"id": "r1"})
+def replay_abandon(ctx: Context, p: ReplayId) -> Output:
+    from worldkit.core.workflows import replay as R
+    assert ctx.world is not None
+    return _replay_report(R.abandon(ctx.world, p.id))
+
+
+@operation("replay.status", "read", ReplayId, "où en est un rejeu : édition suivante, conflit, pas faits",
+           ("R-RED-02",), example={"id": "r1"})
+def replay_status(ctx: Context, p: ReplayId) -> Output:
+    from worldkit.core.workflows import replay as R
+    assert ctx.world is not None
+    out = _replay_report(R.pending_conflict(ctx.world, p.id))
+    out.value["steps"] = R.steps(ctx.world, p.id)
+    return out

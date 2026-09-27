@@ -1,0 +1,38 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Banc de mécanismes{% endblock %}
+{% block content %}
+<h1>Banc de mécanismes</h1>
+<p class="small muted">Toute opération du service, sur une entrée donnée (I-OBJ-02). Les calculs et écritures sont enregistrés ; « rejouer » vérifie le déterminisme (I-PRI-05). Une écriture va par défaut dans un bac à sable.</p>
+<form method="get" action="/bench" onchange="this.requestSubmit()">
+  <label>opération
+    <select name="op">
+      {% for kind in ["compute", "read", "write", "admin"] %}<optgroup label="{{ kind }}">
+        {% for o in ops if o.kind == kind %}<option value="{{ o.name }}" {{ 'selected' if o.name == op.name }}>{{ o.name }}</option>{% endfor %}
+      </optgroup>{% endfor %}
+    </select></label>
+</form>
+<p><b class="mono">{{ op.name }}</b> [{{ op.kind }}] — {{ op.summary }} {% if op.rules %}<span class="small">({{ op.rules|join(", ") }})</span>{% endif %}</p>
+<table class="small"><tr><th>paramètre</th><th>requis</th><th>défaut</th><th>description</th></tr>
+{% for k, v in op.params.items() %}<tr><td class="mono">{{ k }}</td><td>{{ "oui" if v.required else "" }}</td><td class="mono">{{ v.default if v.default is not none else "" }}</td><td>{{ v.description }}</td></tr>{% endfor %}</table>
+<form method="post" action="/bench" hx-boost="false">
+  <input type="hidden" name="op" value="{{ op.name }}">
+  <textarea name="params" rows="10" style="width:100%" class="mono" spellcheck="false">{{ params_text }}</textarea>
+  <p><label>cible
+    <select name="destination">
+      {% if op.kind == "write" %}<option value="new">nouveau bac à sable</option>{% else %}<option value="">monde de travail</option>{% endif %}
+      {% for b in sandboxes %}<option value="{{ b.id }}" {{ 'selected' if dest|default('')|string == b.id|string }}>bac {{ b.id }}</option>{% endfor %}
+      {% if op.kind == "write" %}<option value="world">monde de travail (confirmation requise)</option>{% endif %}
+    </select></label>
+    {% if op.kind == "write" %}<label><input type="checkbox" name="confirm_world" value="1"> je confirme l'écriture dans le monde de travail</label>{% endif %}
+    {% if result and result.trace.run_id %}<input type="hidden" name="compare_to" value="{{ result.trace.run_id }}">{% endif %}
+    <button>{{ "Rejouer" if result else "Exécuter" }}</button></p>
+</form>
+{% if error %}<p class="sev-error">{{ error }}</p>{% endif %}
+{% if previous %}<p>{% if previous.same %}<b class="s-ok">identique</b>{% else %}<b class="s-refused">différent</b>{% endif %} à l'exécution <a href="/runs/{{ previous.run }}">#{{ previous.run }}</a> (sortie et signalements)</p>{% endif %}
+{% if result %}
+<h2>Résultat</h2>
+{{ m.result_head(result) }}
+{% if result.indicators %}<table>{% for k, v in result.indicators.items() %}<tr><td>{{ k }}</td><td class="mono">{{ v }}</td></tr>{% endfor %}</table>{% endif %}
+<pre>{{ result.output|yaml }}</pre>
+{% endif %}
+{% endblock %}

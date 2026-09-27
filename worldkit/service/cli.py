@@ -39,6 +39,9 @@ def add_parsers(commands: Any) -> None:
     create.add_argument("--note", default=None)
     sb_cmds.add_parser("list").add_argument("--all", action="store_true")
     sb_cmds.add_parser("drop").add_argument("id", type=int)
+    promote = sb_cmds.add_parser("promote", help="rendre réel : répétition à blanc, puis --yes pour appliquer")
+    promote.add_argument("id", type=int)
+    promote.add_argument("--yes", action="store_true", help="appliquer au monde de travail si rien ne diverge")
 
     rn = commands.add_parser("runs", help="exécutions enregistrées (I-RUN-01)")
     rn_cmds = rn.add_subparsers(dest="runs_command", required=True)
@@ -93,6 +96,29 @@ def show(result: Result, as_json: bool = False) -> int:
     return 0 if result.ok else 1
 
 
+VERDICT_FR = {"same": "identique", "gap": "écart", "divergence": "DIVERGENCE", "ignored": "ignorée"}
+
+
+def _promote(s: Any, sandbox_id: int, confirm: bool) -> int:
+    result = s.call("sandbox.promote", {"id": sandbox_id, "confirm": confirm})
+    out = result.output or {}
+    run_id = f", exécution #{result.trace.run_id}" if result.trace.run_id else ""
+    print(f"rendre réel le bac {sandbox_id} (chaîne {out.get('chain')}) : {result.status}{run_id}")
+    for step in out.get("steps", []):
+        detail = f" — {step['detail']}" if step.get("detail") else ""
+        print(f"  #{step['run']} {step['operation']} ({step['from']}) : {VERDICT_FR[step['verdict']]}{detail}")
+    if result.status == "pending":
+        print("  répétition réussie : relancer avec --yes pour appliquer au monde de travail")
+    elif result.status == "refused":
+        print("  rien n'a été écrit : corriger dans un nouveau bac, depuis le monde à jour")
+    for a in out.get("applied", []):
+        print(f"  appliquée : #{a['from_run']} → exécution #{a['run']} ({a['status']})")
+    for i in result.issues:
+        if i.code in ("invalid_params", "service_error"):
+            print(f"  - {i.severity} : {i.message}")
+    return 0 if result.status in ("ok", "pending") else 1
+
+
 def run(args: argparse.Namespace) -> int:
     from . import Session
     with Session(args.db) as s:
@@ -119,6 +145,8 @@ def run(args: argparse.Namespace) -> int:
                 if not result.output:
                     print("aucun bac à sable")
                 return 0
+            if args.sandbox_command == "promote":
+                return _promote(s, args.id, args.yes)
             return show(s.call("sandbox.drop", {"id": args.id}))
         if args.runs_command == "list":
             result = s.call("runs.list", {"limit": args.limit, "target": args.target, "operation": args.operation})
