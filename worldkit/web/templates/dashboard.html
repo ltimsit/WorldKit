@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Tableau de bord{% endblock %}
+{% block content %}
+{% set s = summary.output %}
+<h1>Tableau de bord — {{ s.world if s else "?" }} <span class="muted small">{{ summary.target }}</span></h1>
+{{ m.result_head(summary) }}
+{% if s %}
+<p>Branche de référence <b>{{ s.reference_branch }}</b>, tête au rang <b>{{ s.head }}</b>.</p>
+<div class="grid">
+  {% for k, v in summary.indicators.items() %}{% if v is not mapping %}<div class="stat"><span class="muted small">{{ k }}</span><b>{{ v }}</b></div>{% endif %}{% endfor %}
+</div>
+<h2>Faits par notoriété</h2>
+<p>{% for k, v in summary.indicators.facts_by_visibility.items() %}{{ m.vis(k) }} {{ v }} &nbsp; {% endfor %}</p>
+<h2>Branches</h2>
+<table><tr><th>branche</th><th>statut</th><th>tête</th><th></th></tr>
+{% for b in s.branches %}<tr><td>{{ b.id }}{% if b.id == s.reference_branch %} ★{% endif %}</td><td>{{ b.status }}</td><td>{{ b.head }}</td>
+<td><a href="/journal?{{ qs(ctx, branch=b.id) }}">journal</a> · <a href="/wiki?{{ qs(ctx, branch=b.id) }}">wiki</a></td></tr>{% endfor %}
+</table>
+{% endif %}
+<h2>Signalements ({{ check.indicators.signals if check.indicators else 0 }})</h2>
+{{ m.result_head(check) }}
+<h2>Bacs à sable</h2>
+{% if sandboxes %}<table><tr><th>bac</th><th>origine</th><th>têtes à la copie</th><th>note</th><th></th></tr>
+{% for b in sandboxes %}<tr><td>{{ b.id }}</td><td>{{ b.origin }}</td><td class="mono small">{{ b.heads|tojson }}</td><td>{{ b.note or "" }}</td>
+<td><a href="/?{{ qs(ctx, target=b.id|string) }}">ouvrir</a></td></tr>{% endfor %}</table>
+{% else %}<p class="muted">aucun bac à sable (<code>worldkit sandbox create</code>)</p>{% endif %}
+<h2>Dernières exécutions</h2>
+<table><tr><th>#</th><th>quand</th><th>opération</th><th>sorte</th><th>cible</th><th>statut</th></tr>
+{% for r in runs.output or [] %}<tr><td><a href="/runs/{{ r.id }}">{{ r.id }}</a></td><td class="small">{{ r.created }}</td><td class="mono">{{ r.operation }}</td>
+<td>{{ r.kind }}</td><td>{{ r.target }}</td><td class="s-{{ r.status }}">{{ r.status }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

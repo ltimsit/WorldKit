@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Journal{% endblock %}
+{% block content %}
+{% set o = result.output %}
+<h1>Journal{% if o %} — {{ o.branch }}{% endif %}</h1>
+{{ m.result_head(result) }}
+{% if o %}<table><tr><th>rang</th><th>édition</th><th>branche</th><th>origine</th><th>étiquettes</th><th>titre</th><th>chg.</th><th>lect.</th><th>écr.</th><th>lien</th></tr>
+{% for e in o.entries %}<tr><td>{{ e.seq }}</td><td class="mono"><a href="/edit/{{ e.edit }}?{{ qs(ctx) }}">{{ e.edit }}</a></td><td class="small">{{ e.branch }}</td>
+<td>{{ e.origin or "" }}{% if e.redefinition %} ({{ e.redefinition }}){% endif %}</td><td class="small">{{ e.tags|join(", ") }}</td><td>{{ e.title or "" }}</td>
+<td>{{ e.changes }}</td><td>{{ e.reads }}</td><td>{{ e.writes }}</td>
+<td class="small mono">{% if e.transposed_from %}← {{ e.transposed_from }}{% endif %}{% if e.derived_from %}dérivée de {{ e.derived_from }}{% endif %}</td></tr>{% endfor %}
+</table>{% endif %}
+{% endblock %}

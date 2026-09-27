@@ -1,0 +1,69 @@
+<!doctype html>
+{% import "_macros.html" as m %}
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}worldkit{% endblock %} — banc d'essai</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js"></script>
+</head>
+<body hx-boost="true">
+<header class="top">
+  <span class="brand">worldkit</span>
+  <nav>
+    {% set q = qs(ctx) %}
+    <a href="/?{{ q }}" class="{{ 'on' if path == '/' }}">Tableau de bord</a>
+    <a href="/wiki?{{ q }}" class="{{ 'on' if path.startswith('/wiki') or path.startswith('/compare') }}">Wiki</a>
+    <a href="/branches?{{ q }}" class="{{ 'on' if path == '/branches' }}">Branches</a>
+    <a href="/journal?{{ q }}" class="{{ 'on' if path.startswith('/journal') or path.startswith('/edit') }}">Journal</a>
+    <a href="/runs?{{ q }}" class="{{ 'on' if path.startswith('/runs') }}">Exécutions</a>
+    <a href="/ops?{{ q }}" class="{{ 'on' if path == '/ops' }}">Opérations</a>
+  </nav>
+  <span class="small muted" style="margin-left:auto">lecture seule (I2)</span>
+</header>
+{% block context %}
+<form class="context" method="get" action="{{ path }}" onchange="this.requestSubmit()">
+  <label>cible
+    <select name="target">
+      <option value="" {{ 'selected' if not ctx.target }}>monde de travail</option>
+      {% for b in sandboxes %}<option value="{{ b.id }}" {{ 'selected' if ctx.target == b.id|string }}>bac {{ b.id }}{% if b.note %} — {{ b.note }}{% endif %}</option>{% endfor %}
+    </select></label>
+  <label>branche
+    <select name="branch">
+      <option value="" {{ 'selected' if not ctx.branch }}>(référence)</option>
+      {% for b in branches %}<option value="{{ b.id }}" {{ 'selected' if ctx.branch == b.id }}>{{ b.id }}{% if b.reference %} ★{% endif %}{% if b.status != 'active' %} [{{ b.status }}]{% endif %}</option>{% endfor %}
+    </select></label>
+  <label>point
+    <input name="point" list="points" value="{{ ctx.point }}" placeholder="head">
+    <datalist id="points">
+      <option value="head">
+      {% for b in branches %}{% if not ctx.branch and b.reference or ctx.branch == b.id %}{% for name, seq in b.points.items() %}<option value="{{ name }}">rang {{ seq }}</option>{% endfor %}{% endif %}{% endfor %}
+    </datalist></label>
+  <label>filtre
+    <select name="filter">
+      <option value="" {{ 'selected' if not ctx.filter }}>auteur</option>
+      <option value="player" {{ 'selected' if ctx.filter == 'player' }}>joueur</option>
+    </select></label>
+  <noscript><button>appliquer</button></noscript>
+</form>
+{% endblock %}
+<main>
+{% block content %}{% endblock %}
+<section class="calls">
+  <details>
+    <summary>Appels au service pour cet écran ({{ calls|length }})</summary>
+    <table>
+      <tr><th>opération</th><th>sorte</th><th>cible</th><th>paramètres</th><th>statut</th><th>ms</th><th></th></tr>
+      {% for c in calls %}
+      <tr><td class="mono">{{ c.operation }}</td><td>{{ c.kind }}</td><td>{{ c.target }}</td>
+        <td class="mono small">{{ c.params|tojson }}</td><td>{{ m.status(c) }}</td><td>{{ c.trace.duration_ms }}</td>
+        <td><a href="{{ raw_link(c) }}">JSON brut</a></td></tr>
+      {% endfor %}
+    </table>
+  </details>
+</section>
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

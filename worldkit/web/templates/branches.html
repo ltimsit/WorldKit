@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Branches{% endblock %}
+{% block content %}
+<h1>Branches et historique</h1>
+{{ m.result_head(result) }}
+{% if result.output %}
+<pre class="mermaid" style="background:#fff">{{ mermaid }}</pre>
+<details><summary>Source Mermaid</summary><pre>{{ mermaid }}</pre></details>
+<table><tr><th>branche</th><th>parente</th><th>divergence</th><th>tête</th><th>statut</th><th>points nommés</th><th></th></tr>
+{% for b in result.output.branches %}<tr><td>{{ b.id }}{% if b.reference %} ★{% endif %}</td><td>{{ b.parent or "—" }}</td><td>{{ b.fork_seq if b.fork_seq is not none else "—" }}</td>
+<td>{{ b.head }}</td><td>{{ b.status }}</td><td class="small">{% for n, s in b.points.items() %}{{ n }}={{ s }} {% endfor %}</td>
+<td><a href="/journal?{{ qs(ctx, branch=b.id) }}">journal</a></td></tr>{% endfor %}
+</table>
+<h2>Historique des références</h2>
+{% if result.output.reference_history %}<table><tr><th>rang</th><th>branche</th><th>rejeu</th></tr>
+{% for h in result.output.reference_history %}<tr><td>{{ h.rank }}</td><td>{{ h.branch }}</td><td>{{ h.replay or "" }}</td></tr>{% endfor %}</table>
+{% else %}<p class="muted">la référence n'a jamais basculé (déclaration du monde)</p>{% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="/static/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad: true, securityLevel: "strict"});</script>
+{% endblock %}

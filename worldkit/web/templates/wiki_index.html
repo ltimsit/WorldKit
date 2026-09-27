@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Wiki{% endblock %}
+{% block content %}
+{% set o = index.output %}
+<h1>Wiki {{ "joueur" if ctx.filter == "player" else "auteur" }}{% if o %} — {{ o.branch }}, rang {{ o.seq }}{% endif %}</h1>
+{{ m.result_head(index) }}
+{% if o %}<table><tr><th>page</th><th>identifiant</th><th>type</th><th>comparer</th></tr>
+{% for p in o.pages %}<tr><td><a href="/wiki/{{ p.id }}?{{ qs(ctx) }}">{{ p.title }}</a></td><td class="mono">{{ p.id }}</td><td>{{ p.type }}</td>
+<td class="small"><a href="/compare/{{ p.id }}?{{ compare_qs(ctx, 'author', 'player') }}">auteur / joueur</a></td></tr>{% endfor %}
+</table>{% endif %}
+{% endblock %}

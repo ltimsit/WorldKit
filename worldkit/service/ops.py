@@ -41,7 +41,7 @@ class NoParams(Params):
 
 class Where(Params):
     branch: str | None = Field(None, description="branche (défaut : référence)")
-    point: str | None = Field(None, description="rang, point nommé (@base) ou head")
+    point: str | int | None = Field(None, description="rang, point nommé (@base) ou head")
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +226,7 @@ def review_list(ctx: Context, p: ReviewParams) -> Output:
 
 class EditParams(Params):
     edit: dict[str, Any] = Field(description="édition au format du corpus (id, origin, changes…)")
-    point: str | None = Field(None, description="état contre lequel vérifier (défaut : tête)")
+    point: str | int | None = Field(None, description="état contre lequel vérifier (défaut : tête)")
 
 
 def _parse(ctx: Context, raw: dict[str, Any]) -> Any:
@@ -451,3 +451,89 @@ def runs_purge(ctx: Context, p: RunsPurge) -> Output:
            needs_world=False)
 def ops_list(ctx: Context, p: NoParams) -> Output:
     return Output([describe(op) for _, op in sorted(REGISTRY.items())], [], {"operations": len(REGISTRY)})
+
+
+# ---------------------------------------------------------------------------
+# Comparaison de deux lectures (décision I2 : deux colonnes, différences calculées par le service)
+# ---------------------------------------------------------------------------
+
+class Side(Params):
+    target: str | int | None = Field(None, description="world, ou le numéro d'un bac")
+    branch: str | None = None
+    point: str | int | None = None
+    filter: FilterName = "author"
+
+
+class CompareParams(Params):
+    entity: str
+    left: Side = Field(default_factory=Side)
+    right: Side = Field(default_factory=Side)
+
+
+def _page_in(ctx: Context, entity: str, side: Side) -> tuple[Any, dict[str, Any]]:
+    from .session import parse_target
+    target = parse_target(side.target)
+    world = ctx.session.open(target)
+    try:
+        inner = Context(ctx.session, target, world)
+        view, state = _view(inner, side.filter, side.branch, side.point)
+        where = {"target": target, "branch": state.branch, "seq": state.seq, "filter": side.filter}
+        return view.page(entity), where
+    finally:
+        world.close()
+
+
+def _lines(page: Any) -> dict[tuple[str, str], Any]:
+    """Lignes d'une page indexées par (section, identité) : le fait affiché, ou l'affirmation, ou l'identité."""
+    import json as _json
+    from .result import jsonable
+    out: dict[tuple[str, str], Any] = {}
+    if page is None:
+        return out
+    for a in page.attributes:
+        out[("attributes", _json.dumps(jsonable(a.fact)))] = a
+    for r in page.relations:
+        out[("relations", _json.dumps(jsonable(r.fact)))] = r
+    for s in page.sheets:
+        for a in s.attributes:
+            out[("sheets", _json.dumps(jsonable(a.fact)))] = a
+        out[("sheet_bindings", s.sheet)] = (s.system, s.category)
+    for c in page.claims:
+        out[("claims", c.claim)] = c
+    for i in page.identities:
+        out[("identities", f"{i.other}|{i.kind}")] = i
+    return out
+
+
+def _signature(line: Any) -> Any:
+    """Ce qui, dans une ligne, fait qu'elle a « changé » : valeur, notoriété, qualification, cible."""
+    for fields in (("value", "visibility"), ("other", "visibility"), ("qualification", "qualification_visibility"),
+                   ("visibility",)):
+        if all(hasattr(line, f) for f in fields):
+            return tuple(str(getattr(line, f)) for f in fields)
+    return line
+
+
+@operation("wiki.compare", "read", CompareParams,
+           "deux lectures d'une page côte à côte, avec leurs différences au niveau des faits",
+           ("R-VUE-01", "R-VUE-03", "R-NOT-03"), needs_world=False)
+def wiki_compare(ctx: Context, p: CompareParams) -> Output:
+    left, where_l = _page_in(ctx, p.entity, p.left)
+    right, where_r = _page_in(ctx, p.entity, p.right)
+    issues = [Issue(IssueCode.UNKNOWN_ENTITY, f"aucune page « {p.entity} » à {side} ({w['target']}, {w['branch']}, "
+                    f"rang {w['seq']}, {w['filter']})", "R-VUE-01")
+              for side, page, w in (("gauche", left, where_l), ("droite", right, where_r)) if page is None]
+    a, b = _lines(left), _lines(right)
+    diff = []
+    for key in sorted(set(a) | set(b)):
+        section, ident = key
+        if key not in b:
+            diff.append({"section": section, "key": ident, "status": "removed", "left": a[key], "right": None})
+        elif key not in a:
+            diff.append({"section": section, "key": ident, "status": "added", "left": None, "right": b[key]})
+        elif _signature(a[key]) != _signature(b[key]):
+            diff.append({"section": section, "key": ident, "status": "changed", "left": a[key], "right": b[key]})
+    counts = {s: sum(1 for d in diff if d["status"] == s) for s in ("added", "removed", "changed")}
+    return Output({"entity": p.entity, "left": {"where": where_l, "page": left},
+                   "right": {"where": where_r, "page": right}, "diff": diff}, issues, counts,
+                  status="ok" if left is not None or right is not None else None)
