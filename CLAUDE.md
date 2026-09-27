@@ -65,7 +65,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **J5 — fait** (branche `j5-branches`) : branches, redéfinition ponctuelle et R-VUE-03, transposition d'éditions (indépendante, dépendante, contradictoire), déplacement de propositions. La transposition de scénario (fin de W13) arrive avec J6.
 - **J6 — fait** (branche `j6-scenarios`) : scénarios versionnés, pistes d'auteur, déroulés, transposition de scénario, pistes ouvertes sur les pages (`worldkit/core/workflows/`).
 - **J7 — fait** (branche `j7-replay`) : redéfinition rétroactive (T-RED-01) — aperçu d'impact, session de rejeu suspendable, reprenable et abandonnable, bascule de la référence (historique en ajout seul), ancienne branche archivée, report des points, pistes, propositions et déroulés, variantes signalées (`worldkit/core/workflows/replay.py`, `worldkit/ingest/carry.py`).
-- **Prochain : J8** (méta), puis le second jet du corpus écrit par l'auteur (choix du LLM, T-TST-01)… (cadre technique §7).
+- **J8 — fait** (branche `j8-meta`) : méta à l'ingestion (T-ING-20) — nature des passages, garde de classement, questions de nature (`worldkit review nature`), formes réduites LLM `sheet_values` / `schema_constraint`, T2 étendu au méta (`worldkit/ingest/meta.py`). Fiche : `docs/j8-brief.md`. La mesure T2 réelle du méta attend l'accord de l'auteur (quota).
+- **Prochain** : second jet du corpus écrit par l'auteur (choix du LLM, T-TST-01) ; interface au-delà de la ligne de commande (tests humains de J7 et J8 en attente) (cadre technique §7, §8).
 - Lacunes L1, L2, L6 du corpus tranchées avant J8 (cadre R-MET-02, R-MET-04, T-FAI-01 ; analyse 00.50) : toutes les lacunes du corpus v1 sont closes.
 
 ## Carte du code
@@ -79,7 +80,7 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 | M5 workflows | `worldkit/core/workflows/` | scénarios, pistes d'auteur, déroulés (`scenarios.py`) ; redéfinition rétroactive et rejeu (`replay.py`) |
 | M10–M11 vues | `worldkit/core/views/` | notoriété effective, pages, rendu Markdown, export JSON, signalements |
 | Façade | `worldkit/core/world.py` | `World` : créer, appliquer, soumettre, confirmer, rebaser, branches, transposer |
-| M6–M9 ingestion | `worldkit/ingest/` | déclaration et passages, lots, propositions, file de revue vivante, décisions ; report des propositions en fin de rejeu (`carry.py`) |
+| M6–M9 ingestion | `worldkit/ingest/` | déclaration et passages, lots, propositions, file de revue vivante, décisions ; méta : nature, questions de nature, `sheet_values` (`meta.py`) ; report des propositions en fin de rejeu (`carry.py`) |
 | Périphérie | `worldkit/periphery/` | extracteur oracle, adaptateurs LLM et profils (`llm/`), extracteur LLM, mesure T2 |
 | CLI | `worldkit/cli.py` | `worldkit --db monde.db <commande>` ; `worldkit --help` |
 

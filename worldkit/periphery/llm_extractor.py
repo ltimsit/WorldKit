@@ -22,7 +22,7 @@ from worldkit.core.schema.metaschema import ScalarKind
 from .extraction import Extraction, ExtractionContext
 from .llm.adapters import LLMAdapter, LLMError, Profile
 
-PROMPT_VERSION = "2"
+PROMPT_VERSION = "3"
 
 # Champs utiles de chaque opération : les autres sont ignorés (le modèle remplit parfois `type` partout).
 OP_FIELDS: dict[str, tuple[str, ...]] = {
@@ -37,9 +37,14 @@ OP_FIELDS: dict[str, tuple[str, ...]] = {
     "set_visibility": ("target",),
 }
 
+# Formes réduites du méta (décision J8), traduites de façon déterministe : `sheet_values` (valeurs d'une
+# entité dans un système) et `schema_constraint` (bornes d'un attribut d'une catégorie de système).
 OPS = ["create_entity", "set_attribute", "unset_attribute", "add_value", "remove_value",
-       "add_relation", "remove_relation", "close_entity", "set_visibility"]
-_FIELDS = ["op", "entity", "type", "attribute", "value", "from", "relation", "to", "target", "visibility"]
+       "add_relation", "remove_relation", "close_entity", "set_visibility", "sheet_values", "schema_constraint"]
+_FIELDS = ["op", "entity", "type", "attribute", "value", "from", "relation", "to", "target", "visibility",
+           "system", "min", "max"]
+_PAIR = {"type": "object", "additionalProperties": False, "required": ["attribute", "value"],
+         "properties": {"attribute": {"type": "string"}, "value": {"type": "string"}}}
 
 
 def _nullable(t: str) -> dict[str, Any]:
@@ -47,8 +52,9 @@ def _nullable(t: str) -> dict[str, Any]:
 
 
 CHANGE_SCHEMA: dict[str, Any] = {
-    "type": "object", "additionalProperties": False, "required": _FIELDS,
-    "properties": {"op": {"type": "string", "enum": OPS}, **{f: _nullable("string") for f in _FIELDS[1:]}},
+    "type": "object", "additionalProperties": False, "required": [*_FIELDS, "values"],
+    "properties": {"op": {"type": "string", "enum": OPS}, **{f: _nullable("string") for f in _FIELDS[1:]},
+                   "values": {"anyOf": [{"type": "array", "items": _PAIR}, {"type": "null"}]}},
 }
 
 OUTPUT_SCHEMA: dict[str, Any] = {
@@ -89,6 +95,14 @@ Règles :
 10. N'extrais que les faits du monde : pas d'entité pour un nom commun incident (un serment, une séance,
    une halle) ; pas de relation qui n'est pas dite (« depuis la Chute » ne dit pas que quelqu'un y a participé).
 11. Les champs inutilisés d'un changement valent null. value est toujours une chaîne.
+12. Méta : une information de règles de jeu (PV, niveau, caractéristiques, capacités d'un système) n'est PAS
+   un fait du monde ; n'écris jamais une valeur de système dans un attribut du monde.
+   - Valeurs d'une entité dans un système : op = sheet_values, entity = identifiant de l'entité du monde,
+     system = identifiant du système, values = paires {attribute, value} avec les attributs du système
+     (une paire par valeur d'un attribut à valeurs multiples ; une capacité connue par son identifiant).
+   - Règle générale d'un système (« toute créature a entre 1 et 10 PV ») : op = schema_constraint, system,
+     type = catégorie du système, attribute, min, max.
+13. Un passage qui ne nomme pas son sujet parle du sujet du document (son titre est donné).
 """
 
 
@@ -124,10 +138,13 @@ class LLMExtractor:
 
     def prompt(self, passage_text: str, context: ExtractionContext) -> tuple[str, str]:
         system = SYSTEM + "\n" + describe_schema(context.schema)  # stable pour un monde : cacheable
+        for sid, schema in sorted(context.systems.items()):
+            system += f"\n\nSystème de règles « {sid} » — catégories :\n" + describe_schema(schema)
         known = "\n".join(f"- {e.id} ({e.type}) : {' / '.join(e.names)}" for e in context.entities) or "- (aucune)"
         voice = f"in_world (énonciateur : {context.speaker})" if context.voice == "in_world" else "author"
+        document = f"Document : {context.document}\n\n" if context.document else ""
         user = (f"Entités connues (identifiant, type : noms) :\n{known}\n\n"
-                f"Énonciation : {voice}\n\nPassage :\n{passage_text}")
+                f"{document}Énonciation : {voice}\n\nPassage :\n{passage_text}")
         return system, user
 
     def extract(self, doc_id: str, passage_text: str, context: ExtractionContext | None = None) -> Extraction:
@@ -148,7 +165,18 @@ def _coerce(value: str | None, attribute: str | None, entity_type: str | None, s
     """La sortie donne des chaînes ; l'attribut déclaré dit s'il faut un entier ou un booléen."""
     if value is None or attribute is None or entity_type is None or entity_type not in schema.types:
         return value
-    attr = schema.attributes_of(entity_type).get(attribute)
+    return _coerce_def(value, schema.attributes_of(entity_type).get(attribute))
+
+
+def _system_attribute(system: Schema | None, attribute: str) -> Any:
+    for name in sorted(system.types) if system is not None else ():
+        a = system.attributes_of(name).get(attribute)
+        if a is not None:
+            return a
+    return None
+
+
+def _coerce_def(value: str, attr: Any) -> Any:
     if attr is None:
         return value
     if attr.type.kind is ScalarKind.INTEGER:
@@ -161,8 +189,38 @@ def _coerce(value: str | None, attribute: str | None, entity_type: str | None, s
     return value
 
 
-def to_draft(change: dict[str, Any], schema: Schema, types: dict[str, str]) -> dict[str, Any]:
+def _int(v: str | None) -> int | None:
+    try:
+        return int(v) if v is not None else None
+    except ValueError:
+        return None
+
+
+def meta_draft(change: dict[str, Any], systems: dict[str, Schema]) -> dict[str, Any]:
+    """Formes réduites du méta → brouillons (décision J8). `sheet_values` reste réduit : M9 le traduit
+    contre l'état (catégorie, identifiant, fiche existante)."""
+    system = change.get("system")
+    schema = systems.get(system or "")
+    if change["op"] == "schema_constraint":
+        bounds = {k: _int(change.get(k)) for k in ("min", "max")}
+        return {"op": "schema_set_type", "scope": system, "type": change.get("type"),
+                "attribute": change.get("attribute"), "constraint": {k: v for k, v in bounds.items() if v is not None}}
+    values: dict[str, Any] = {}
+    for pair in change.get("values") or []:
+        attr = _system_attribute(schema, pair["attribute"])
+        v = _coerce_def(pair["value"], attr)
+        if attr is not None and attr.type.is_list:
+            values.setdefault(pair["attribute"], []).append(v)
+        else:
+            values[pair["attribute"]] = v
+    return {"op": "sheet_values", "of": change.get("entity"), "system": system, "values": values}
+
+
+def to_draft(change: dict[str, Any], schema: Schema, types: dict[str, str],
+             systems: dict[str, Schema] | None = None) -> dict[str, Any]:
     op = change["op"]
+    if op in ("sheet_values", "schema_constraint"):
+        return meta_draft(change, systems or {})
     out: dict[str, Any] = {"op": op}
     if op in ("add_relation", "remove_relation") and change.get("from") is None and change.get("entity"):
         change = {**change, "from": change["entity"]}  # sujet mis dans `entity` par le modèle
@@ -179,7 +237,7 @@ def to_draft(change: dict[str, Any], schema: Schema, types: dict[str, str]) -> d
 def to_extraction(raw: dict[str, Any], schema: Schema, context: ExtractionContext) -> Extraction:
     types = {e.id: e.type for e in context.entities}
     types.update({c["entity"]: c["type"] for c in raw["changes"] if c["op"] == "create_entity" and c.get("entity")})
-    drafts = tuple(to_draft(c, schema, types) for c in raw["changes"])
+    drafts = tuple(to_draft(c, schema, types, context.systems) for c in raw["changes"])
     claims = tuple({"text": c["text"], "claimed": to_draft(c["claimed"], schema, types) if c.get("claimed") else None,
                     "speaker": None} for c in raw["claims"])
     return Extraction(drafts, frozenset(), claims, ("attribution",) if raw["attribution"] else ())

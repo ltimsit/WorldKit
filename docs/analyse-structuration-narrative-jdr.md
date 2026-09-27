@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v30** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v31** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -1032,6 +1032,24 @@ Conséquence sur l'ordre : le cœur du module de contradictions (collisions, lec
 - Une fiche naît d'un seul changement, qui porte son rattachement immuable. Il y a une fiche par système (clé `(sheet, entité, système)`, libérée à la clôture) : reclasser, c'est clore puis recréer. `has_sheet` et `conforms_to` sont calculées, refusées à l'écriture, et exposées par les pages et l'export.
 - La clé de schéma est définitive, au grain de l'attribut. La dépendance d'une édition à une définition reste vérifiée par la revalidation, seul endroit où une valeur devenue invalide doit arrêter quelque chose.
 
+### 00.51 Méta à l'ingestion (v31)
+
+> Décision du 27 septembre 2026, jalon J8.
+
+**Problème.** Jusqu'à J8, un passage méta était conservé sans proposition. Pour l'ingérer, quatre points restaient à fixer :
+- un marqueur `[meta]` ne dit pas s'il vise un système ou une fiche ;
+- que faire d'un changement qui contredit la nature déclarée de son passage ;
+- comment une nature *détectée* (« Système B : niveau 7, menace 8. », sans marqueur) devient *décidée* sans que la détection décide (R-DEC-02) ;
+- sous quelle forme un modèle de langage décrit une fiche dont il ne connaît ni la catégorie, ni l'identifiant, ni l'existence.
+
+**Voies comparées.**
+- *Destination* : *la lire dans chaque changement* est **retenu**. *Deux marqueurs* (`[meta:sheet]`, `[meta:system]`) est écarté : c'est un choix de plus pour l'auteur, pour une information que le changement porte déjà.
+- *Contradiction avec la déclaration* : *la déclaration l'emporte, passage signalé* est **retenu**. *Proposer quand même* est écarté : un indice passerait outre une déclaration (R-DEC-01).
+- *Détection* : *une question de nature par passage, avant toute proposition* est **retenue**. *Des propositions marquées « nature détectée »* est écarté : cela mêle classer et valider, et répète la question à chaque proposition.
+- *Forme LLM* : *une forme réduite traduite par le noyau* est **retenue**. *Les changements complets* est écarté : le modèle devrait deviner ce que le noyau sait.
+
+**Décision.** Voir R-DEC-04, R-DEC-05 et T-ING-20. En chemin, les changements de schéma sont désormais qualifiés comme des faits (support, enrichissement, anomalie) : un passage peut ainsi corroborer une règle de système.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1632,6 +1650,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 75. Que se passe-t-il quand on joue une piste sur une branche qui a divergé depuis son écriture ? — **Réponse (v28) :** ✅ Elle est analysée comme une transposition ; en conflit, signalée et décidée par l'auteur ; dépendances entre scénarios et alternatives signalées, non imposées (00.48).
 76. Comment redéfinir « depuis toujours » sans réécrire l'histoire, et que devient ce qui dépendait de l'ancienne version ? — **Réponse (v29) :** ✅ Nouvelle branche et rejeu en session stockée, suspendable, reprenable et abandonnable. L'ancienne branche est archivée, la référence bascule par un historique en ajout seul. Points, pistes, propositions et déroulés sont reportés, avec « à revérifier » quand ils sont concernés. Les variantes sont signalées. Une qualification d'affirmation lit la clé revendiquée (00.49).
 77. Comment relier les deux faces d'un élément, rattacher une fiche, et adresser un élément de schéma ? — **Réponse (v30) :** ✅ `counterpart_of` avec une contrepartie par système ; une fiche naît avec un rattachement immuable, une par système, `has_sheet` et `conforms_to` calculées ; la clé de schéma est définitive, écrite par les seules éditions de schéma, la dépendance aux définitions passant par la revalidation (00.50).
+78. Comment ingérer le méta sans que la détection décide ? — **Réponse (v31) :** ✅ La nature se déclare par l'en-tête ou par `[meta]` ; la destination se lit dans chaque changement ; un changement contraire à la déclaration est signalé, non ingéré ; une nature détectée pose une question par passage, avant toute proposition ; le LLM décrit une fiche sous une forme réduite que le noyau traduit (00.51).
 
 ---
 

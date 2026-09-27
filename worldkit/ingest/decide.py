@@ -23,6 +23,7 @@ from .queue import (
     StoredChange, StoredProposal, blocked, branch_of, close, load, load_one, passage_fp, record_support, refresh,
     save_change,
 )
+from .meta import awaiting_nature
 from .store import dumps, ensure_tables
 
 
@@ -57,6 +58,9 @@ def _pending(world: World, pid: str, action: str) -> StoredProposal | Decided:
         return Decided(pid, action, issues=[Issue(
             IssueCode.DOCUMENT_OBSOLETE, f"le document {p.doc} est obsolète : proposition bloquée, "
             "réactivée si le statut est levé (set_document_obsolete false)", "R-DOC-05")])
+    if action not in ("refuse", "abandon") and awaiting_nature(world, p):
+        return _fail(pid, action, f"nature méta détectée, non décidée : trancher d'abord la question de nature "
+                     f"({p.doc} p{p.passage})", "R-DEC-02")
     return p
 
 

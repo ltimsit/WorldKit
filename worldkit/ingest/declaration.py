@@ -79,6 +79,7 @@ class DocumentVersion:
     fingerprint: str
     axes: Axes
     passages: tuple[Passage, ...]
+    title: str | None = None  # premier titre du corps : sujet par défaut d'un passage qui ne le nomme pas (J8)
 
 
 def normalize(text: str) -> str:
@@ -140,7 +141,8 @@ def parse_document(text: str, path: str = "") -> DocumentVersion:
     body = text[m.end():]
     blocks = [b for b in re.split(r"\n\s*\n", body) if b.strip() and not b.lstrip().startswith("#")]
     passages = tuple(Passage(i, normalize(b), fingerprint(b), segments(b, axes)) for i, b in enumerate(blocks, start=1))
-    return DocumentVersion(str(header["id"]), path, fingerprint(body), axes, passages)
+    title = next((line.lstrip("#").strip() for line in body.splitlines() if line.startswith("#")), None)
+    return DocumentVersion(str(header["id"]), path, fingerprint(body), axes, passages, title)
 
 
 def read_document(path: str | Path) -> DocumentVersion:
