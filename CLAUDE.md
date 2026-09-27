@@ -10,7 +10,8 @@ Par ordre de priorité en cas de divergence :
 
 1. **`docs/cadre-fondation.md`** — base de vérité du modèle conceptuel. Règles `R-XXX-nn`, invariants (§9), périmètre (§1.4), glossaire FR ↔ EN (§3).
 2. **`docs/cadre-technique.md`** — décisions techniques `T-XXX-nn` (toutes validées), modules M1–M11, impact du noyau sur l'ingestion (§5), stratégie de test, jalons J0–J8.
-3. **`docs/analyse-structuration-narrative-jdr.md`** — document historique : le *pourquoi* des décisions. À consulter pour le contexte, jamais pour les règles.
+3. **`docs/cadre-interface.md`** — interface conçue comme banc d'essai : objectifs, principes, étapes du pipeline, espaces, indicateurs ; décisions `I-XXX-nn`, questions `QI-nn`.
+4. **`docs/analyse-structuration-narrative-jdr.md`** — document historique : le *pourquoi* des décisions. À consulter pour le contexte, jamais pour les règles.
 
 Lis le cadre concerné **avant** de coder une fonctionnalité. Ne devine pas une règle : cherche son identifiant.
 
