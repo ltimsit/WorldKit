@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v39** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v40** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -1172,6 +1172,18 @@ La voie **traçable** est retenue partout où elle ne retarde pas le premier éc
 
 **Décision.** I-AID-01 (*cadre-interface.md* §8.7).
 
+### 00.60 Un guide d'utilisation qui ne peut pas mentir (v40)
+
+> Décision du 27 septembre 2026, jalon I7.
+
+**Problème.** Le lexique dit ce que désigne un code, pas comment se servir de l'outil : il manque des exemples pas à pas, avec les commandes et la façon de lire les résultats. Or un guide qui annonce « 4 nœuds » devient faux dès que le code bouge, et les guides précédents, vérifiés une fois sous PowerShell, n'étaient plus vérifiés ensuite.
+
+**Voies comparées.**
+- Guide vérifié à la main, une fois : rapide, mais il dérive sans que personne ne le voie.
+- **Retenu** : guide exécuté par la suite de tests. Ses commandes tournent dans l'ordre sur un monde temporaire ; ses sorties annoncées (extraits) et les écrans qu'il cite sont vérifiés. S'il ment, un test échoue. Sa maintenance est inscrite dans les règles de travail, au même titre que les documents.
+
+**Décision.** I-AID-02 (*cadre-interface.md* §8.7). En l'écrivant, deux constats : modifier un attribut par une édition directe n'est pas une collision (le glossaire l'affirmait à tort ; corrigé) ; `worldkit run save` sans `--sandbox` écrit dans le monde de travail (le guide passe toujours par un bac).
+
 ---
 
 ## 0. Comment lire ce document
@@ -1781,6 +1793,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 84. Comment revoir un lot à l'écran, et vérifier les parcours d'acceptation automatiquement ? — **Réponse (v37) :** ✅ La revue décide sur la cible affichée, et le monde de travail demande une session confirmée une fois. Les parcours s'exécutent dans un monde d'acceptation neuf, avec leurs prérequis, par identifiants réels ; leurs attendus sont vérifiés par des contrôles typés partagés entre pytest et l'écran Acceptation (00.57).
 85. Comment voir la structure d'un monde et juger la qualité de l'extraction ? — **Réponse (v38) :** ✅ Un graphe dont les nœuds sont les entités, avec leurs couches, leurs marques d'état et un mode comparaison, et des mesures T2 en tableaux qu'on compare jusqu'au passage, à coût contrôlé (00.58).
 86. Comment retrouver ce que désigne un code affiché par l'outil ? — **Réponse (v39) :** ✅ Chaque code reste affiché et mène à sa définition, lue dans les documents (cadres et `docs/aide/`) ; chaque écran a sa fiche ; un test garantit que rien d'affichable n'est sans définition (00.59).
+87. Comment apprendre à se servir de l'outil sans risque que le mode d'emploi soit faux ? — **Réponse (v40) :** ✅ Un guide pas à pas (gestes, commandes, sorties attendues) exécuté par les tests, maintenu à chaque jalon (00.60).
 
 ---
 
