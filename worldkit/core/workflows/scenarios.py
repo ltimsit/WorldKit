@@ -163,6 +163,10 @@ def adopt(world: World, draft_id: str) -> Outcome:
     rec = world.store.edit(draft_id)
     if "draft" not in rec.edit.tags:
         return Outcome(draft_id, [Issue(IssueCode.EDIT_RULE, "ce n'est pas une piste d'auteur", "R-SCN-09")])
+    moved = f"{draft_id}@{world.reference_branch}"
+    if rec.status is EditStatus.ABANDONED and world.store.has_edit(moved):
+        return Outcome(draft_id, [Issue(IssueCode.EDIT_RULE, f"piste déplacée par un rejeu : adopter {moved}",
+                                        "R-RED-03")])
     if rec.status is EditStatus.PENDING:
         with world.store.conn:
             world.store.set_origin(draft_id, Origin.ADOPTED_DRAFT.value)

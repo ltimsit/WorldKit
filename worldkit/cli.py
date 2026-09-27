@@ -19,6 +19,11 @@
     worldkit --db valmont.db review refuse <proposition>… [--changes 2] [--reason …]
     worldkit --db valmont.db review choose <proposition> | adapt <proposition> --prepend|--replace <changes.yaml>
     worldkit --db valmont.db review dismiss <document> <passage>
+    worldkit --db valmont.db redefine <changes.yaml> --after e003 [--from BRANCHE]          (aperçu, R-RED-01)
+    worldkit --db valmont.db redefine <changes.yaml> --after e003 --mode retroactive [--branch NOM] [--id r1]
+    worldkit --db valmont.db redefine <changes.yaml> --mode point [--id ID]
+    worldkit --db valmont.db replay list | status <rejeu> | resume <rejeu> [--steps N] | abandon <rejeu>
+    worldkit --db valmont.db replay decide <rejeu> (--keep | --adapt changes.yaml | --discard) [--reason …]
 
 Code de sortie : 0 succès, 1 refus ou signalement bloquant, 2 entrée illisible.
 """
@@ -62,12 +67,13 @@ def _schema_validate(paths: Sequence[str]) -> int:
     return status
 
 
-def _read_edits(path: str, only: list[str] | None) -> list[Any]:
-    """Un fichier d'éditions : `{edits: [...]}`, une liste, ou une seule édition."""
+def _read_edits(path: str, only: list[str] | None, branch: str | None = None) -> list[Any]:
+    """Un fichier d'éditions : `{edits: [...]}`, une liste, ou une seule édition. Sans branche précisée,
+    une édition vise `branch` (la référence courante, qui change après un rejeu, R-MON-02)."""
     from worldkit.core.journal.models import parse_edit
     raw = read_yaml(path)
     items = raw["edits"] if isinstance(raw, dict) and "edits" in raw else raw if isinstance(raw, list) else [raw]
-    edits = [parse_edit(e) for e in items]
+    edits = [parse_edit({"branch": branch, **e} if branch and "branch" not in e else e) for e in items]
     if only:
         missing = set(only) - {e.id for e in edits}
         if missing:
@@ -293,6 +299,124 @@ def _run_transpose(world: Any, args: argparse.Namespace) -> int:
     return 0 if outcome.ok and outcome.status is not None else 1
 
 
+def _read_changes(path: str) -> list[Any]:
+    from worldkit.core.schema import parse_change
+    raw = read_yaml(path)
+    return [parse_change(c) for c in (raw["changes"] if isinstance(raw, dict) else raw)]
+
+
+def _print_replay(world: Any, report: Any) -> int:
+    from worldkit.core.journal.models import EditStatus
+    from worldkit.core.workflows import replay as R
+    r = report.replay
+    for step in report.replayed:
+        target = f" → {step.result_edit}" if step.result_edit else ""
+        print(f"  {step.source_edit} : {STEP_FR[step.action]}{target}")
+    _print_issues(report.issues)
+    if r is None:
+        return 1
+    if r.status == R.FINISHED:
+        print(f"rejeu {r.id} terminé : {r.branch} remplace {r.source}, archivée (consultable)")
+        if world.reference_branch == r.branch:
+            print(f"  branche de référence : {r.branch} (R-MON-02)")
+        if report.carried:
+            print(f"  reporté : {', '.join(report.carried)}")
+        rechecks = [rec.edit.id for rec in world.store.edits(r.branch, EditStatus.PENDING) if rec.needs_recheck]
+        if rechecks:
+            print(f"  à revérifier (R-RED-03) : {', '.join(rechecks)}")
+        for child, _ in world.store.children(r.source):
+            if child != r.branch:
+                print(f"  variante notifiée, non modifiée (R-RED-04) : {child}")
+        return 0
+    if r.status == R.ABANDONED:
+        print(f"rejeu {r.id} abandonné : {r.branch} reste tracée, {r.source} reste la branche de travail")
+        return 0
+    if report.conflict is not None:
+        labels = {"dependent": "dépendante (fait absent)", "contradictory": "contradictoire"}
+        rec = world.store.edit(report.current)
+        title = f" — {rec.edit.title}" if rec.edit.title else ""
+        print(f"rejeu {r.id} suspendu sur {report.current}{title} : {labels.get(report.conflict.relation, '')}")
+        for d in report.conflict.divergences:
+            print(f"  - {d.describe()}" + ("" if d.written else " (clé seulement lue)"))
+        print(f"  décider : worldkit replay decide {r.id} --keep | --adapt changes.yaml | --discard")
+        return 1
+    nxt = f" ; prochaine édition : {report.current}" if report.current else ""
+    print(f"rejeu {r.id} suspendu{nxt} ; reprendre : worldkit replay resume {r.id}")
+    return 0
+
+
+def _run_redefine(world: Any, args: argparse.Namespace) -> int:
+    from worldkit.core.journal.models import Edit, Origin, RedefinitionKind
+    from worldkit.core.schema.keys import format_key
+    from worldkit.core.workflows import replay as R
+    changes = _read_changes(args.file)
+    source = args.from_branch or world.reference_branch
+    if args.mode == "point":
+        edit = Edit(id=args.id or f"redef-{world.store.head_seq(source) + 1}", branch=source,
+                    origin=Origin.REDEFINITION, redefinition=RedefinitionKind.POINT, title=args.title,
+                    changes=changes)
+        outcome = world.apply(edit)
+        print(f"{edit.id} : {outcome.status or 'REFUSÉE'} (redéfinition ponctuelle)"
+              + (f" (rang {outcome.seq})" if outcome.seq else ""))
+        _print_issues(outcome.issues)
+        return 0 if outcome.ok else 1
+    if args.after is None:
+        print("ERREUR : --after (édition, rang ou point d'ancrage) est requis pour l'aperçu et le rejeu")
+        return 2
+    impact = R.preview(world, changes, args.after, source)
+    print(f"aperçu d'impact (R-RED-01) : {source}, ancrage au rang {impact.anchor_seq}")
+    _print_issues(impact.issues)
+    if not impact.applicable:
+        return 1
+    print(f"  {impact.later} édition(s) postérieure(s), dont {len(impact.edits)} concernée(s) :")
+    for t in impact.edits:
+        print(f"    rang {t.seq} {t.edit_id} : {', '.join(format_key(k) for k in t.keys)}")
+    if impact.pending:
+        print(f"  {len(impact.pending)} édition(s) en attente concernée(s), à revérifier après rejeu (R-RED-03) :")
+        for t in impact.pending:
+            title = f" — {t.title}" if t.title else ""
+            print(f"    {t.edit_id}{title} : {', '.join(format_key(k) for k in t.keys)}")
+    if args.mode is None:
+        print("choisir le mode : --mode retroactive (nouvelle branche + rejeu) ou --mode point (à partir de maintenant)")
+        return 0
+    report = R.start(world, changes, args.after, source=source, branch=args.branch, replay_id=args.id,
+                     title=args.title, limit=args.steps)
+    if report.replay is not None:
+        print(f"rejeu {report.replay.id} : nouvelle branche {report.replay.branch} depuis le rang {report.replay.anchor_seq}")
+    return _print_replay(world, report)
+
+
+def _run_replay(world: Any, args: argparse.Namespace) -> int:
+    from worldkit.core.workflows import replay as R
+    if args.replay_command == "list":
+        for r in R.replays(world):
+            print(f"{r.id} [{REPLAY_FR[r.status]}] {r.source} → {r.branch}, ancrage au rang {r.anchor_seq}")
+        return 0
+    if args.replay_command == "status":
+        report = R.pending_conflict(world, args.replay_id)
+        r = report.replay
+        done = R.steps(world, r.id)
+        print(f"rejeu {r.id} [{REPLAY_FR[r.status]}] : {r.source} → {r.branch}, {len(done)} édition(s) traitée(s)")
+        for step in done:
+            if step.action != "auto":
+                print(f"  {step.source_edit} : {STEP_FR[step.action]} ({step.detail})")
+        if r.status == R.OPEN:
+            return _print_replay(world, report)
+        return 0
+    if args.replay_command == "resume":
+        return _print_replay(world, R.advance(world, args.replay_id, args.steps))
+    if args.replay_command == "abandon":
+        return _print_replay(world, R.abandon(world, args.replay_id))
+    action = "keep" if args.keep else "discard" if args.discard else "adapt"
+    changes = _read_changes(args.adapt) if args.adapt else None
+    return _print_replay(world, R.decide(world, args.replay_id, action, changes, args.reason, args.steps))
+
+
+STEP_FR = {"auto": "rejouée", "keep": "gardée", "adapt": "adaptée", "discard": "écartée"}
+REPLAY_FR = {"open": "ouvert", "finished": "terminé", "abandoned": "abandonné"}
+BRANCH_FR = {"archived": "archivée", "abandoned": "abandonnée"}
+
+
 OUTCOME_FR = {"applied": "appliquée", "conflict": "EN CONFLIT (non appliquée)", "skipped": "écartée",
               "refused": "REFUSÉE"}
 
@@ -362,7 +486,7 @@ def _run_draft(world: Any, args: argparse.Namespace) -> int:
     outcome = S.adopt(world, args.draft_id) if args.draft_command == "adopt" else world.abandon(args.draft_id)
     print(f"{outcome.edit_id} : {outcome.status or 'REFUSÉE'}" + (f" (rang {outcome.seq})" if outcome.seq else ""))
     _print_issues(outcome.issues)
-    return 0 if outcome.status in (EditStatus.APPLIED, EditStatus.ABANDONED) else 1
+    return 0 if outcome.ok and outcome.status in (EditStatus.APPLIED, EditStatus.ABANDONED) else 1
 
 
 def _run_world(args: argparse.Namespace) -> int:
@@ -388,7 +512,7 @@ def _run_world(args: argparse.Namespace) -> int:
                 return _run_transpose(world, args)
             if args.edit_command in ("apply", "submit"):
                 status = 0
-                for edit in _read_edits(args.file, args.id):
+                for edit in _read_edits(args.file, args.id, world.reference_branch):
                     if args.branch:
                         edit = edit.model_copy(update={"branch": args.branch})
                     outcome = (world.apply if args.edit_command == "apply" else world.submit)(edit)
@@ -418,6 +542,10 @@ def _run_world(args: argparse.Namespace) -> int:
             return _run_scenario(world, args)
         if args.command == "draft":
             return _run_draft(world, args)
+        if args.command == "redefine":
+            return _run_redefine(world, args)
+        if args.command == "replay":
+            return _run_replay(world, args)
         if args.command == "branch":
             if args.branch_command == "create":
                 seq = world.create_branch(args.name, args.from_branch, args.at)
@@ -427,7 +555,9 @@ def _run_world(args: argparse.Namespace) -> int:
                     parent, fork = world.store.branch_info(b)
                     origin = f"depuis {parent} au rang {fork}" if parent else "branche racine"
                     ref = " (référence)" if b == world.reference_branch else ""
-                    print(f"{b}{ref} : {origin}, tête au rang {world.store.head_seq(b)}")
+                    status = BRANCH_FR.get(world.store.branch_status(b), "")
+                    status = f" [{status}]" if status else ""
+                    print(f"{b}{ref}{status} : {origin}, tête au rang {world.store.head_seq(b)}")
             return 0
 
         if args.command == "point":
@@ -460,7 +590,10 @@ def _run_world(args: argparse.Namespace) -> int:
                 page = view.page(eid)
                 assert page is not None
                 (out / f"{eid}.md").write_text(render_page(page, view), encoding="utf-8")
+            from worldkit.core.workflows.replay import lineage_notices
             index = [f"# Wiki {args.filter} — {state.branch}, rang {state.seq}", ""]
+            index += [f"> {i.message} ({i.rule})" for i in lineage_notices(world, state.branch)]
+            index += [""] if index[-1] != "" else []
             index += [f"- [{view.title(eid)}]({eid}.md)" for eid in ids]
             (out / "index.md").write_text("\n".join(index) + "\n", encoding="utf-8")
             print(f"{len(ids)} pages écrites dans {out}")
@@ -470,7 +603,8 @@ def _run_world(args: argparse.Namespace) -> int:
             return 0
         if args.command == "check":
             from worldkit.ingest.review import orphan_facts
-            issues = state_report(state)
+            from worldkit.core.workflows.replay import lineage_notices
+            issues = lineage_notices(world, state.branch) + state_report(state)
             if args.point in (None, "head"):
                 issues += orphan_facts(world, args.branch)
             print(f"{state.branch}, rang {state.seq} : {len(issues)} signalement(s)")
@@ -554,6 +688,34 @@ def build_parser() -> argparse.ArgumentParser:
     lst = edit_cmds.add_parser("list")
     lst.add_argument("--status", choices=["pending", "applied", "abandoned"])
     lst.add_argument("--branch", default=None)
+
+    rd = commands.add_parser("redefine", help="redéfinir : aperçu d'impact, puis mode ponctuel ou rétroactif (§6.4)")
+    rd.add_argument("file", help="fichier YAML des changements ({changes: [...]} ou liste)")
+    rd.add_argument("--after", default=None, help="ancrage : édition (e003), rang ou point nommé")
+    rd.add_argument("--from", dest="from_branch", default=None, help="branche redéfinie (défaut : référence)")
+    rd.add_argument("--mode", choices=["point", "retroactive"], default=None,
+                    help="sans mode : aperçu seul (R-RED-01)")
+    rd.add_argument("--branch", default=None, help="nom de la nouvelle branche (défaut : <source>-<rejeu>)")
+    rd.add_argument("--id", default=None, help="identifiant du rejeu (r1…) ou de l'édition ponctuelle")
+    rd.add_argument("--title", default=None)
+    rd.add_argument("--steps", type=int, default=None, help="suspendre après N éditions rejouées")
+
+    rp = commands.add_parser("replay", help="rejeux rétroactifs : suivre, décider, reprendre, abandonner (R-RED-02)")
+    rp_cmds = rp.add_subparsers(dest="replay_command", required=True)
+    rp_cmds.add_parser("list")
+    rp_cmds.add_parser("status").add_argument("replay_id")
+    rpr = rp_cmds.add_parser("resume")
+    rpr.add_argument("replay_id")
+    rpr.add_argument("--steps", type=int, default=None)
+    rp_cmds.add_parser("abandon").add_argument("replay_id")
+    rpd = rp_cmds.add_parser("decide", help="décision sur l'édition en conflit, puis reprise")
+    rpd.add_argument("replay_id")
+    rpdg = rpd.add_mutually_exclusive_group(required=True)
+    rpdg.add_argument("--keep", action="store_true", help="garder malgré la contradiction")
+    rpdg.add_argument("--adapt", help="fichier YAML des changements à appliquer à la place")
+    rpdg.add_argument("--discard", action="store_true", help="écarter (tracé)")
+    rpd.add_argument("--reason", default=None)
+    rpd.add_argument("--steps", type=int, default=None)
 
     point = commands.add_parser("point", help="points nommés de l'historique")
     point_cmds = point.add_subparsers(dest="point_command", required=True)

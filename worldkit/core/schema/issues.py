@@ -45,6 +45,7 @@ class IssueCode(StrEnum):
     STALE_EDIT = "stale_edit"
     DOCUMENT_OBSOLETE = "document_obsolete"
     SCENARIO_DEPENDENCY = "scenario_dependency"
+    ARCHIVED_BRANCH = "archived_branch"
 
 
 @dataclass(frozen=True)

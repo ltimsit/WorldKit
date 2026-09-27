@@ -1,7 +1,7 @@
 # Cadre conceptuel de la fondation
 
 **Objet :** base de vérité du modèle conceptuel de la fondation. Sert d'entrée à la conception technique.
-**Version :** 1.18 — 27 septembre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v25, section 00).
+**Version :** 1.19 — 27 septembre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v25, section 00).
 **Statut :** de référence. En cas de divergence avec l'analyse ou avec le cadre technique, ce document prévaut.
 
 **Conventions**
@@ -114,6 +114,9 @@ flowchart TB
 | État | `State` | Contenu complet du monde (lore, fiches, systèmes, schéma) à un point de l'historique. |
 | Branche | `Branch` | Suite ordonnée d'éditions appliquées à partir d'un état. |
 | Branche de référence | `reference_branch` | Branche affichée par défaut (attribut du monde). |
+| Branche archivée | `archived` | Branche remplacée par une redéfinition rétroactive : consultable, plus modifiable (§6.4). |
+| Rejeu | `replay` | Nouvelle application, dans l'ordre, des éditions postérieures à un ancrage sur une nouvelle branche (§6.4). |
+| Aperçu d'impact | `impact_preview` | Éditions ultérieures et en attente concernées par une redéfinition, montrées avant le choix du mode (R-RED-01). |
 | Transposition | `transpose` | Application explicite d'une édition ou d'un scénario sur une autre branche. |
 | Scénario | `Scenario` | Ensemble organisé de pistes, versionné, rattaché au monde. |
 | Version de scénario | `ScenarioVersion` | État d'un scénario à un moment de sa propre histoire. |

@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v28** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v29** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -998,6 +998,21 @@ Conséquence sur l'ordre : le cœur du module de contradictions (collisions, lec
 
 **Décision.** Scénario et versions attachés au monde, versions figées ; déroulé = une édition `scenario_consequence` par piste confirmée et par édition libre ; pistes en conflit signalées, décidées par l'auteur ; pistes ouvertes visibles de l'auteur seulement. Corpus : la piste x-d3 retire explicitement Odon (00.40) ; l'attendu de W12 citait à tort ad-2 sur la page d'Odon.
 
+### 00.49 Redéfinition rétroactive et rejeu (v29)
+
+> Décision du 27 septembre 2026, jalon J7.
+
+**Problème.** Le cadre posait la redéfinition rétroactive (§6.4 : nouvelle branche, rejeu, bascule de la référence, ancienne branche archivée) et ses règles (R-RED-01 à 05) sans en fixer la mise en œuvre. Cinq points restaient ouverts. Comment rendre le rejeu suspendable et reprenable ? Une qualification d'affirmation ne lisait aucune clé : le rejeu de « Aldren est mort de fièvre » n'aurait donc pas présenté « mort au combat : fausse », que W15 attend. Comment basculer la référence sans réécrire l'histoire ? Que deviennent les points nommés, les pistes, les propositions et les déroulés de l'ancienne branche ? Comment notifier une variante ?
+
+**Voies comparées.**
+- *Rejeu* : *sans état, relancé avec les décisions en arguments* est écarté, parce que la suspension resterait implicite et que l'abandon n'aurait pas d'état propre. *Session stockée* : **retenue**.
+- *Qualification* : *elle lit la clé revendiquée* est **retenue**. *L'affirmation lit aussi* est écarté : le document dit ce qu'il dit, et le rejeu s'arrêterait sans objet. *Cas particulier dans le rejeu* est écarté : ce serait une règle hors du mécanisme des clés.
+- *Référence* : *historique en ajout seul* est **retenu**. *Édition de journal* est écartée, parce que la référence est au-dessus des branches. *Écraser la déclaration* est écarté, parce qu'on perdrait la trace.
+- *Éléments de l'ancienne branche* : *tout reporter par la correspondance du rejeu* est **retenu**. *Report manuel* est écarté : une branche archivée refuse les écritures, et R-RED-03 ne serait plus automatique. *Résolution à travers l'ancienne branche* est écartée, parce qu'elle mettrait une indirection partout.
+- *Variantes* : *signalement recalculé* est **retenu**. *Notification stockée à acquitter* est écartée : ce serait un état à maintenir pour un fait permanent.
+
+**Décision.** Le rejeu est une session (T-RED-01) qui transpose, dans l'ordre, les éditions postérieures à l'ancrage. Une édition indépendante passe seule ; sur un conflit, le rejeu attend une décision humaine, qui est tracée. À la fin, la nouvelle branche remplace la source : celle-ci est archivée, consultable mais plus modifiable, et la nouvelle branche devient la référence si la source l'était. Points, pistes, propositions, mémoire des décisions et déroulés sont reportés ; une piste qui touche une clé redéfinie passe à revérifier. Les variantes sont signalées, jamais modifiées. La qualification d'une affirmation lit les clés du changement revendiqué (T-ING-12). En chemin, un défaut de la transposition a été corrigé : garder une édition ne retire l'occupant que d'une clé qu'elle écrit, jamais d'une clé seulement lue.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1596,6 +1611,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 73. Quel modèle de langage pour l'extraction, et comment y accéder ? — **Réponse (v26) :** ✅ Plusieurs, routés par tâche ; d'abord Claude Code avec l'abonnement (usage personnel), API et local préparés ; choix final sur le second jet du corpus (00.46).
 74. Comment transposer une édition sur une branche qui a divergé ? — **Réponse (v27) :** ✅ La comparer, clé par clé, à l'état qu'elle supposait : indépendante (automatique), dépendante (non applicable), contradictoire (garder, adapter ou écarter, tracé) (00.47).
 75. Que se passe-t-il quand on joue une piste sur une branche qui a divergé depuis son écriture ? — **Réponse (v28) :** ✅ Elle est analysée comme une transposition ; en conflit, signalée et décidée par l'auteur ; dépendances entre scénarios et alternatives signalées, non imposées (00.48).
+76. Comment redéfinir « depuis toujours » sans réécrire l'histoire, et que devient ce qui dépendait de l'ancienne version ? — **Réponse (v29) :** ✅ Nouvelle branche et rejeu en session stockée, suspendable, reprenable et abandonnable. L'ancienne branche est archivée, la référence bascule par un historique en ajout seul. Points, pistes, propositions et déroulés sont reportés, avec « à revérifier » quand ils sont concernés. Les variantes sont signalées. Une qualification d'affirmation lit la clé revendiquée (00.49).
 
 ---
 

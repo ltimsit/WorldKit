@@ -87,6 +87,18 @@ def test_w06_player_sees_claims_but_not_their_qualifications_R_DOC_07(qualified)
     assert by_text["Aldren est mort en combattant les pillards de Cendrelande."].qualification_visibility == "unqualified"
 
 
+def test_qualification_reads_the_claimed_key_but_the_claim_reads_nothing_T_ING_12(qualified):
+    """Décision J7 : la qualification juge l'affirmation contre le monde, elle lit la clé revendiquée ;
+    l'affirmation seule ne lit rien. C'est ce qui rend W06 visible au rejeu de W15."""
+    w, ids = qualified
+    rec = w.store.edit(f"{ids['Aldren est mort en combattant les pillards de Cendrelande.']}.d")
+    assert [c.op for c in rec.edit.changes] == ["add_claim", "qualify_claim"]
+    assert ("attr", "aldren-ii", "death_cause") in rec.reads
+    from worldkit.core.conflicts import check_application
+    claim = rec.edit.changes[0]
+    assert not check_application([claim], w.state(), "x").effects.reads
+
+
 def test_w06_claims_and_facts_coexist_R_DOC_08(qualified):
     w, _ = qualified
     assert w.state().facts[("attr", "aldren-ii", "death_cause")].value == "poison"
