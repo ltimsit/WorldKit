@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from worldkit.core.conflicts import Effects, check_application
-from worldkit.core.conflicts.transposition import Analysis, analyse
+from worldkit.core.conflicts.transposition import Analysis, analyse, keep_changes
 from worldkit.core.journal.models import BaseState, Edit, EditStatus, Origin, edit_rule_issues
 from worldkit.core.journal.store import EditRecord, Store
 from worldkit.core.projection.serialize import StaleFormat, state_from_json, state_to_json
@@ -194,7 +194,6 @@ class World:
                   reason: str | None = None) -> tuple[Outcome, Analysis]:
         """`auto` : appliquer si l'édition est indépendante ; `keep` : garder malgré une contradiction ;
         `adapt` : appliquer d'autres changements ; `discard` : écarter. Toujours tracé."""
-        from worldkit.core.schema.changes import RemoveRelation
         analysis = self.analyse_transposition(edit_id, target)
         original = self.store.edit(edit_id).edit
         new_id = f"{edit_id}@{target}"
@@ -212,24 +211,9 @@ class World:
             return Outcome(new_id, issues), analysis
         body = list(changes) if action == "adapt" and changes is not None else list(original.changes)
         if action == "keep":  # garder : les faits qui occupent les clés sont retirés explicitement (R-FAI-05)
-            head = self.state(target)
-            removals = []
-            for d in analysis.contradictions:
-                fact = head.facts.get(head.occupancy.get(d.key)) if d.key in head.occupancy else None
-                if fact is not None and fact.kind == "rel":
-                    removal = RemoveRelation(op="remove_relation", scope=fact.scope, **{"from": fact.subject},
-                                             relation=fact.name, to=fact.target or "")
-                    if removal not in removals:
-                        removals.append(removal)
-            # Un retrait devenu sans objet sur la cible (le fait n'y existe pas) est abandonné : libérer la clé
-            # est l'affaire du retrait explicite de l'occupant réel, ajouté ci-dessus.
-            from worldkit.core.projection.state import fact_id_of
-            ctx = head.context()
-            dropped = [c for c in body if c.op in ("remove_relation", "unset_attribute", "remove_value")
-                       and fact_id_of(c, ctx) not in head.facts]
-            body = removals + [c for c in body if c not in dropped]
+            body, dropped = keep_changes(analysis, body, self.state(target))
             if dropped:
-                detail += f" ; retraits sans objet abandonnés : {len(dropped)}"
+                detail += f" ; retraits sans objet abandonnés : {dropped}"
         edit = original.model_copy(update={"id": new_id, "branch": target, "transposed_from": edit_id,
                                            "derived_from": None, "tags": [*original.tags, "transposed"],
                                            "changes": body})
@@ -281,12 +265,13 @@ class World:
         seq = self._commit(edit, app.state, app.effects, None)
         return Outcome(edit.id, app.issues, EditStatus.APPLIED, seq)
 
-    def submit(self, edit: Edit) -> Outcome:
-        """Met une édition en attente, même non applicable en l'état (R-SCH-06 : signalée, mise en attente)."""
+    def submit(self, edit: Edit, point: int | str | None = None) -> Outcome:
+        """Met une édition en attente, même non applicable en l'état (R-SCH-06 : signalée, mise en attente).
+        `point` : l'état contre lequel elle est écrite (défaut : la tête), par exemple une piste écrite à @after-b4."""
         issues = self._preflight(edit, applying=False)
         if issues:
             return Outcome(edit.id, issues)
-        head = self.state(edit.branch)
+        head = self.state(edit.branch, point)
         app = check_application(edit.changes, head, edit.id)
         with self.store.conn:
             self.store.record_edit(edit, EditStatus.PENDING, BaseState(branch=edit.branch, seq=head.seq,

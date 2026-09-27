@@ -2,8 +2,8 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v27** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
-**Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition).
+**Statut :** analyse pré-cahier des charges, **v28** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
 
@@ -53,6 +53,7 @@ Ajouts v2/v3 :
 > - **v25** : décisions du jalon J3 (ingestion) — anomalie acceptée (00.43), origine des propositions confirmées (00.44), document obsolète (00.45) ; cadre de la fondation v1.18, cadre technique v2.9.
 > - **v26** : accès aux modèles de langage et routage par tâche (00.46) ; cadre technique v2.10.
 > - **v27** : branches, transposition, redéfinition ponctuelle (00.47) ; cadre technique v2.11.
+> - **v28** : scénarios, pistes, déroulés (00.48) ; cadre technique v2.12.
 
 ### 00.1 Vision reformulée
 
@@ -987,6 +988,16 @@ Conséquence sur l'ordre : le cœur du module de contradictions (collisions, lec
 
 **Décision.** Une branche lit le journal de ses ancêtres jusqu'au point de divergence ; la transposition compare l'édition à l'état qu'elle supposait et la qualifie d'indépendante, dépendante ou contradictoire ; garder, adapter ou écarter sont des décisions humaines tracées ; une vue antérieure signale ce qu'une redéfinition réécrit plus tard. La piste x-d3 du siège, qui ajoute « le conseil gouverne Brume » sans retirer Odon, sera adaptée en J6.
 
+### 00.48 Scénarios et déroulés (v28)
+
+> Décision du 27 septembre 2026, jalon J6.
+
+**Problème.** Le cadre posait les scénarios versionnés, les déroulés et les pistes (R-SCN-01 à 09) sans dire comment une piste écrite contre un état se confronte à la branche où on la joue, ni comment traiter une dépendance « X suppose Y » non satisfaite ou deux alternatives confirmées ensemble.
+
+**Voies comparées.** *Appliquer les pistes telles quelles* : écartée, une piste écrite quand Odon gouvernait Brume n'a pas de sens sur une variante où Mervin gouverne. *Réutiliser l'analyse de la transposition (00.47)* : **retenue** — une piste jouée est une édition confrontée à un état autre que celui contre lequel elle a été écrite (R-HIS-05). Pour les dépendances et les alternatives, *bloquer* est écarté au profit de *signaler* (R-SCN-08).
+
+**Décision.** Scénario et versions attachés au monde, versions figées ; déroulé = une édition `scenario_consequence` par piste confirmée et par édition libre ; pistes en conflit signalées, décidées par l'auteur ; pistes ouvertes visibles de l'auteur seulement. Corpus : la piste x-d3 retire explicitement Odon (00.40) ; l'attendu de W12 citait à tort ad-2 sur la page d'Odon.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1584,6 +1595,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 72. Que devient un document obsolète, et que produit la levée du statut ? — **Réponse (v25) :** ✅ Propositions bloquées sans être closes, réactivées à la levée ; décisions conservées (00.45).
 73. Quel modèle de langage pour l'extraction, et comment y accéder ? — **Réponse (v26) :** ✅ Plusieurs, routés par tâche ; d'abord Claude Code avec l'abonnement (usage personnel), API et local préparés ; choix final sur le second jet du corpus (00.46).
 74. Comment transposer une édition sur une branche qui a divergé ? — **Réponse (v27) :** ✅ La comparer, clé par clé, à l'état qu'elle supposait : indépendante (automatique), dépendante (non applicable), contradictoire (garder, adapter ou écarter, tracé) (00.47).
+75. Que se passe-t-il quand on joue une piste sur une branche qui a divergé depuis son écriture ? — **Réponse (v28) :** ✅ Elle est analysée comme une transposition ; en conflit, signalée et décidée par l'auteur ; dépendances entre scénarios et alternatives signalées, non imposées (00.48).
 
 ---
 

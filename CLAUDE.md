@@ -63,7 +63,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **J3 — fait** (branche `j3-ingestion`) : lots, passages, extracteur oracle, propositions qualifiées, revue et décisions, affirmations, ré-ingestion, documents obsolètes (`worldkit/ingest/`, `worldkit/periphery/`).
 - **J4 — outillage fait** (branche `j4-extraction`) : adaptateurs LLM (`claude-code` avec l'abonnement, `anthropic-api`, `ollama`), profils routés par tâche (`worldkit-llm.yaml`), extracteur LLM, mesure T2 (`worldkit eval extraction`). Le choix du modèle attend le second jet du corpus, écrit par l'auteur (T-TST-01).
 - **J5 — fait** (branche `j5-branches`) : branches, redéfinition ponctuelle et R-VUE-03, transposition d'éditions (indépendante, dépendante, contradictoire), déplacement de propositions. La transposition de scénario (fin de W13) arrive avec J6.
-- Ensuite : J6 (pistes, scénarios, déroulés), J7 (rejeu rétroactif), J8 (méta), second jet du corpus… (cadre technique §7).
+- **J6 — fait** (branche `j6-scenarios`) : scénarios versionnés, pistes d'auteur, déroulés, transposition de scénario, pistes ouvertes sur les pages (`worldkit/core/workflows/`).
+- Ensuite : J7 (redéfinition rétroactive, rejeu), J8 (méta), second jet du corpus… (cadre technique §7).
 - Points ouverts à trancher avant J8 : lacunes L1, L2, L6 du corpus (`corpus/valmont-v1/README.md` §5).
 
 ## Git

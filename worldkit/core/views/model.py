@@ -188,6 +188,8 @@ class View:
     sources: Mapping[str, list[tuple[str, Visibility]]] = field(default_factory=dict)
     # Clés réécrites par une redéfinition après le point de la vue (R-VUE-03) : fournies par le monde.
     redefined: frozenset = frozenset()
+    # Pistes ouvertes par entité (R-VUE-02, R-SCN-09) : matériau d'auteur, jamais montré aux joueurs (R-VUE-04).
+    drafts: Mapping[str, list[str]] = field(default_factory=dict)
 
     def _redefined(self, fid: tuple) -> bool:
         return bool(self.redefined) and any(v == fid and k in self.redefined for k, v in self.state.occupancy.items())
@@ -264,9 +266,10 @@ class View:
 
         documents = sorted({doc for m in members for doc, vis in self.sources.get(m, [])
                             if flt is Filter.AUTHOR or vis is Visibility.PUBLIC})
+        drafts = sorted({d for m in members for d in self.drafts.get(m, [])}) if flt is Filter.AUTHOR else []
         return EntityPage(entity, sorted(members), rec.type, self.title(entity), rec.closed,
                           rec.visibility, attributes, relations, identities, sheets, self.claims_of(members),
-                          documents=documents)
+                          drafts=drafts, documents=documents)
 
     def claims_of(self, members: set[str]) -> list[ClaimLine]:
         """Affirmations dont l'énonciateur est sur la page (R-DOC-06, R-DOC-07, R-NOT-05)."""

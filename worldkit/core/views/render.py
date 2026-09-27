@@ -77,7 +77,9 @@ def render_page(page: EntityPage, view: View) -> str:
         out.append(f"- {sh.system} ({sh.category}) : {values}")
     if not page.sheets:
         out.append("- (aucune)")
-    out += ["", "## Pistes ouvertes", "- (aucune)", "", "## Documents sources"]
+    out += ["", "## Pistes ouvertes"]
+    out += [f"- {d}" for d in page.drafts] or ["- (aucune)"]
+    out += ["", "## Documents sources"]
     out += [f"- {d}" for d in page.documents] or ["- (aucun)"]
     out.append("")
     return "\n".join(out)

@@ -293,6 +293,78 @@ def _run_transpose(world: Any, args: argparse.Namespace) -> int:
     return 0 if outcome.ok and outcome.status is not None else 1
 
 
+OUTCOME_FR = {"applied": "appliquée", "conflict": "EN CONFLIT (non appliquée)", "skipped": "écartée",
+              "refused": "REFUSÉE"}
+
+
+def _run_scenario(world: Any, args: argparse.Namespace) -> int:
+    from worldkit.core.schema import parse_change
+    from worldkit.core.workflows import scenarios as S
+    if args.scenario_command == "load":
+        for path in args.files:
+            added = S.load_scenario(world, path)
+            print(f"{path} : " + (", ".join(added) if added else "déjà à jour"))
+        return 0
+    if args.scenario_command == "list":
+        for sid, name, versions, deps in S.scenarios(world):
+            suppose = f" ; suppose {', '.join(deps)}" if deps else ""
+            print(f"{sid} — {name} : versions {', '.join(map(str, versions))}{suppose}")
+        return 0
+    if args.file:
+        scenario, version, branch, confirmations, free = S.load_playthrough(args.file, args.target)
+        playthrough = args.id or args.target
+        branch = args.branch or branch
+    else:
+        scenario, version, branch, free = args.target, args.version, args.branch, []
+        confirmations = [S.Confirmation(d) for d in args.draft or []]
+        playthrough = args.id or f"{scenario}-{world.store.head_seq(branch or world.reference_branch)}"
+    decisions = {d: "keep" for d in args.keep or []} | {d: "skip" for d in args.skip or []}
+    adapt = {}
+    for spec in args.adapt or []:
+        draft, _, path = spec.partition("=")
+        raw = read_yaml(path)
+        adapt[draft] = tuple(parse_change(c) for c in (raw["changes"] if isinstance(raw, dict) else raw))
+    confirmations = [S.Confirmation(c.draft, adapt.get(c.draft, c.changes), decisions.get(c.draft, c.decision))
+                     for c in confirmations]
+    report = S.play(world, playthrough, scenario, version, confirmations, free, branch)
+    print(f"déroulé {report.playthrough} : {report.scenario} v{report.version} sur {report.branch}")
+    _print_issues(report.warnings)
+    status = 0
+    for item in report.items:
+        label = f"{item.draft} — {item.title}" if item.draft else f"édition libre — {item.title}"
+        adapted = " (adaptée)" if item.adapted else ""
+        applied = f" → {item.edit_id}" if item.edit_id else ""
+        print(f"  {label}{adapted} : {OUTCOME_FR[item.outcome]}{applied}")
+        if item.analysis:
+            for d in item.analysis.divergences:
+                print(f"      {d.describe()}")
+        _print_issues(item.issues)
+        if item.outcome in ("conflict", "refused"):
+            status = 1
+    if status:
+        print("  décider pour chaque piste en conflit : --keep ID, --adapt ID=fichier.yaml ou --skip ID")
+    return status
+
+
+def _run_draft(world: Any, args: argparse.Namespace) -> int:
+    from worldkit.core.journal.models import EditStatus
+    from worldkit.core.workflows import scenarios as S
+    if args.draft_command == "load":
+        for o in S.load_author_drafts(world, args.file, args.branch):
+            print(f"{o.edit_id} : {o.status or 'REFUSÉE'}")
+            _print_issues(o.issues)
+        return 0
+    if args.draft_command == "list":
+        for rec in world.store.edits(args.branch or world.reference_branch):
+            if "draft" in rec.edit.tags:
+                print(f"{rec.edit.id} [{rec.status}] {rec.edit.title} — concerne {', '.join(rec.edit.concerns)}")
+        return 0
+    outcome = S.adopt(world, args.draft_id) if args.draft_command == "adopt" else world.abandon(args.draft_id)
+    print(f"{outcome.edit_id} : {outcome.status or 'REFUSÉE'}" + (f" (rang {outcome.seq})" if outcome.seq else ""))
+    _print_issues(outcome.issues)
+    return 0 if outcome.status in (EditStatus.APPLIED, EditStatus.ABANDONED) else 1
+
+
 def _run_world(args: argparse.Namespace) -> int:
     from worldkit.core.journal.models import EditStatus
     from worldkit.core.views import Filter, View, export_json, render_page, state_report
@@ -342,6 +414,10 @@ def _run_world(args: argparse.Namespace) -> int:
             _print_issues(outcome.issues)
             return 0 if outcome.ok else 1
 
+        if args.command == "scenario":
+            return _run_scenario(world, args)
+        if args.command == "draft":
+            return _run_draft(world, args)
         if args.command == "branch":
             if args.branch_command == "create":
                 seq = world.create_branch(args.name, args.from_branch, args.at)
@@ -366,9 +442,10 @@ def _run_world(args: argparse.Namespace) -> int:
 
         state = world.state(args.branch, args.point)
         if args.command == "wiki":
+            from worldkit.core.workflows.scenarios import open_drafts
             from worldkit.ingest.review import sources
             view = View(state, Filter(args.filter), sources(world, args.branch),
-                        world.redefined_after(args.branch, state.seq))
+                        world.redefined_after(args.branch, state.seq), open_drafts(world, args.branch))
             if args.wiki_command == "page":
                 page = view.page(args.entity)
                 if page is None:
@@ -440,6 +517,30 @@ def build_parser() -> argparse.ArgumentParser:
     trg.add_argument("--adapt", help="fichier YAML des changements à appliquer à la place")
     trg.add_argument("--discard", action="store_true", help="écarter (tracé)")
     tr.add_argument("--reason", default=None)
+
+    sc = commands.add_parser("scenario", help="scénarios versionnés et déroulés (R-SCN-01 à 09)")
+    sc_cmds = sc.add_subparsers(dest="scenario_command", required=True)
+    sc_cmds.add_parser("load").add_argument("files", nargs="+")
+    sc_cmds.add_parser("list")
+    pl = sc_cmds.add_parser("play", help="jouer un déroulé : depuis un fichier, ou pistes en ligne de commande")
+    pl.add_argument("target", help="déroulé du fichier (--file), ou scénario (avec --version et --draft)")
+    pl.add_argument("--file", help="fichier des déroulés (playthroughs.yaml)")
+    pl.add_argument("--version", type=int, default=None)
+    pl.add_argument("--draft", action="append", help="piste confirmée (répétable)")
+    pl.add_argument("--branch", default=None)
+    pl.add_argument("--id", default=None, help="identifiant du déroulé")
+    pl.add_argument("--keep", action="append", help="garder cette piste malgré une contradiction")
+    pl.add_argument("--skip", action="append", help="écarter cette piste")
+    pl.add_argument("--adapt", action="append", help="ID=fichier.yaml : adaptation propre au déroulé")
+
+    dr = commands.add_parser("draft", help="pistes d'auteur (R-SCN-09)")
+    dr_cmds = dr.add_subparsers(dest="draft_command", required=True)
+    drl = dr_cmds.add_parser("load")
+    drl.add_argument("file")
+    drl.add_argument("--branch", default=None)
+    dr_cmds.add_parser("list").add_argument("--branch", default=None)
+    dr_cmds.add_parser("adopt").add_argument("draft_id")
+    dr_cmds.add_parser("discard").add_argument("draft_id")
 
     br = commands.add_parser("branch", help="branches et variantes (R-HIS-03)")
     br_cmds = br.add_subparsers(dest="branch_command", required=True)

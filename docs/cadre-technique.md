@@ -1,7 +1,7 @@
 # Cadre technique de la fondation
 
 **Objet :** décisions techniques de la fondation : éléments structurants, découpage en modules, architecture, articulation entre le noyau et l'ingestion, stratégie de test et étapes de construction.
-**Version :** 2.11 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.18, qu'il cite sans le dupliquer.
+**Version :** 2.12 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.18, qu'il cite sans le dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (argumenté, en attente de validation). En cas de divergence, *cadre-fondation.md* prévaut.
 
 **Conventions**
@@ -312,6 +312,10 @@ Une implémentation de l'extracteur lit les annotations de `valmont/gold/` au li
 
 Vues antérieures (R-VUE-03) : un fait dont la clé est réécrite plus tard, sur la même branche, par une édition d'origine `redefinition` est marqué « redéfini plus tard ».
 
+### 5.3 ter Scénarios et déroulés (J6)
+
+*(R-SCN-01 à R-SCN-09, R-EDI-08, R-CYC-03.)* Un scénario et ses versions sont des objets du monde, hors journal de branche ; une version enregistrée est figée (déclencheurs SQL), une nouvelle s'ajoute. Une piste de scénario est un gabarit de changements écrit contre un point de la branche de référence (`written_against`). Jouer un déroulé confronte chaque piste confirmée, éventuellement adaptée pour ce déroulé, à la tête de la branche par l'analyse de la transposition (§5.3 bis) : indépendante, elle devient une édition `déroulé.piste` d'origine `scenario_consequence` ; dépendante ou contradictoire, elle est signalée et attend une décision (garder, adapter, écarter). Chaque édition libre devient une édition `déroulé.libreN`. « X suppose Y » (aucun déroulé de Y dans la lignée de la branche) et deux alternatives confirmées dans un même déroulé sont des avertissements, jamais des blocages. Une piste d'auteur est une édition en attente, écrite contre son point, qui porte un titre et les entités qu'elle `concerns` ; l'adopter l'applique avec l'origine `adopted_draft`. Les pages d'auteur listent les pistes ouvertes : pistes d'auteur en attente et pistes des scénarios (dernière version), qui restent disponibles une fois jouées ; les pages joueur n'en montrent aucune (R-VUE-04). Transposer un scénario vers une variante, c'est y jouer un déroulé.
+
 ### 5.4 Règles du cadre issues de cette analyse
 
 L'analyse ci-dessus a conduit à préciser *cadre-fondation.md* sur cinq points.
@@ -415,6 +419,7 @@ Complète le glossaire de *cadre-fondation.md* §3.
 | Point de sauvegarde | `checkpoint` | Projection enregistrée pour accélérer le calcul d'un état antérieur. |
 | Profil de modèle | `Profile` | Adaptateur + modèle + effort, désigné par un nom ; une tâche (extraction…) est routée vers un profil (T-LLM-01). |
 | Contexte d'extraction | `ExtractionContext` | Ce que l'extracteur voit de l'état de base : schéma, entités connues et en attente, énonciation. N'est pas une lecture (T-ING-02). |
+| Pistes concernées | `concerns` | Entités qu'une piste vise (R-SCN-09) ; alimentent la section « pistes ouvertes » des pages. |
 | Transposée de | `transposed_from` | Lien d'une édition transposée vers l'édition d'origine, sur une autre branche (R-HIS-05). |
 | Point nommé | `named_point` | Nom donné à un rang du journal d'une branche (`@base`) ; le `@` est facultatif à la saisie. |
 | Édition de schéma initiale | `e000` | Édition générée par le chargeur de monde, qui construit le schéma de monde et les systèmes (R-SCH-03). |

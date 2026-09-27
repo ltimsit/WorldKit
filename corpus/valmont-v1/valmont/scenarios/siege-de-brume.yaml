@@ -24,6 +24,7 @@ versions:
         # Écrite contre un état où Odon gouverne Brume et où le conseil existe.
         # Lit : (rules, brume) = odon ; (conseil-marchands) existe.
         changes:
+          - { op: remove_relation, from: odon, relation: rules, to: brume }   # retrait explicite (R-FAI-05)
           - { op: add_relation, from: conseil-marchands, relation: rules, to: brume, visibility: public }
           - { op: unset_attribute, entity: odon, attribute: title }
 
@@ -47,5 +48,6 @@ versions:
         title: "Le conseil des marchands prend Brume"
         concerns: [conseil-marchands, brume, odon]
         changes:
+          - { op: remove_relation, from: odon, relation: rules, to: brume }   # retrait explicite (R-FAI-05)
           - { op: add_relation, from: conseil-marchands, relation: rules, to: brume, visibility: public }
           - { op: unset_attribute, entity: odon, attribute: title }
