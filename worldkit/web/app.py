@@ -92,6 +92,9 @@ def create_app(db: str | Path) -> FastAPI:
         return f"/api/call/{r.operation}?{urlencode(params)}"
 
     env.globals["raw_link"] = raw_link
+    from datetime import datetime
+    from worldkit.service.session import code_version
+    env.globals["server"] = {"version": code_version(), "started": datetime.now().strftime("%H:%M:%S")}
 
     def context(request: Request) -> dict[str, str]:
         return {k: request.query_params.get(k, "") for k in CONTEXT_KEYS}

@@ -38,3 +38,4 @@ details { margin: 6px 0; } summary { cursor: pointer; color: var(--muted); }
 pre { background: var(--panel); border: 1px solid var(--line); padding: 6px; overflow: auto; max-height: 480px; }
 section.calls { margin-top: 24px; border-top: 2px solid var(--line); padding-top: 6px; }
 .issues li { margin: 2px 0; }
+.error-banner { background: var(--del); color: var(--err); border-bottom: 2px solid var(--err); padding: 6px 14px; font-weight: 600; }

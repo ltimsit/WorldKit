@@ -22,8 +22,20 @@
     <a href="/runs?{{ q }}" class="{{ 'on' if path.startswith('/runs') }}">Exécutions</a>
     <a href="/ops?{{ q }}" class="{{ 'on' if path == '/ops' }}">Opérations</a>
   </nav>
-  <span class="small muted" style="margin-left:auto">écritures : bac à sable par défaut</span>
+  <span class="small muted" style="margin-left:auto">écritures : bac à sable par défaut · worldkit {{ server.version }} · serveur démarré à {{ server.started }}</span>
 </header>
+<div id="htmx-error" class="error-banner" hidden></div>
+<script>
+  // Un échec de navigation ne doit jamais être muet (I-PRI-01, I-OBJ-06) : htmx n'affiche rien par défaut.
+  function wkError(text) { const b = document.getElementById("htmx-error"); b.textContent = text; b.hidden = false; }
+  document.addEventListener("htmx:responseError", (e) => {
+    const x = e.detail.xhr, url = e.detail.pathInfo ? e.detail.pathInfo.requestPath : "";
+    const hint = x.status === 404 ? " — page inconnue de ce serveur : s'il a été lancé avant la dernière version du code, l'arrêter (Ctrl+C) et relancer « worldkit serve »." : "";
+    wkError(`Erreur ${x.status} sur ${url}${hint}`);
+  });
+  document.addEventListener("htmx:sendError", () => wkError("Serveur injoignable : « worldkit serve » est-il toujours lancé ?"));
+  document.addEventListener("htmx:beforeRequest", () => { document.getElementById("htmx-error").hidden = true; });
+</script>
 {% block context %}
 <form class="context" method="get" action="{{ path }}" onchange="this.requestSubmit()">
   <label>cible
