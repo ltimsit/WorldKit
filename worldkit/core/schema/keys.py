@@ -7,16 +7,18 @@ puisse égaler une clé d'une autre forme (sans étiquette, la clé de relation
 | Forme | Clé |
 |---|---|
 | existence d'une entité | `("entity", e)` |
+| fiche d'une entité dans un système | `("sheet", e, système)` — une fiche par système (R-MET-02, L2) |
 | attribut simple | `("attr", e, a)` |
 | valeur d'un attribut `list[...]` | `("value", e, a, v)` |
 | relation `many_to_many` | `("rel", from, r, to)` |
 | relation `one_to_many` | `("rel_to", r, to)` — une cible a au plus une source |
 | relation `many_to_one` | `("rel_from", from, r)` |
 | relation `one_to_one` | les deux précédentes |
+| contrepartie | `("counterpart", élément du monde, système)` — une par système (R-MET-04, L1) |
 | notoriété d'un fait | `("visibility", clé)` (T-FAI-01) |
 | affirmation / sa qualification | `("claim", c)` / `("qualification", c)` (T-FAI-01) |
 | statut d'un document | `("document_status", d)` |
-| élément de schéma | `("schema", portée, "type"|"relation", nom[, attribut])` — **provisoire, lacune L6** |
+| élément de schéma | `("schema", portée, "type"|"relation", nom[, attribut])` — écrite par les seules éditions de schéma ; une édition ordinaire ne la lit pas, sa dépendance aux définitions est vérifiée par la revalidation (M1, T-ING-14, R-SCH-10) (L6) |
 
 Relation symétrique : extrémités rangées par ordre lexicographique avant calcul ;
 en `one_to_one`, une clé `("rel_from", extrémité, r)` par extrémité, car les rôles
@@ -36,7 +38,7 @@ from .changes import (
     SetVisibility, UnsetAttribute,
 )
 from .context import SchemaContext, qualify
-from .core_elements import CORE_RELATIONS
+from .core_elements import CORE_RELATIONS, COUNTERPART
 from .metaschema import Cardinality
 
 FactKey = tuple[Any, ...]
@@ -80,8 +82,14 @@ def fact_keys(change: Change, ctx: SchemaContext) -> list[FactKey]:
     """Clés des faits qu'écrit un changement. Lève `UnknownRelation` si la relation est hors schéma."""
     s = change.scope
     match change:
-        case CreateEntity() | CloseEntity() | DeleteEntity():
-            return [("entity", qualify(change.entity, s))]
+        case CreateEntity():
+            eid = qualify(change.entity, s)
+            return [("entity", eid)] + ([("sheet", change.sheet.of, change.sheet.system)] if change.sheet else [])
+        case CloseEntity() | DeleteEntity():
+            eid = qualify(change.entity, s)
+            info = ctx.entities.get(eid)
+            sheet = info.sheet if info is not None else None
+            return [("entity", eid)] + ([("sheet", sheet.of, sheet.system)] if sheet else [])
         case SetAttribute() | UnsetAttribute():
             return [("attr", qualify(change.entity, s), change.attribute)]
         case AddValue() | RemoveValue():
@@ -117,7 +125,18 @@ def target_keys(target: FactTarget, scope: str, ctx: SchemaContext) -> list[Fact
     return [("attr", entity, target.attribute)]
 
 
+def system_of(entity: str, ctx: SchemaContext) -> str:
+    """Portée d'un élément : celle qui l'a créé, sinon le préfixe `système:` de son identifiant."""
+    info = ctx.entities.get(entity)
+    if info is not None:
+        return info.scope
+    return entity.split(":", 1)[0] if ":" in entity else "world"
+
+
 def _relation_keys(source: str, relation: str, target: str, scope: str, ctx: SchemaContext) -> list[FactKey]:
+    if relation == COUNTERPART:  # au plus une contrepartie par système (R-MET-04, L1)
+        target = qualify(target, scope)
+        return [("counterpart", qualify(source, scope), system_of(target, ctx))]
     cardinality, symmetric = relation_shape(relation, scope, ctx)
     return relation_keys(qualify(source, scope), relation, qualify(target, scope), cardinality, symmetric)
 

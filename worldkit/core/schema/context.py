@@ -2,7 +2,7 @@
 
 Objet pur et immuable. En J1, l'appelant le construit ; à partir de J2, il sera
 tiré de la projection d'un état. Les éléments d'un système sont adressés
-`système:élément` (ex. `system-a:bite`) ; une fiche, `entité@système` (lacune L2).
+`système:élément` (ex. `system-a:bite`) ; une fiche, `entité@système` (R-MET-02).
 """
 
 from __future__ import annotations

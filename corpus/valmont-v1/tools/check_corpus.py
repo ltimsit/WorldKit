@@ -21,8 +21,7 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 V = ROOT / "valmont"
-CORE_RELATIONS = {"same_as", "concerns", "asserts", "has_sheet", "conforms_to"}
-PROVISIONAL_RELATIONS = {"counterpart_of"}   # lacune L1
+CORE_RELATIONS = {"same_as", "concerns", "asserts", "has_sheet", "conforms_to", "counterpart_of"}
 errors, notes = [], []
 
 def err(msg): errors.append(msg)
@@ -152,7 +151,7 @@ def check_change(ch, where, apply=True):
             if ":" in str(ref):   # référence vers un élément de système
                 continue
             if ref not in entities: err(f"{where} : {end} inconnu {ref}")
-        if rel in CORE_RELATIONS or rel in PROVISIONAL_RELATIONS:
+        if rel in CORE_RELATIONS:
             return
         d = world["relations"].get(rel)
         if d is None:

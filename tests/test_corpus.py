@@ -12,14 +12,14 @@ from worldkit.core.schema import (
 )
 
 
-def test_base_edits_are_all_in_schema_except_counterpart_of_L1():
+def test_base_edits_are_all_in_schema_L1():
     ctx = empty_context()
     found = []
     for edit in base_edits():
         result = check_edit(parse_ok(edit["changes"]), ctx)
         found += result.issues
         ctx = result.context
-    assert [(i.code, i.severity) for i in found] == [(IssueCode.PROVISIONAL_CORE_RELATION, Severity.WARNING)]
+    assert found == []
 
 
 def test_base_state_has_no_key_collision_R_FAI_05():

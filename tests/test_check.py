@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from support import base_context
-from worldkit.core.schema import IssueCode, Severity, check_change, check_edit, parse_change
+from worldkit.core.schema import IssueCode, check_change, check_edit, parse_change
 
 
 @pytest.fixture(scope="module")
@@ -103,10 +103,8 @@ def test_unknown_entity_R_EDI_04(ctx):
     assert codes(ctx, **rel("conseil", "rules", "brume")) == {(IssueCode.UNKNOWN_ENTITY, "R-EDI-04")}
 
 
-def test_counterpart_of_is_a_provisional_core_relation_L1(ctx):
-    found = issues(ctx, **rel("flamme-azur", "counterpart_of", "system-a:azure-flame"))
-    assert [(i.code, i.rule, i.severity) for i in found] == \
-        [(IssueCode.PROVISIONAL_CORE_RELATION, "R-MET-04", Severity.WARNING)]
+def test_counterpart_of_links_a_world_element_to_a_system_element_L1(ctx):
+    assert issues(ctx, **rel("flamme-azur", "counterpart_of", "system-a:azure-flame")) == []
 
 
 def test_prepared_fields_accepted_and_ignored_invariant_10(ctx):

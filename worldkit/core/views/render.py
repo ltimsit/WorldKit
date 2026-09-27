@@ -11,7 +11,7 @@ from typing import Any
 
 from worldkit.core.projection.state import State
 
-from .model import AttributeLine, EntityPage, Filter, View, fact_visible
+from .model import AttributeLine, EntityPage, Filter, View, entity_visible, fact_visible
 
 NON_PUBLIC = "(entité non publique)"
 
@@ -106,6 +106,21 @@ def export_graph(state: State, flt: Filter) -> dict[str, Any]:
         if f.kind == "rel" and f.name != "same_as" and fact_visible(f, state, flt):
             src, dst = view.display(f.subject), view.display(f.target or "")
             relations.append({"from": src, "relation": f.name, "to": dst})
+    sheets = []  # fiches ouvertes et visibles, avec leur rattachement (L2)
+    for sid, rec in sorted(state.entities.items()):
+        b = rec.sheet
+        if b is None or rec.closed or not entity_visible(state, sid, flt) or b.of not in view.entity_ids():
+            continue
+        values: dict[str, Any] = {}
+        for f in sorted(state.facts_of(sid), key=lambda f: repr(f.id)):
+            if f.kind == "value" and fact_visible(f, state, flt):
+                values.setdefault(f.name, []).append(f.value)
+            elif f.kind == "attr" and fact_visible(f, state, flt):
+                values[f.name] = f.value
+        # `of` porte has_sheet, `system` et `category` portent conforms_to : calculées, elles restent hors
+        # de `relations`, qui ne contient que des faits.
+        sheets.append({"id": sid, "of": view.display(b.of), "system": b.system, "category": b.category,
+                       "attributes": values})
     identities = [{"a": f.subject, "b": f.target, "kind": f.same_as_kind}
                   for f in sorted(state.facts.values(), key=lambda f: repr(f.id))
                   if f.name == "same_as" and fact_visible(f, state, flt)]
@@ -114,7 +129,8 @@ def export_graph(state: State, flt: Filter) -> dict[str, Any]:
         for c in view.claims_of({eid}):
             claims.append({"speaker": eid, "text": c.text, "qualification": c.qualification})
     return {"branch": state.branch, "seq": state.seq, "filter": str(flt),
-            "entities": entities, "relations": relations, "identities": identities, "claims": claims}
+            "entities": entities, "relations": relations, "sheets": sheets, "identities": identities,
+            "claims": claims}
 
 
 def export_json(state: State, flt: Filter) -> str:

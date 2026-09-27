@@ -128,7 +128,7 @@ edits:
       - { op: create_entity, scope: system-a, entity: azure-flame, type: Ability }
       - { op: set_attribute, scope: system-a, entity: azure-flame, attribute: name, value: "Flamme d'azur" }
       # Élément à double face : lien entre le concept du monde et la capacité du système (R-MET-04).
-      # LACUNE : le cadre ne nomme pas cette relation ; « counterpart_of » est provisoire (voir README).
+      # counterpart_of : du monde vers le système, au plus une contrepartie par système (lacune L1 tranchée).
       - { op: add_relation, from: flamme-azur, relation: counterpart_of, to: "system-a:azure-flame" }
       # Fiche du Loup dans le système A (R-MET-01, R-MET-02)
       - { op: create_entity, entity: "loup-de-cendre@system-a", type: Sheet, sheet: { of: loup-de-cendre, system: system-a, category: Creature } }

@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v29** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v30** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -1013,6 +1013,25 @@ Conséquence sur l'ordre : le cœur du module de contradictions (collisions, lec
 
 **Décision.** Le rejeu est une session (T-RED-01) qui transpose, dans l'ordre, les éditions postérieures à l'ancrage. Une édition indépendante passe seule ; sur un conflit, le rejeu attend une décision humaine, qui est tracée. À la fin, la nouvelle branche remplace la source : celle-ci est archivée, consultable mais plus modifiable, et la nouvelle branche devient la référence si la source l'était. Points, pistes, propositions, mémoire des décisions et déroulés sont reportés ; une piste qui touche une clé redéfinie passe à revérifier. Les variantes sont signalées, jamais modifiées. La qualification d'une affirmation lit les clés du changement revendiqué (T-ING-12). En chemin, un défaut de la transposition a été corrigé : garder une édition ne retire l'occupant que d'une clé qu'elle écrit, jamais d'une clé seulement lue.
 
+### 00.50 Contrepartie, fiches et clés de schéma (v30)
+
+> Décision du 27 septembre 2026, avant J8 (lacunes L1, L2, L6 du corpus).
+
+**Problème.** Trois cas du corpus restaient provisoires :
+- **L1** : le lien entre les deux faces d'un élément, `counterpart_of`, était accepté sans cardinalité. Deux capacités pour la même Flamme d'azur dans le même système n'étaient jamais signalées.
+- **L2** : une fiche se créait par un raccourci, alors que le cadre annonçait les relations `has_sheet` et `conforms_to`, que rien n'écrivait. Rien n'empêchait non plus une seconde fiche du Loup de cendre dans le système A.
+- **L6** : la clé d'un élément de schéma était provisoire. Restait aussi à savoir si une édition dépend des définitions qu'elle utilise.
+
+**Voies comparées.**
+- *L1* : *une contrepartie par système, sous le nom actuel* est **retenue**. *Renommer* (`implemented_as`) est écarté : le gain est modeste. *Un-pour-un strict* est écarté, parce qu'il interdit la capacité générique. *Aucune contrainte* est écarté, parce que l'erreur de saisie passerait inaperçue.
+- *L2* : *le raccourci devient la forme officielle, les deux relations sont calculées* est **retenu**. *Trois changements explicites* est écarté : une fiche pourrait être à moitié rattachée. *Attributs portés par l'entité* est écarté, parce qu'il mêle le méta à l'univers (R-MET-01).
+- *L6* : *la clé devient définitive, écrite par les seules éditions de schéma* est **retenue**. *Les éditions lisent les définitions* est écarté : un rejeu sur une borne s'arrêterait sur chaque édition, même valide. *Une clé au grain du type* est écartée, parce qu'elle crée des collisions sans objet.
+
+**Décision.**
+- `counterpart_of` va du monde vers un système, avec au plus une contrepartie par système : clé `(counterpart, élément, système)`.
+- Une fiche naît d'un seul changement, qui porte son rattachement immuable. Il y a une fiche par système (clé `(sheet, entité, système)`, libérée à la clôture) : reclasser, c'est clore puis recréer. `has_sheet` et `conforms_to` sont calculées, refusées à l'écriture, et exposées par les pages et l'export.
+- La clé de schéma est définitive, au grain de l'attribut. La dépendance d'une édition à une définition reste vérifiée par la revalidation, seul endroit où une valeur devenue invalide doit arrêter quelque chose.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1612,6 +1631,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 74. Comment transposer une édition sur une branche qui a divergé ? — **Réponse (v27) :** ✅ La comparer, clé par clé, à l'état qu'elle supposait : indépendante (automatique), dépendante (non applicable), contradictoire (garder, adapter ou écarter, tracé) (00.47).
 75. Que se passe-t-il quand on joue une piste sur une branche qui a divergé depuis son écriture ? — **Réponse (v28) :** ✅ Elle est analysée comme une transposition ; en conflit, signalée et décidée par l'auteur ; dépendances entre scénarios et alternatives signalées, non imposées (00.48).
 76. Comment redéfinir « depuis toujours » sans réécrire l'histoire, et que devient ce qui dépendait de l'ancienne version ? — **Réponse (v29) :** ✅ Nouvelle branche et rejeu en session stockée, suspendable, reprenable et abandonnable. L'ancienne branche est archivée, la référence bascule par un historique en ajout seul. Points, pistes, propositions et déroulés sont reportés, avec « à revérifier » quand ils sont concernés. Les variantes sont signalées. Une qualification d'affirmation lit la clé revendiquée (00.49).
+77. Comment relier les deux faces d'un élément, rattacher une fiche, et adresser un élément de schéma ? — **Réponse (v30) :** ✅ `counterpart_of` avec une contrepartie par système ; une fiche naît avec un rattachement immuable, une par système, `has_sheet` et `conforms_to` calculées ; la clé de schéma est définitive, écrite par les seules éditions de schéma, la dépendance aux définitions passant par la revalidation (00.50).
 
 ---
 
