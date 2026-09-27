@@ -5,6 +5,8 @@
     worldkit --db valmont.db edit apply|submit <éditions.yaml> [--id ID…]
     worldkit --db valmont.db edit confirm|rebase|abandon <ID>
     worldkit --db valmont.db edit list [--status pending]
+    worldkit --db valmont.db edit transpose <ID> --to <branche> [--keep | --adapt changes.yaml | --discard]
+    worldkit --db valmont.db branch create <nom> [--from BRANCHE] [--at POINT] | branch list
     worldkit --db valmont.db point set <nom> [--at POINT] | point list
     worldkit --db valmont.db wiki page <entité> [--filter author|player] [--point POINT]
     worldkit --db valmont.db wiki render --out <dossier> [--filter …] [--point …]
@@ -198,6 +200,8 @@ def _run_decision(world: Any, args: argparse.Namespace) -> int:
         return _print_decided(decide.choose(world, args.proposal, args.reason))
     if cmd == "abandon":
         return _print_decided([decide.abandon(world, pid, args.reason) for pid in args.proposals])
+    if cmd == "move":
+        return _print_decided([decide.move(world, args.proposal, args.to, args.reason)])
     if cmd == "qualify":
         return _print_decided([decide.qualify(world, args.target, args.value, args.visibility, args.reason)])
     if cmd == "promote":
@@ -219,7 +223,7 @@ def _run_review(world: Any, args: argparse.Namespace) -> int:
     if args.review_command not in ("list", "show"):
         return _run_decision(world, args)
     if args.review_command == "list":
-        views = proposals(world, args.batch)
+        views = proposals(world, args.batch, branch=args.branch)
         for v in views:
             recheck = " (bloquée : document obsolète)" if v.blocked else ""
             print(f"{v.id}{recheck}  [{_tags(v.tags)}]")
@@ -267,6 +271,28 @@ def _run_review(world: Any, args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_transpose(world: Any, args: argparse.Namespace) -> int:
+    changes = None
+    action = "keep" if args.keep else "discard" if args.discard else "adapt" if args.adapt else "auto"
+    if args.adapt:
+        from worldkit.core.schema import parse_change
+        raw = read_yaml(args.adapt)
+        changes = [parse_change(c) for c in (raw["changes"] if isinstance(raw, dict) else raw)]
+    outcome, analysis = world.transpose(args.edit_id, args.to, action, changes, args.reason)
+    labels = {"independent": "indépendante", "dependent": "dépendante (fait absent de la cible)",
+              "contradictory": "contradictoire"}
+    print(f"{args.edit_id} ({analysis.source}, rang {analysis.source_seq}) → {args.to} : {labels[analysis.relation]}")
+    for d in analysis.divergences:
+        print(f"  - {d.describe()}")
+    if outcome.status is not None:
+        where = f" (rang {outcome.seq})" if outcome.seq else ""
+        print(f"{outcome.edit_id} : {outcome.status}{where}")
+    else:
+        print("non transposée : décider (--keep, --adapt fichier.yaml, --discard)")
+    _print_issues(outcome.issues)
+    return 0 if outcome.ok and outcome.status is not None else 1
+
+
 def _run_world(args: argparse.Namespace) -> int:
     from worldkit.core.journal.models import EditStatus
     from worldkit.core.views import Filter, View, export_json, render_page, state_report
@@ -286,9 +312,13 @@ def _run_world(args: argparse.Namespace) -> int:
         if args.command == "review":
             return _run_review(world, args)
         if args.command == "edit":
+            if args.edit_command == "transpose":
+                return _run_transpose(world, args)
             if args.edit_command in ("apply", "submit"):
                 status = 0
                 for edit in _read_edits(args.file, args.id):
+                    if args.branch:
+                        edit = edit.model_copy(update={"branch": args.branch})
                     outcome = (world.apply if args.edit_command == "apply" else world.submit)(edit)
                     label = outcome.status or "REFUSÉE"
                     where = f" (rang {outcome.seq})" if outcome.seq is not None else ""
@@ -312,6 +342,18 @@ def _run_world(args: argparse.Namespace) -> int:
             _print_issues(outcome.issues)
             return 0 if outcome.ok else 1
 
+        if args.command == "branch":
+            if args.branch_command == "create":
+                seq = world.create_branch(args.name, args.from_branch, args.at)
+                print(f"branche {args.name} créée depuis {args.from_branch or world.reference_branch}, rang {seq}")
+            else:
+                for b in world.store.branches():
+                    parent, fork = world.store.branch_info(b)
+                    origin = f"depuis {parent} au rang {fork}" if parent else "branche racine"
+                    ref = " (référence)" if b == world.reference_branch else ""
+                    print(f"{b}{ref} : {origin}, tête au rang {world.store.head_seq(b)}")
+            return 0
+
         if args.command == "point":
             if args.point_command == "set":
                 from worldkit.core.world import point_name
@@ -325,7 +367,8 @@ def _run_world(args: argparse.Namespace) -> int:
         state = world.state(args.branch, args.point)
         if args.command == "wiki":
             from worldkit.ingest.review import sources
-            view = View(state, Filter(args.filter), sources(world, args.branch))
+            view = View(state, Filter(args.filter), sources(world, args.branch),
+                        world.redefined_after(args.branch, state.seq))
             if args.wiki_command == "page":
                 page = view.page(args.entity)
                 if page is None:
@@ -388,6 +431,23 @@ def build_parser() -> argparse.ArgumentParser:
         p = edit_cmds.add_parser(name, help=f"{text} les éditions d'un fichier YAML")
         p.add_argument("file")
         p.add_argument("--id", action="append", help="ne traiter que cette édition (répétable)")
+        p.add_argument("--branch", default=None, help="branche visée (remplace celle du fichier)")
+    tr = edit_cmds.add_parser("transpose", help="appliquer une édition sur une autre branche (R-HIS-05)")
+    tr.add_argument("edit_id")
+    tr.add_argument("--to", required=True, help="branche cible")
+    trg = tr.add_mutually_exclusive_group()
+    trg.add_argument("--keep", action="store_true", help="garder malgré une contradiction")
+    trg.add_argument("--adapt", help="fichier YAML des changements à appliquer à la place")
+    trg.add_argument("--discard", action="store_true", help="écarter (tracé)")
+    tr.add_argument("--reason", default=None)
+
+    br = commands.add_parser("branch", help="branches et variantes (R-HIS-03)")
+    br_cmds = br.add_subparsers(dest="branch_command", required=True)
+    brc = br_cmds.add_parser("create")
+    brc.add_argument("name")
+    brc.add_argument("--from", dest="from_branch", default=None, help="branche d'origine (défaut : référence)")
+    brc.add_argument("--at", default=None, help="point de divergence : rang ou point nommé (défaut : tête)")
+    br_cmds.add_parser("list")
     for name in ("confirm", "rebase", "abandon"):
         edit_cmds.add_parser(name).add_argument("edit_id")
     lst = edit_cmds.add_parser("list")
@@ -433,7 +493,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     review = commands.add_parser("review", help="file de revue des propositions")
     review_cmds = review.add_subparsers(dest="review_command", required=True)
-    review_cmds.add_parser("list").add_argument("--batch", default=None)
+    rl = review_cmds.add_parser("list")
+    rl.add_argument("--batch", default=None)
+    rl.add_argument("--branch", default=None)
     review_cmds.add_parser("show").add_argument("proposal")
     acc = review_cmds.add_parser("accept", help="accepter (tout, ou --keep)")
     acc.add_argument("proposals", nargs="+")
@@ -442,6 +504,9 @@ def build_parser() -> argparse.ArgumentParser:
     ref = review_cmds.add_parser("refuse", help="refuser (tout, ou --changes)")
     ref.add_argument("proposals", nargs="+")
     ref.add_argument("--changes", nargs="+", help="indices des changements refusés (0,1 ou 0 1)")
+    mov = review_cmds.add_parser("move", help="déplacer une proposition vers une autre branche (T-ING-16)")
+    mov.add_argument("proposal")
+    mov.add_argument("--to", required=True)
     abd = review_cmds.add_parser("abandon", help="abandonner (ex. un diff du mode edit)")
     abd.add_argument("proposals", nargs="+")
     cho = review_cmds.add_parser("choose", help="trancher un conflit : accepter celle-ci, refuser les autres")
@@ -461,7 +526,7 @@ def build_parser() -> argparse.ArgumentParser:
     pro = review_cmds.add_parser("promote", help="promouvoir une affirmation en fait")
     pro.add_argument("proposal")
     pro.add_argument("--visibility", choices=["public", "secret", "unqualified"], default=None)
-    for p in (acc, ref, abd, cho, ada, dis, qua, pro):
+    for p in (acc, ref, abd, cho, ada, dis, qua, pro, mov):
         p.add_argument("--reason", default=None)
 
     view_opts(commands.add_parser("export", help="graphe filtré en JSON, pour un LLM (R-LLM-01)"))

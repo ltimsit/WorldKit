@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from worldkit.core.conflicts import Effects, check_application
+from worldkit.core.conflicts.transposition import Analysis, analyse
 from worldkit.core.journal.models import BaseState, Edit, EditStatus, Origin, edit_rule_issues
 from worldkit.core.journal.store import EditRecord, Store
 from worldkit.core.projection.serialize import StaleFormat, state_from_json, state_to_json
@@ -143,6 +144,99 @@ class World:
                 except StaleFormat:
                     pass
         return self.replay(branch, seq)
+
+    # --- Branches (R-HIS-03, T-BRA-01) ---
+
+    def create_branch(self, name: str, from_branch: str | None = None, point: int | str | None = None) -> int:
+        """Nouvelle branche depuis un état de `from_branch` : elle en hérite schéma, systèmes et faits
+        (R-MON-04), puis vit sa vie ; la parente n'est jamais modifiée."""
+        from_branch = from_branch or self.reference_branch
+        if name in self.store.branches():
+            raise ValueError(f"branche déjà existante : {name}")
+        seq = self.resolve_point(point, from_branch)
+        with self.store.conn:
+            self.store.create_branch(name, from_branch, seq)
+        return seq
+
+    def redefined_after(self, branch: str | None, seq: int) -> frozenset[Any]:
+        """Clés réécrites par une redéfinition après `seq` sur la branche (R-VUE-03)."""
+        branch = branch or self.reference_branch
+        out: set[Any] = set()
+        for _, edit_id in self.store.journal_ids(branch, after=seq):
+            rec = self.store.edit(edit_id)
+            if rec.edit.origin is Origin.REDEFINITION:
+                out |= {k[1] if k[0] == "visibility" else k for k in rec.writes}
+        return frozenset(out)
+
+    # --- Transposition (R-HIS-05, §6.3) ---
+
+    def analyse_transposition(self, edit_id: str, target: str) -> Analysis:
+        located = self.store.locate(edit_id)
+        if located is None:
+            raise KeyError(f"édition non appliquée : {edit_id}")
+        source, seq = located
+        if target not in self.store.branches():
+            raise KeyError(f"branche inconnue : {target}")
+        rec = self.store.edit(edit_id)
+        return analyse(edit_id, source, seq, self.state(source, seq - 1), self.state(source, seq), target,
+                       self.state(target), rec.reads, rec.writes)
+
+    def _trace_transposition(self, edit_id: str, target: str, action: str, result: str | None, detail: str) -> None:
+        self.store.conn.execute(
+            "CREATE TABLE IF NOT EXISTS transpositions (transposition_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            " source_edit TEXT NOT NULL, target_branch TEXT NOT NULL, action TEXT NOT NULL, result_edit TEXT,"
+            " detail TEXT NOT NULL)")
+        with self.store.conn:
+            self.store.conn.execute("INSERT INTO transpositions (source_edit, target_branch, action, result_edit,"
+                                    " detail) VALUES (?, ?, ?, ?, ?)", (edit_id, target, action, result, detail))
+
+    def transpose(self, edit_id: str, target: str, action: str = "auto", changes: list[Any] | None = None,
+                  reason: str | None = None) -> tuple[Outcome, Analysis]:
+        """`auto` : appliquer si l'édition est indépendante ; `keep` : garder malgré une contradiction ;
+        `adapt` : appliquer d'autres changements ; `discard` : écarter. Toujours tracé."""
+        from worldkit.core.schema.changes import RemoveRelation
+        analysis = self.analyse_transposition(edit_id, target)
+        original = self.store.edit(edit_id).edit
+        new_id = f"{edit_id}@{target}"
+        detail = "; ".join(d.describe() for d in analysis.divergences) or "indépendante"
+        if action == "discard":
+            self._trace_transposition(edit_id, target, "discard", None, reason or detail)
+            return Outcome(new_id, [], EditStatus.ABANDONED), analysis
+        if action == "auto" and analysis.relation != "independent":
+            issues = [Issue(IssueCode.STALE_EDIT, f"transposition non automatique ({analysis.relation}) : {d.describe()}",
+                            "R-HIS-05") for d in analysis.divergences]
+            return Outcome(new_id, issues), analysis
+        if action == "keep" and analysis.missing:
+            issues = [Issue(IssueCode.STALE_EDIT, f"dépendance absente de la branche cible : {d.describe()}",
+                            "R-HIS-05") for d in analysis.missing]
+            return Outcome(new_id, issues), analysis
+        body = list(changes) if action == "adapt" and changes is not None else list(original.changes)
+        if action == "keep":  # garder : les faits qui occupent les clés sont retirés explicitement (R-FAI-05)
+            head = self.state(target)
+            removals = []
+            for d in analysis.contradictions:
+                fact = head.facts.get(head.occupancy.get(d.key)) if d.key in head.occupancy else None
+                if fact is not None and fact.kind == "rel":
+                    removal = RemoveRelation(op="remove_relation", scope=fact.scope, **{"from": fact.subject},
+                                             relation=fact.name, to=fact.target or "")
+                    if removal not in removals:
+                        removals.append(removal)
+            # Un retrait devenu sans objet sur la cible (le fait n'y existe pas) est abandonné : libérer la clé
+            # est l'affaire du retrait explicite de l'occupant réel, ajouté ci-dessus.
+            from worldkit.core.projection.state import fact_id_of
+            ctx = head.context()
+            dropped = [c for c in body if c.op in ("remove_relation", "unset_attribute", "remove_value")
+                       and fact_id_of(c, ctx) not in head.facts]
+            body = removals + [c for c in body if c not in dropped]
+            if dropped:
+                detail += f" ; retraits sans objet abandonnés : {len(dropped)}"
+        edit = original.model_copy(update={"id": new_id, "branch": target, "transposed_from": edit_id,
+                                           "derived_from": None, "tags": [*original.tags, "transposed"],
+                                           "changes": body})
+        outcome = self.apply(edit)
+        if outcome.ok and outcome.seq is not None:
+            self._trace_transposition(edit_id, target, action, new_id, reason or detail)
+        return outcome, analysis
 
     def set_point(self, name: str, point: int | str | None = None, branch: str | None = None) -> int:
         branch = branch or self.reference_branch

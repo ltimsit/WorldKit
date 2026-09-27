@@ -43,7 +43,8 @@ def render_page(page: EntityPage, view: View) -> str:
         grouped.setdefault((a.entity, a.name), []).append(a)
     for (entity, name), lines in grouped.items():
         for a in lines:
-            out.append(f"- {name} : {a.value}{_meta(flt, a.visibility, a.provenance, entity, page.id)}")
+            later = " — redéfini plus tard" if a.redefined_later else ""
+            out.append(f"- {name} : {a.value}{later}{_meta(flt, a.visibility, a.provenance, entity, page.id)}")
     if not page.attributes:
         out.append("- (aucun)")
 
@@ -51,7 +52,8 @@ def render_page(page: EntityPage, view: View) -> str:
     for r in page.relations:
         other = _name(view, r.other) if r.other else NON_PUBLIC
         text = f"- {r.relation} → {other}" if r.direction == "out" else f"- {other} {r.relation} → (cette entité)"
-        out.append(text + _meta(flt, r.visibility, r.provenance, r.entity, page.id))
+        later = " — redéfini plus tard" if r.redefined_later else ""
+        out.append(text + later + _meta(flt, r.visibility, r.provenance, r.entity, page.id))
     if not page.relations:
         out.append("- (aucune)")
 

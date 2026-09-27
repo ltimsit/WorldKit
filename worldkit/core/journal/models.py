@@ -51,6 +51,7 @@ class Edit(BaseModel):
     redefinition: RedefinitionKind | None = None
     tags: list[str] = Field(default_factory=list)
     derived_from: str | None = None  # R-EDI-08
+    transposed_from: str | None = None  # édition d'une autre branche, transposée (R-HIS-05)
     note: str | None = None  # commentaire d'auteur, sans effet
     changes: list[Change]
 

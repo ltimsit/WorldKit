@@ -73,15 +73,16 @@ def load(world: World, branch: str | None = None, only: str | None = None,
          status: EditStatus | None = EditStatus.PENDING) -> list[StoredProposal]:
     conn = world.store.conn
     ensure_tables(conn)
-    branch = branch or world.reference_branch
+    branch = None if only else (branch or world.reference_branch)
     rows = conn.execute(
         "SELECT p.edit_id, p.batch_id, b.opened, p.doc_id, p.version_fp, p.passage_idx, p.subject, p.kind,"
         " p.issues, p.closed_reason, v.axes FROM proposals p"
         " JOIN batches b ON b.batch_id = p.batch_id"
         " JOIN batch_documents d ON d.batch_id = p.batch_id AND d.doc_id = p.doc_id"
         " JOIN document_versions v ON v.doc_id = p.doc_id AND v.version_fp = p.version_fp"
-        " WHERE b.branch_id = ? AND (? IS NULL OR p.edit_id = ?)"
-        " ORDER BY b.opened, d.position, p.passage_idx, p.edit_id", (branch, only, only)).fetchall()
+        " JOIN edits e ON e.edit_id = p.edit_id"
+        " WHERE (? IS NULL OR e.branch_id = ?) AND (? IS NULL OR p.edit_id = ?)"
+        " ORDER BY b.opened, d.position, p.passage_idx, p.edit_id", (branch, branch, only, only)).fetchall()
     out = []
     for pid, batch, opened, doc, vfp, passage, subject, kind, issues, closed, axes in rows:
         rec = world.store.edit(pid)
@@ -155,7 +156,7 @@ def record_support(world: World, p: StoredProposal, change: Change, state: State
     """Le passage de la proposition soutient ce changement (T-ING-11). Clés et valeur sont calculées
     contre l'état courant : un changement hors schéma à l'ingestion n'avait pas de clé, il en a une
     une fois le schéma étendu (W09)."""
-    state = state or world.state()
+    state = state or world.state(p.base.branch if p.base else None)
     ctx = state.context()
     try:
         keys = fact_keys(change, ctx)
@@ -172,6 +173,10 @@ def record_support(world: World, p: StoredProposal, change: Change, state: State
     for k in keys:
         world.store.conn.execute("INSERT OR IGNORE INTO supports VALUES (?, ?, ?, ?, ?, ?)",
                                  (p.doc, p.version_fp, p.passage, dumps(k), dumps(value), p.batch))
+
+
+def branch_of(world: World, p: StoredProposal) -> str:
+    return p.base.branch if p.base else world.reference_branch
 
 
 def refresh(world: World, branch: str | None = None) -> list[str]:

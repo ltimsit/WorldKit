@@ -244,6 +244,8 @@ walkthroughs:
           origin: redefinition
           redefinition: point
           changes:
+            # Retrait explicite d'Odon : un ajout sur une clé occupée exige de retirer l'occupant (R-FAI-05)
+            - { op: remove_relation, from: odon, relation: rules, to: brume }
             - { op: add_relation, from: mervin, relation: rules, to: brume, visibility: public }
       - { do: transpose, scenario: siege-de-brume, version: latest, to: variante-mj, playthrough_like: pt-2 }
     expect:

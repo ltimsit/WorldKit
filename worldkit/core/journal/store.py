@@ -188,21 +188,60 @@ class Store:
 
     # --- Journal ---
 
+    # --- Branches (T-BRA-01) : (branche parente, point de divergence, suite d'éditions propres) ---
+
+    def create_branch(self, branch: str, parent: str, fork_seq: int) -> None:
+        self.conn.execute("INSERT INTO branches (branch_id, parent, fork_seq) VALUES (?, ?, ?)",
+                          (branch, parent, fork_seq))
+
+    def branch_info(self, branch: str) -> tuple[str | None, int]:
+        row = self.conn.execute("SELECT parent, fork_seq FROM branches WHERE branch_id = ?", (branch,)).fetchone()
+        if row is None:
+            raise KeyError(f"branche inconnue : {branch}")
+        return row[0], row[1] or 0
+
+    def segments(self, branch: str) -> list[tuple[str, int, int | None]]:
+        """Lignée d'une branche : (branche, rang exclu, rang inclus ou None) de la racine à la branche.
+        La variante lit le journal de sa parente jusqu'au point de divergence, puis le sien (R-HIS-02)."""
+        parent, fork = self.branch_info(branch)
+        if parent is None:
+            return [(branch, 0, None)]
+        out = []
+        for b, lo, hi in self.segments(parent):
+            if lo >= fork:
+                break
+            out.append((b, lo, fork if hi is None or hi > fork else hi))
+        return out + [(branch, fork, None)]
+
     def head_seq(self, branch: str) -> int:
-        return self.conn.execute("SELECT COALESCE(MAX(seq), 0) FROM journal WHERE branch_id = ?",
-                                 (branch,)).fetchone()[0]
+        own = self.conn.execute("SELECT MAX(seq) FROM journal WHERE branch_id = ?", (branch,)).fetchone()[0]
+        return own if own is not None else self.branch_info(branch)[1]
+
+    def _lineage_rows(self, branch: str, after: int, upto: int) -> list[tuple[int, str]]:
+        rows: list[tuple[int, str]] = []
+        for b, lo, hi in self.segments(branch):
+            top = upto if hi is None else min(hi, upto)
+            rows += self.conn.execute(
+                "SELECT seq, edit_id FROM journal WHERE branch_id = ? AND seq > ? AND seq <= ? ORDER BY seq",
+                (b, max(lo, after), top)).fetchall()
+        return rows
 
     def journal(self, branch: str, upto: int | None = None) -> list[tuple[int, Edit]]:
-        rows = self.conn.execute(
-            "SELECT seq, edit_id FROM journal WHERE branch_id = ? AND seq <= ? ORDER BY seq",
-            (branch, upto if upto is not None else self.head_seq(branch))).fetchall()
+        rows = self._lineage_rows(branch, 0, upto if upto is not None else self.head_seq(branch))
         return [(seq, self.edit(edit_id).edit) for seq, edit_id in rows]
+
+    def journal_ids(self, branch: str, after: int = 0, upto: int | None = None) -> list[tuple[int, str]]:
+        return self._lineage_rows(branch, after, upto if upto is not None else self.head_seq(branch))
+
+    def locate(self, edit_id: str) -> tuple[str, int] | None:
+        """Branche et rang d'une édition appliquée."""
+        row = self.conn.execute("SELECT branch_id, seq FROM journal WHERE edit_id = ?", (edit_id,)).fetchone()
+        return (row[0], row[1]) if row else None
 
     def writes_since(self, branch: str, seq: int) -> set[FactKey]:
         out: set[FactKey] = set()
-        for (writes,) in self.conn.execute(
-                "SELECT e.writes FROM journal j JOIN edits e ON e.edit_id = j.edit_id"
-                " WHERE j.branch_id = ? AND j.seq > ?", (branch, seq)):
+        for _, edit_id in self._lineage_rows(branch, seq, self.head_seq(branch)):
+            (writes,) = self.conn.execute("SELECT writes FROM edits WHERE edit_id = ?", (edit_id,)).fetchone()
             out |= decode_keys(writes)
         return out
 
@@ -215,9 +254,13 @@ class Store:
         self.conn.execute("INSERT OR REPLACE INTO named_points VALUES (?, ?, ?)", (branch, name, seq))
 
     def named_point(self, branch: str, name: str) -> int | None:
-        row = self.conn.execute("SELECT seq FROM named_points WHERE branch_id = ? AND name = ?",
-                                (branch, name)).fetchone()
-        return row[0] if row else None
+        """Point nommé de la branche, ou d'une ancêtre s'il précède la divergence (@base vu d'une variante)."""
+        for b, lo, hi in reversed(self.segments(branch)):
+            row = self.conn.execute("SELECT seq FROM named_points WHERE branch_id = ? AND name = ?",
+                                    (b, name)).fetchone()
+            if row and (hi is None or row[0] <= hi):
+                return row[0]
+        return None
 
     def named_points(self, branch: str) -> dict[str, int]:
         return dict(self.conn.execute("SELECT name, seq FROM named_points WHERE branch_id = ? ORDER BY seq, name",
