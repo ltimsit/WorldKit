@@ -85,3 +85,21 @@ def test_corpus_check_accepts_the_new_format():
     out = subprocess.run([sys.executable, "tools/check_corpus.py"], cwd=CORPUS, capture_output=True, text=True,
                          encoding="utf-8", errors="replace")
     assert out.returncode == 0 and "W08, W15" in out.stdout
+
+
+def test_cli_walkthrough_list_and_run(tmp_path, capsys):
+    from worldkit.cli import main
+    db = make_world(tmp_path / "valmont.db")
+    assert main(["--db", str(db), "walkthrough", "list"]) == 0
+    assert "W15" in capsys.readouterr().out
+    assert main(["--db", str(db), "walkthrough", "run", "W08"]) == 0
+    out = capsys.readouterr().out
+    assert "W08 : ok" in out and out.count("[réussi ]") == 4 and "ÉCHOUÉ" not in out
+
+
+@pytest.mark.parametrize("wid", ["W00", "W16", "W17"])
+def test_the_other_walkthroughs_execute_every_step(session, wid):
+    """Leurs attendus restent en prose (à structurer plus tard, I-ACC-01) ; leurs étapes s'exécutent."""
+    r = session.call("walkthrough.run", {"id": wid, "keep": False})
+    assert all(res["steps_ok"] for res in r.output["results"]), [
+        (res["id"], st["detail"]) for res in r.output["results"] for st in res["steps"] if not st["ok"]]

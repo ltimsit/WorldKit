@@ -279,3 +279,49 @@ def run_pipeline(args: argparse.Namespace) -> int:
         if result.trace.run_id and out.get("stages"):
             print(f"  enregistrer : worldkit run save {result.trace.run_id} [--sandbox N] [--to E12]")
         return 0 if result.ok else 1
+
+
+# ---------------------------------------------------------------------------
+# Parcours d'acceptation en ligne de commande (I-CLI-01, I-ACC-01)
+# ---------------------------------------------------------------------------
+
+def add_walkthrough_parsers(commands: Any) -> None:
+    wt = commands.add_parser("walkthrough", help="parcours d'acceptation (I5)")
+    wt_cmds = wt.add_subparsers(dest="walkthrough_command", required=True)
+    wt_cmds.add_parser("list")
+    r = wt_cmds.add_parser("run", help="exécuter un parcours et ses prérequis dans un monde d'acceptation neuf")
+    r.add_argument("id")
+    r.add_argument("--corpus", default="corpus/valmont-v1")
+    r.add_argument("--json", action="store_true")
+
+
+def run_walkthrough(args: argparse.Namespace) -> int:
+    from . import Session
+    with Session(args.db) as s:
+        if args.walkthrough_command == "list":
+            for w in s.call("walkthrough.list").output:
+                flag = "exécutable" if w["executable"] else "à convertir"
+                print(f"{w['id']}  {w['title']:<55} {w['milestone']:<4} prérequis {','.join(w['requires']) or '—':<5}"
+                      f" attendus {w['structured']}/{w['expects']} structurés  {flag}")
+            return 0
+        result = s.call("walkthrough.run", {"id": args.id, "corpus": args.corpus})
+        if args.json:
+            return show(result, True)
+        o = result.output or {}
+        run_id = f", exécution #{result.trace.run_id}" if result.trace.run_id else ""
+        print(f"{args.id} : {result.status}{run_id} — chaîne {' → '.join(o.get('chain', []))}")
+        if o.get("sandbox"):
+            print(f"  monde d'acceptation : bac {o['sandbox']} (worldkit call … --sandbox {o['sandbox']})")
+        for res in o.get("results", []):
+            broken = [i + 1 for i, st in enumerate(res["steps"]) if not st["ok"]]
+            print(f"  {res['id']} : {len(res['steps'])} étape(s)" + (f", EN ÉCHEC : {broken}" if broken else ""))
+        labels = {"passed": "réussi ", "failed": "ÉCHOUÉ", "unstructured": "à lire "}
+        for e in (o.get("results") or [{}])[-1].get("expects", []):
+            print(f"    [{labels[e['status']]}] {e['text']}")
+            for c in e["checks"]:
+                if not c["ok"]:
+                    print(f"        ✘ {c['check']['check']} : {c['detail']}")
+        for i in result.issues:
+            if i.code in ("invalid_params", "service_error"):
+                print(f"  - {i.severity} : {i.message}")
+        return 0 if result.ok else 1

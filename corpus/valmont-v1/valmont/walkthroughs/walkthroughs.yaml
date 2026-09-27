@@ -410,8 +410,8 @@ walkthroughs:
     rules: [R-HIS-06, R-SCN-07, R-SCN-08]
     steps:
       - { do: create_branch, name: ordre-inverse, from: "@after-b4" }
-      - { do: play, playthrough: pt-2, on: ordre-inverse }
-      - { do: play, playthrough: pt-1, on: ordre-inverse }
+      - { do: play, playthrough: pt-2, branch: ordre-inverse, id: pt-2-inv }
+      - { do: play, playthrough: pt-1, branch: ordre-inverse, id: pt-1-inv }
     expect:
       - "Au moment de pt-2 : « X suppose Y » non satisfaite, signalée, non bloquante."
       - "État final identique à @after-siege sur les clés touchées par X et Y (éditions indépendantes : elles commutent)."
