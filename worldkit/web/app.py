@@ -68,9 +68,10 @@ class Page:
         self.db = db
         self.calls: list[Result] = []
 
-    def call(self, op: str, params: dict[str, Any] | None = None, target: str | None = None) -> Result:
+    def call(self, op: str, params: dict[str, Any] | None = None, target: str | None = None,
+             record: bool | None = None) -> Result:
         with Session(self.db) as s:
-            result = s.call(op, params or {}, target)
+            result = s.call(op, params or {}, target, record)
         self.calls.append(result)
         return result
 
@@ -247,6 +248,10 @@ def create_app(db: str | Path) -> FastAPI:
     register_pipeline(app, db, render, lambda: Page(db), templates)
     from .review import register as register_review
     register_review(app, db, render, lambda: Page(db), templates)
+    from .graph import register as register_graph
+    register_graph(app, db, render, lambda: Page(db), templates)
+    from .measures import register as register_measures
+    register_measures(app, db, render, lambda: Page(db), templates)
     from worldkit.ingest.stages import STAGE_NAMES
     env.globals["names"] = STAGE_NAMES
     return app

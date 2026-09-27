@@ -134,9 +134,8 @@ def flagged_passages(world: World, batch: str | None = None) -> list[tuple[str, 
     return [(d, i, json.loads(f)) for d, i, f in rows if json.loads(f)]
 
 
-def orphan_facts(world: World, branch: str | None = None) -> list[Issue]:
-    """R-FAI-06 : faits établis par l'ingestion qui n'ont plus aucun support documentaire.
-    Signalés, jamais retirés (R-PRI-01). Un fait d'édition structurée n'est jamais orphelin (T-ING-11)."""
+def orphan_fact_ids(world: World, branch: str | None = None) -> list[Any]:
+    """R-FAI-06 : identifiants des faits établis par l'ingestion qui n'ont plus aucun support documentaire."""
     conn = world.store.conn
     ensure_tables(conn)
     branch = branch or world.reference_branch
@@ -153,10 +152,21 @@ def orphan_facts(world: World, branch: str | None = None) -> list[Issue]:
         supported = any(conn.execute("SELECT 1 FROM supports WHERE fact_key = ? AND value = ?", (dumps(k), value))
                         .fetchone() for k in keys_of.get(f.id, []))
         if not supported:
-            label = f"{f.name}({f.subject}, {f.target})" if f.kind == "rel" else f"{f.subject}.{f.name}"
-            out.append(Issue(IssueCode.ORPHAN_FACT,
-                             f"{label} n'a plus aucun support documentaire (établi par {f.established_by}) ; "
-                             "conservé dans l'état", "R-FAI-06", Severity.WARNING, label))
+            out.append(f.id)
+    return out
+
+
+def orphan_facts(world: World, branch: str | None = None) -> list[Issue]:
+    """R-FAI-06 : faits établis par l'ingestion qui n'ont plus aucun support documentaire.
+    Signalés, jamais retirés (R-PRI-01). Un fait d'édition structurée n'est jamais orphelin (T-ING-11)."""
+    head = world.state(branch or world.reference_branch)
+    out = []
+    for fid in orphan_fact_ids(world, branch):
+        f = head.facts[fid]
+        label = f"{f.name}({f.subject}, {f.target})" if f.kind == "rel" else f"{f.subject}.{f.name}"
+        out.append(Issue(IssueCode.ORPHAN_FACT,
+                         f"{label} n'a plus aucun support documentaire (établi par {f.established_by}) ; "
+                         "conservé dans l'état", "R-FAI-06", Severity.WARNING, label))
     return out
 
 

@@ -1,0 +1,89 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Graphe{% endblock %}
+{% block content %}
+<h1>Graphe{% if compare %} — comparaison{% endif %}</h1>
+<form method="get" action="/graph" class="small" onchange="this.requestSubmit()">
+  {% for k in ["target", "branch", "point", "filter"] %}<input type="hidden" name="{{ k }}" value="{{ ctx[k] }}">{% endfor %}
+  <label>entité centrale <input name="entity" value="{{ entity }}" list="entities" size="18"></label>
+  <datalist id="entities">{% for p in entities %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}</datalist>
+  <label>profondeur <input name="depth" type="number" min="0" max="6" value="{{ depth }}" style="width:45px"></label>
+  <label><input type="checkbox" name="full" value="1" {{ 'checked' if full }}> graphe complet</label>
+  · couches {% for l in layers %}<label><input type="checkbox" name="layer" value="{{ l }}" {{ 'checked' if l in chosen }}> {{ {"world": "monde", "system": "systèmes", "sheet": "fiches", "identity": "identités", "claim": "affirmations", "document": "documents"}[l] }}</label> {% endfor %}
+  <br><label><input type="checkbox" name="compare" value="1" {{ 'checked' if compare }}> comparer la lecture courante (gauche) à :</label>
+  <label>cible <select name="cmp.target"><option value="">monde</option>{% for b in sandboxes %}<option value="{{ b.id }}" {{ 'selected' if cmp.target == b.id|string }}>bac {{ b.id }}</option>{% endfor %}</select></label>
+  <label>branche <input name="cmp.branch" value="{{ cmp.branch }}" list="branch-list2" size="14"></label>
+  <label>point <input name="cmp.point" value="{{ cmp.point }}" size="8"></label>
+  <datalist id="branch-list2">{% for b in branches %}<option value="{{ b.id }}">{% endfor %}</datalist>
+</form>
+{{ m.result_head(result) }}
+{% if compare and result.output %}<p><span class="badge" style="background:var(--add)">+{{ result.indicators.added }} ajoutés</span>
+<span class="badge" style="background:var(--del)">−{{ result.indicators.removed }} retirés</span>
+<span class="badge" style="background:var(--chg)">~{{ result.indicators.changed }} changés</span>
+<span class="small muted">gauche : {{ result.output.left.branch }} rang {{ result.output.left.seq }} · droite : {{ result.output.right.branch }} rang {{ result.output.right.seq }}</span></p>{% endif %}
+<p class="small muted">Bordure : notoriété (violet secret, vert public, gris non qualifié) · arête pointillée : secrète · orange : masqué (R-NOT-07) · double : redéfini plus tard · rouge pointillé : orphelin · nœud pâle : entité close · étoile : entité centrale.</p>
+<div class="cols" style="grid-template-columns: 3fr 1fr">
+  <div id="cy" style="height:560px;border:1px solid var(--line);background:#fff"></div>
+  <div id="detail"><p class="muted small">Cliquer sur un nœud ou une arête pour son détail.</p></div>
+</div>
+{% if result.output %}
+<h2>Éléments affichés ({{ result.output.nodes|length }} nœuds, {{ result.output.edges|length }} arêtes)</h2>
+<table><tr><th>nœud</th><th>type</th><th>couche</th><th>notoriété</th><th>état</th></tr>
+{% for n in result.output.nodes %}<tr class="{{ {'added': 'added', 'removed': 'removed', 'changed': 'changed'}.get(n.status, '') }}"><td><a href="/wiki/{{ n.id }}?{{ qs(ctx) }}" class="mono">{{ n.id }}</a> {{ n.label }}</td><td>{{ n.type }}</td><td>{{ n.layer }}</td><td>{{ m.vis(n.visibility) }}</td>
+<td class="small">{{ "close" if n.closed }}{% for c in n.changed_attributes or [] %} {{ c.name }} : {{ c.before }} → {{ c.after }}{% endfor %}</td></tr>{% endfor %}</table>
+<table><tr><th>arête</th><th>couche</th><th>notoriété</th><th>marques</th><th>provenance</th></tr>
+{% for e in result.output.edges %}<tr class="{{ {'added': 'added', 'removed': 'removed', 'changed': 'changed'}.get(e.status, '') }}"><td class="mono small">{{ e.source }} —{{ e.relation }}→ {{ e.target }}</td><td>{{ e.layer }}</td><td>{{ m.vis(e.visibility) }}</td>
+<td class="small">{{ (e.marks or [])|join(", ") }}{{ " calculée" if e.computed }}</td><td class="mono small">{{ e.provenance or "" }}</td></tr>{% endfor %}</table>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="/static/cytoscape.min.js"></script>
+<script>
+(function () {
+  const elements = {{ elements|safe }};
+  const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+  const cy = cytoscape({
+    container: document.getElementById("cy"), elements, wheelSensitivity: 0.3,
+    layout: {name: elements.length > 1 ? "cose" : "grid", animate: false, nodeRepulsion: 9000, idealEdgeLength: 90},
+    style: [
+      {selector: "node", style: {"label": "data(label)", "font-size": 10, "text-valign": "bottom", "text-margin-y": 3,
+        "background-color": "#dfe6f3", "border-width": 3, "border-color": "#999", "width": 26, "height": 26}},
+      {selector: "node.layer-system", style: {"shape": "diamond", "background-color": "#efe3c4"}},
+      {selector: "node.layer-sheet", style: {"shape": "round-rectangle", "background-color": "#f3e6d8"}},
+      {selector: "node.layer-claim", style: {"shape": "tag", "background-color": "#f1f1f1", "font-size": 8}},
+      {selector: "node.layer-document", style: {"shape": "rectangle", "background-color": "#e8efe8"}},
+      {selector: "node.vis-secret", style: {"border-color": "#8e44ad"}},
+      {selector: "node.vis-public", style: {"border-color": "#1b7f3b"}},
+      {selector: "node.vis-unqualified", style: {"border-color": "#9a9a9a"}},
+      {selector: "node.closed", style: {"opacity": 0.5}},
+      {selector: "node.center", style: {"width": 36, "height": 36, "font-weight": "bold"}},
+      {selector: "edge", style: {"label": "data(label)", "font-size": 8, "curve-style": "bezier", "target-arrow-shape": "triangle",
+        "width": 1.5, "line-color": "#8a93a6", "target-arrow-color": "#8a93a6", "text-rotation": "autorotate"}},
+      {selector: "edge.vis-secret", style: {"line-style": "dashed", "line-color": "#8e44ad", "target-arrow-color": "#8e44ad"}},
+      {selector: "edge.mark-masked", style: {"line-color": "#d98200", "target-arrow-color": "#d98200"}},
+      {selector: "edge.mark-redefined_later", style: {"line-style": "double", "width": 4}},
+      {selector: "edge.mark-orphan", style: {"line-style": "dotted", "line-color": "#b3261e"}},
+      {selector: "edge.computed", style: {"line-style": "dotted", "width": 1}},
+      {selector: ".status-added", style: {"background-color": "#bfe8c9", "line-color": "#1b7f3b", "target-arrow-color": "#1b7f3b"}},
+      {selector: ".status-removed", style: {"background-color": "#f6c6c1", "line-color": "#b3261e", "target-arrow-color": "#b3261e", "opacity": 0.8}},
+      {selector: ".status-changed", style: {"background-color": "#ffd99a", "line-color": "#d98200"}},
+    ],
+  });
+  const detail = document.getElementById("detail");
+  cy.on("tap", "node, edge", (evt) => {
+    const d = evt.target.data();
+    let html = `<h3>${esc(d.label)} <code>${esc(d.id)}</code></h3><p class="small">${esc(d.type || d.relation || "")} · couche ${esc(d.layer)} · notoriété ${esc(d.visibility)}${d.status ? " · " + esc(d.status) : ""}</p>`;
+    if (d.marks && d.marks.length) html += `<p class="small">marques : ${esc(d.marks.join(", "))}</p>`;
+    if (d.provenance) html += `<p class="small">provenance : <code>${esc(d.provenance)}</code></p>`;
+    if (d.sheet) html += `<p class="small">fiche de ${esc(d.sheet.of)} dans ${esc(d.sheet.system)} (${esc(d.sheet.category)})</p>`;
+    if (d.attributes && d.attributes.length) {
+      html += "<table class='small'>" + d.attributes.map((a) => `<tr><td>${esc(a.name)}</td><td>${esc(a.value)}</td><td>${esc(a.visibility || "")}</td><td>${esc((a.marks || []).join(", "))}</td></tr>`).join("") + "</table>";
+    }
+    if (d.changed_attributes && d.changed_attributes.length) {
+      html += "<p class='small'>changements :</p><ul class='small'>" + d.changed_attributes.map((c) => `<li>${esc(c.name)} : ${esc(c.before)} → ${esc(c.after)}</li>`).join("") + "</ul>";
+    }
+    if (evt.target.isNode() && d.layer === "world") html += `<p><a href="/wiki/${encodeURIComponent(d.id)}">page de wiki</a> · <a href="/graph?entity=${encodeURIComponent(d.id)}&depth=1">centrer ici</a></p>`;
+    detail.innerHTML = html;
+  });
+})();
+</script>
+{% endblock %}
