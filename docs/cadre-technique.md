@@ -394,7 +394,7 @@ flowchart LR
 
 | Point | Quand le trancher |
 |---|---|
-| Choix du LLM par étape (local, cloud, mixte) | Outillage en place (J4) : profils routés par tâche, mesure `worldkit eval extraction`. Premières mesures sur Valmont v1, optimistes par construction (T-TST-01) : Claude Sonnet 5 précision 0,73 / rappel 0,86, Claude Haiku 4.5 0,61 / 0,79. **Choix sur le second jet du corpus**, écrit par l'auteur |
+| Choix du LLM par étape (local, cloud, mixte) | Outillage en place (J4) : profils routés par tâche, mesure `worldkit eval extraction`. Premières mesures sur Valmont v1, optimistes par construction (T-TST-01) : Claude Sonnet 5 précision 0,73 / rappel 0,86, Claude Haiku 4.5 0,61 / 0,79. Méta (J8, lot b4, Claude Haiku 4.5) : précision 0,89 / rappel 0,67 ; fiche et règle marquées `[meta]` justes, fiche non marquée (« Système B : niveau 7, menace 8. ») manquée : le sujet par défaut du document ne suffit pas au modèle. **Choix sur le second jet du corpus**, écrit par l'auteur |
 | Stratégie d'extraction (une passe ou plusieurs) et contexte fourni | J4 : une passe par passage, contexte = schéma + entités connues et en attente. Limite observée : un passage isolé ne résout pas « son frère », « ils » ; ablation à faire : fournir le passage précédent |
 | Résolution d'entités : similarité de noms, embeddings, seuils | J4 : résolution par le modèle contre la liste des entités connues, puis regroupement au niveau du lot par (type, nom normalisé sans article). Le piège « le Roi Gris » tombe avec Haiku comme avec Sonnet ; à mesurer avec un profil dédié à la résolution avant d'envisager des embeddings |
 | Fréquence des points de sauvegarde | Reportée : aucun besoin mesuré en J2 ; à reprendre quand un monde réel ralentira la projection |
