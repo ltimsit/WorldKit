@@ -26,7 +26,9 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
         q = request.query_params
         target = q.get("target") or None
         layers = q.getlist("layer") or ["world"]
-        entity = q.get("entity", "aldren-ii") if not q.get("full") else None
+        full = bool(q.get("full"))
+        chosen_entity = q.get("entity") or "aldren-ii"  # gardée en mode complet pour y revenir en décochant
+        entity = None if full else chosen_entity
         depth = int(q.get("depth") or 1)
         flt = q.get("filter") or "author"
         compare = bool(q.get("compare"))
@@ -62,6 +64,6 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
                 elements.append({"data": {**e, "label": e["relation"]}, "classes": " ".join(classes)})
         safe_json = json.dumps(elements, ensure_ascii=False).replace("</", r"<\/")  # pas de </script> dans une donnée
         return render(request, "graph.html", page, result=result, elements=safe_json,
-                      layers=LAYERS, chosen=layers, entity=entity or "", depth=depth, full=bool(q.get("full")),
+                      layers=LAYERS, chosen=layers, entity=chosen_entity, depth=depth, full=full,
                       compare=compare, cmp={k: q.get(f"cmp.{k}", "") for k in ("target", "branch", "point")},
                       entities=(index.output or {}).get("pages", []))

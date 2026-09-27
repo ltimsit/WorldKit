@@ -143,6 +143,8 @@ def test_graph_and_measures_pages(tmp_path):
     c = TestClient(create_app(db))
     page = c.get("/graph?entity=aldren-ii&layer=world&filter=player").text
     assert "cytoscape(" in page and "aldren-ii" in page and "killed" not in page
+    full = c.get("/graph?entity=mervin&depth=2&full=1&layer=world").text
+    assert 'name="entity"' in full and 'value="mervin"' in full  # décocher « graphe complet » revient au voisinage
     compared = c.get("/graph?compare=1&cmp.branch=reference&entity=aldren-ii")
     assert compared.status_code == 200 and "0 ajoutés" in compared.text  # même état des deux côtés
     r = c.post("/measures", data={"batch": ["b4"], "extractor": "oracle"}, follow_redirects=False)
