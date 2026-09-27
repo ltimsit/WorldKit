@@ -1,7 +1,7 @@
 # Cadre de l'interface
 
 **Objet :** vision, principes, découpage et points à trancher de l'interface de `worldkit`, conçue d'abord comme un **banc d'essai** : tester, suivre l'efficacité, contrôler, et obtenir des retours complets et explicites.
-**Version :** 0.4 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
+**Version :** 0.5 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (en attente). En cas de divergence, le cadre de la fondation puis le cadre technique prévalent.
 
 **Conventions**
@@ -201,6 +201,15 @@ Opérations d'I1 (`worldkit ops`) : consultations `world.summary`, `branch.list`
 | I-WEB-02 | Comparaison | **Deux colonnes à contextes indépendants** (`/compare/<entité>?left.branch=…&right.branch=…`) ; l'opération `wiki.compare` rend les deux pages et leurs **différences au niveau des faits** (ajouté, retiré, changé : valeur, notoriété, qualification, cible) ; l'interface ne fait que surligner. Même calcul en ligne de commande. | Deux colonnes sans calcul (comparaison à l'œil) ; affichage unifié seul (contexte de chaque lecture perdu). | validé |
 | I-WEB-03 | Lancement et forme | `worldkit serve --db monde.db [--port 8765] [--no-browser]` : écoute sur `127.0.0.1` seulement, ouvre le navigateur, arrêt par Ctrl+C ; dépendances optionnelles `pip install -e .[ui]`. Feuille de style propre au projet, dense, police système ; pages rendues en tables à partir de leur structure, Markdown brut dans un encart ; chaque écran liste ses appels au service et leur JSON brut. L'API JSON (`/api/ops`, `/api/call/<opération>`) ne sert que les consultations jusqu'à I3. | Feuille « sans classes » copiée (moins dense) ; Markdown rendu seul (structure perdue). | proposé |
 
+### 8.3 Saisie, banc, rendre réel (I3)
+
+| ID | Sujet | Décision | Alternatives écartées | Statut |
+|---|---|---|---|---|
+| I-ACT-01 | Destination d'une écriture | Par défaut, **un bac à sable** : celui du contexte, ou un bac créé à la volée. Le **monde de travail** doit être choisi explicitement **et** confirmé (case à cocher dans l'interface ; `confirm_world: true` pour `POST /api/call/<opération>`, sinon 409). | Monde par défaut (écrit en dur dans une histoire en ajout seul) ; toujours demander (on finit par valider sans lire). | validé |
+| I-ACT-02 | Rendre réel | `sandbox.promote` : **répétition à blanc** sur une copie du monde de travail tel qu'il est maintenant, en rejouant dans l'ordre les écritures enregistrées de la chaîne (bacs parents jusqu'à la copie, puis le bac) ; chaque résultat rejoué est comparé à l'enregistré : **identique**, **écart** (sortie seule différente, ex. rang décalé : signalé sans bloquer), **divergence** (statut ou signalements différents : bloque) ; les écritures refusées dans l'essai sont ignorées. Sans divergence et sur confirmation, les mêmes écritures sont rejouées sur le monde, **en tout ou rien** ; le bac passe « rendu réel » et n'est plus une cible. Ligne de commande : `worldkit sandbox promote N [--yes]`. | Application directe arrêtée à la première divergence (monde à moitié modifié, irréversible, R-HIS-01) ; choix des écritures (dépendances cassées). | validé |
+| I-ACT-03 | Banc de mécanismes | **Console générique** sur tout le registre : opération, cible, paramètres en YAML pré-remplis (exemple Valmont déclaré avec l'opération, sinon gabarit tiré du schéma), résultat de forme commune, « rejouer » qui compare au précédent (déterminisme, I-PRI-05). Mécanismes ajoutés au registre : `schema.validate`, `change.keys`, `transpose.analyse`, `redefine.preview`, `document.declare` ; rejeu exposé comme écritures rejouables : `replay.start`, `replay.decide`, `replay.resume`, `replay.abandon` (et `replay.status`). | Un écran dédié par mécanisme (coût par mécanisme, rendus divergents). | validé |
+| I-ACT-04 | Éditeur | Éditeur YAML vérifié par `edit.check` à chaque pause de frappe (htmx) : applicable ou non, signalements rattachés à la **ligne** de `changes[i]`, clés, lectures et écritures, effet sur l'état (faits ajoutés, retirés, changés) ; gabarits d'opérations ; entités connues cliquables ; boutons « appliquer » et « soumettre ». | — | proposé |
+
 ## 9. Périmètre
 
 | Dans le périmètre | Préparé (possible plus tard) | Hors périmètre |
@@ -214,7 +223,7 @@ Opérations d'I1 (`worldkit ops`) : consultations `world.summary`, `branch.list`
 | I0 | Cadre d'interface validé (ce document) | — |
 | I1 — **fait** | Couche de service et forme commune d'un résultat (§7) ; exécutions enregistrées (`monde.runs.db`) ; bacs à sable (créer, dupliquer, lister, jeter) ; commandes `ops`, `call`, `sandbox`, `runs` (I-SVC-01 à I-SVC-04) | tests automatiques du service (`tests/test_service.py`) |
 | I2 — **fait** | Application FastAPI : tableau de bord, wiki auteur et joueur, comparaison de deux lectures, branches et historique (lignée Mermaid), journal, éditions, exécutions, opérations, en lecture seule ; JSON brut de chaque résultat (I-WEB-01 à I-WEB-03) | relire le retcon d'Aldren entre `reference` et `reference-r1` (automatisé dans `tests/test_web.py`, à faire à l'écran) |
-| I3 | Saisie YAML vérifiée en direct (I-SAI-01) ; banc de mécanismes ; rendre réel un essai de bac à sable (I-SBX-01) | refaire le retcon d'Aldren dans un bac à sable, puis le rendre réel |
+| I3 — **fait** | Saisie YAML vérifiée en direct ; banc de mécanismes ; rendre réel un essai de bac ; rejeu exposé par le service (I-ACT-01 à I-ACT-04) | refaire le retcon d'Aldren dans un bac à sable, puis le rendre réel (automatisé dans `tests/test_i3.py`, guide vérifié) |
 | I4 | Découpage du pipeline (E1 à E12, I-PIP-01) ; banc de pipeline de x à y ; contrôle du coût (I-LLM-01) | Loup sous deux systèmes (J8), de E1 à E12 et par morceaux |
 | I5 | Revue complète (propositions, questions de nature, rejeu) ; parcours exécutables, W15 et W08 structurés d'abord (I-ACC-01) | sessions de curation chronométrées |
 | I6 | Graphe (I-GRA-01), mesures T2 et leur historique, comparaison d'exécutions | choix du modèle sur le second jet du corpus |
