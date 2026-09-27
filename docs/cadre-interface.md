@@ -1,7 +1,7 @@
 # Cadre de l'interface
 
 **Objet :** vision, principes, découpage et points à trancher de l'interface de `worldkit`, conçue d'abord comme un **banc d'essai** : tester, suivre l'efficacité, contrôler, et obtenir des retours complets et explicites.
-**Version :** 1.0 — 27 septembre 2026. Tous les jalons d'interface (I0 à I6) sont faits ; les tests humains se font à l'écran. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
+**Version :** 1.0 — 27 septembre 2026. Tous les jalons d'interface (I0 à I6) sont faits ; les tests humains se font à l'écran. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.17, qu'il cite sans les dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (en attente). En cas de divergence, le cadre de la fondation puis le cadre technique prévalent.
 
 **Conventions**
