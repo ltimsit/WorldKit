@@ -76,9 +76,9 @@ class Analysis:
 
 def keep_changes(analysis: Analysis, changes: list[Any], head: State) -> tuple[list[Any], int]:
     """Garder malgré une contradiction : retirer explicitement chaque fait qui occupe une clé visée
-    (R-FAI-05) — une clé seulement lue n'est pas touchée ; abandonner les retraits devenus sans objet sur
-    la cible (le fait n'y existe pas),
-    puisque libérer la clé est l'affaire du retrait de l'occupant réel. Rend (changements, abandonnés)."""
+    (R-FAI-05), une clé seulement lue n'étant pas touchée ; abandonner les retraits devenus sans objet sur
+    la cible (le fait n'y existe pas), puisque libérer la clé est l'affaire du retrait de l'occupant réel.
+    Rend (changements, abandonnés)."""
     from worldkit.core.projection.state import fact_id_of
     from worldkit.core.schema.changes import RemoveRelation
     removals: list[Any] = []

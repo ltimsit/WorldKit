@@ -64,8 +64,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **J4 — outillage fait** (branche `j4-extraction`) : adaptateurs LLM (`claude-code` avec l'abonnement, `anthropic-api`, `ollama`), profils routés par tâche (`worldkit-llm.yaml`), extracteur LLM, mesure T2 (`worldkit eval extraction`). Le choix du modèle attend le second jet du corpus, écrit par l'auteur (T-TST-01).
 - **J5 — fait** (branche `j5-branches`) : branches, redéfinition ponctuelle et R-VUE-03, transposition d'éditions (indépendante, dépendante, contradictoire), déplacement de propositions. La transposition de scénario (fin de W13) arrive avec J6.
 - **J6 — fait** (branche `j6-scenarios`) : scénarios versionnés, pistes d'auteur, déroulés, transposition de scénario, pistes ouvertes sur les pages (`worldkit/core/workflows/`).
-- **Prochain : J7** (redéfinition rétroactive, rejeu). Fiche de démarrage : `docs/j7-brief.md`.
-- Ensuite : J8 (méta), second jet du corpus écrit par l'auteur (choix du LLM, T-TST-01)… (cadre technique §7).
+- **J7 — fait** (branche `j7-replay`) : redéfinition rétroactive (T-RED-01) — aperçu d'impact, session de rejeu suspendable, reprenable et abandonnable, bascule de la référence (historique en ajout seul), ancienne branche archivée, report des points, pistes, propositions et déroulés, variantes signalées (`worldkit/core/workflows/replay.py`, `worldkit/ingest/carry.py`).
+- **Prochain : J8** (méta), puis le second jet du corpus écrit par l'auteur (choix du LLM, T-TST-01)… (cadre technique §7).
 - Points ouverts à trancher avant J8 : lacunes L1, L2, L6 du corpus (`corpus/valmont-v1/README.md` §5).
 
 ## Carte du code
@@ -76,14 +76,16 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 | M2 journal | `worldkit/core/journal/` | éditions (`models.py`), stockage SQLite en ajout seul (`store.py`), lignée des branches |
 | M3 projection | `worldkit/core/projection/` | état (`state.py`), application d'un changement, forme canonique (`serialize.py`) |
 | M4 conflits | `worldkit/core/conflicts/` | collisions, lectures/écritures (`application.py`), transposition (`transposition.py`) |
-| M5 workflows | `worldkit/core/workflows/` | scénarios, pistes d'auteur, déroulés |
+| M5 workflows | `worldkit/core/workflows/` | scénarios, pistes d'auteur, déroulés (`scenarios.py`) ; redéfinition rétroactive et rejeu (`replay.py`) |
 | M10–M11 vues | `worldkit/core/views/` | notoriété effective, pages, rendu Markdown, export JSON, signalements |
 | Façade | `worldkit/core/world.py` | `World` : créer, appliquer, soumettre, confirmer, rebaser, branches, transposer |
-| M6–M9 ingestion | `worldkit/ingest/` | déclaration et passages, lots, propositions, file de revue vivante, décisions |
+| M6–M9 ingestion | `worldkit/ingest/` | déclaration et passages, lots, propositions, file de revue vivante, décisions ; report des propositions en fin de rejeu (`carry.py`) |
 | Périphérie | `worldkit/periphery/` | extracteur oracle, adaptateurs LLM et profils (`llm/`), extracteur LLM, mesure T2 |
 | CLI | `worldkit/cli.py` | `worldkit --db monde.db <commande>` ; `worldkit --help` |
 
-Tests : `tests/` ; aides dans `tests/support.py` (`base_world`, `edit`, `rel`…) et `tests/test_w10_w11.py` (`after_w05` : état après la revue de W05).
+Tests : `tests/` ; aides dans `tests/support.py` (`base_world`, `edit`, `rel`…), `tests/test_w10_w11.py` (`after_w05` : état après la revue de W05) et `tests/test_w15_replay.py` (`setup_w15`, `file_world` : état de départ de W15, en mémoire ou sur fichier).
+
+La branche de référence n'est plus forcément `reference` : après un rejeu, c'est la dernière de l'historique des références (`world.reference_branch`). Une branche archivée refuse toute édition.
 
 ## Commandes et environnement
 
