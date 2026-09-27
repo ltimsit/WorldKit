@@ -26,6 +26,7 @@
     <a href="/measures" class="{{ 'on' if path.startswith('/measures') }}">Mesures</a>
     <a href="/runs?{{ q }}" class="{{ 'on' if path.startswith('/runs') }}">Exécutions</a>
     <a href="/ops?{{ q }}" class="{{ 'on' if path == '/ops' }}">Opérations</a>
+    <a href="/aide/guide" class="{{ 'on' if path == '/aide/guide' }}">Guide</a>
     <a href="/aide" class="{{ 'on' if path == '/aide' }}">Aide</a>
   </nav>
   {% set tool = tool_for(path) %}{% if tool and path != '/aide' %}<a class="help-link" href="{{ help_href(tool.key) }}" title="{{ tool.title }} : {{ tool.text|striptags }}">?</a>{% endif %}

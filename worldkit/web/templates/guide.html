@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Guide pas à pas{% endblock %}
+{% block context %}{% endblock %}
+{% block content %}
+<div class="guide">
+{% if toc %}<nav class="toc small"><b>Sections</b> {% for anchor, title in toc %}· <a href="#{{ anchor }}">{{ title }}</a> {% endfor %}</nav>{% endif %}
+{{ body }}
+{% if not body %}<p class="sev-warning">docs/aide/guide.md introuvable.</p>{% endif %}
+</div>
+{% endblock %}

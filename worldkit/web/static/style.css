@@ -45,3 +45,8 @@ a.term { color: inherit; text-decoration: underline dotted #6a5acd; text-underli
 a.term:hover { color: #6a5acd; }
 .card { border: 1px solid #ddd; border-radius: 4px; padding: 6px 12px; margin: 8px 0; }
 .help-link { font-weight: bold; padding: 0 6px; border: 1px solid #bbb; border-radius: 50%; text-decoration: none; }
+.guide { max-width: 980px; }
+.guide pre { background: var(--panel); padding: 6px 10px; overflow-x: auto; border-radius: 3px; margin-top: 0; }
+.guide .fence-cap { font-size: 11px; color: #777; margin-top: 8px; }
+.guide pre.fence-text { border-left: 3px solid #1b7f3b; }
+.guide .toc { position: sticky; top: 0; background: var(--bg); padding: 4px 0; border-bottom: 1px solid #ddd; }

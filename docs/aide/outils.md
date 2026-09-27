@@ -42,6 +42,7 @@
 | Exécution | `/runs/{n}` | Une exécution enregistrée : paramètres, sortie, indicateurs, signalements, trace, JSON complet. | Pour relire un résultat passé ou le comparer à un autre. | rien | exécution, trace, indicateurs | `runs.show` |
 | Rendre réel un bac | `/sandbox/{n}/promote` | Rejouer les écritures d'un bac sur le monde de travail : répétition à blanc d'abord (identique, écart, divergence), puis application en tout ou rien. | Quand un essai en bac est concluant. | le monde de travail (confirmé) | rendre réel, répétition à blanc, écart, divergence | `sandbox.promote` |
 | Opérations | `/ops` | La liste de toutes les opérations du service : sorte, résumé, règles, paramètres. | Pour savoir ce qui existe et comment l'appeler en ligne de commande (`worldkit call`). | rien | opération, sorte, paramètre | `ops.list` |
+| Guide | `/aide/guide` | Le guide pas à pas (*docs/aide/guide.md*) : construire Valmont, lire un résultat, écrire un changement, essayer dans un bac, ingérer, retcon, tester un mécanisme, mesurer, vérifier ; gestes à l'écran, commandes et sorties attendues. | Pour découvrir l'outil, ou retrouver comment faire une tâche. | rien | tous | — |
 | Aide | `/aide` | Cette carte, les étapes, les opérations, les glossaires et le texte de chaque règle ou décision ; recherche par code ou par mot. | Dès qu'un terme ou un identifiant n'est pas clair. | rien | lexique | `lexicon.lookup`, `lexicon.index` |
 
 ## 3. Enchaînements usuels

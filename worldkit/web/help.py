@@ -18,7 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from markupsafe import Markup
 
-from worldkit.service.lexicon import Entry, lexicon
+from worldkit.service.lexicon import DOCS, Entry, lexicon
 
 KIND_LABELS = {"tool": "Outils", "stage": "Étapes du pipeline", "operation": "Opérations du service",
                "term": "Glossaire", "rule": "Règles (cadre de la fondation)",
@@ -55,7 +55,7 @@ def explain(code: Any, label: Any = None) -> Markup:
     """Un code connu du lexique → lien vers sa définition, avec la définition au survol ; sinon le texte seul."""
     text = "" if code is None else str(code)
     e = lexicon().get(text) if text else None
-    shown = html.escape(str(label if label is not None else text))
+    shown = str(label) if isinstance(label, Markup) else html.escape(str(label if label is not None else text))
     if not e:
         return Markup(shown)
     return Markup(f'<a class="term" href="{href(e.key)}" title="{html.escape(tooltip(e))}">{shown}</a>')
@@ -74,8 +74,11 @@ def linkify(markup: Any) -> Markup:
 
     def code_tag(m: re.Match[str]) -> str:
         inner = html.unescape(m.group(1))
-        e = lx.get(inner)
-        return str(explain(inner, Markup(m.group(0)))) if e else m.group(0)
+        if lx.get(inner):
+            return str(explain(inner, Markup(m.group(0))))
+        # un code cité dans une commande ou entre crochets : `worldkit explain R-FAI-05`, `[R-FAI-05]`
+        linked = CODE.sub(lambda c: str(explain(c.group(0))) if lx.get(c.group(0)) else c.group(0), m.group(1))
+        return f"<code>{linked}</code>"
 
     s = re.sub(r"<code>([^<]+)</code>", code_tag, s)
     parts = re.split(r"(<[^>]+>)", s)
@@ -107,6 +110,41 @@ def tool_for(path: str) -> Entry | None:
     return best[1] if best else None
 
 
+SCREEN_NOTE = re.compile(r"<!--\s*écran\s+(\S+)\s*:.*?-->", re.S)
+
+
+def render_guide(text: str) -> tuple[Markup, list[tuple[str, str]]]:
+    """Guide Markdown → HTML : sommaire des sections, blocs légendés (sortie attendue, fichier, non testé), liens
+    vers les écrans annoncés, codes liés au lexique. Le guide lui-même est testé par `tests/test_guide.py`."""
+    from markdown_it import MarkdownIt
+    text = SCREEN_NOTE.sub(lambda m: f"\n\n[↗ voir à l'écran : {m.group(1)}]({m.group(1)})\n\n", text)
+    md = MarkdownIt("commonmark", {"html": False}).enable("table")
+    captions = {"sortie": "sortie attendue (extrait)", "fichier": "fichier", "sans-test": "non exécuté par les tests"}
+
+    def fence(tokens: Any, idx: int, options: Any, env: Any) -> str:
+        words = tokens[idx].info.split()
+        notes = []
+        for w in words[1:]:
+            key, _, value = w.partition("=")
+            if key in captions:
+                notes.append(f"{captions[key]} {html.escape(value)}".strip())
+        lang = html.escape(words[0]) if words else ""
+        cap = f'<div class="fence-cap">{" · ".join(notes) or lang}</div>' if notes or lang else ""
+        return f'{cap}<pre class="fence-{lang}"><code>{html.escape(tokens[idx].content)}</code></pre>\n'
+
+    md.renderer.rules["fence"] = fence
+    out = md.render(text)
+    toc: list[tuple[str, str]] = []
+
+    def heading(m: re.Match[str]) -> str:
+        anchor = f"s{len(toc) + 1}"
+        toc.append((anchor, re.sub(r"<[^>]+>", "", m.group(1))))
+        return f'<h2 id="{anchor}">{m.group(1)}</h2>'
+
+    out = re.sub(r"<h2>(.*?)</h2>", heading, out)
+    return linkify(Markup(out)), toc
+
+
 def install(env: Any) -> None:
     env.filters["explain"] = explain
     env.filters["linkify"] = linkify
@@ -118,6 +156,12 @@ def install(env: Any) -> None:
 
 
 def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_factory: Callable[[], Any]) -> None:
+
+    @app.get("/aide/guide", response_class=HTMLResponse)
+    def guide(request: Request) -> HTMLResponse:
+        path = DOCS / "aide" / "guide.md"
+        body, toc = render_guide(path.read_text(encoding="utf-8")) if path.exists() else (Markup(""), [])
+        return render(request, "guide.html", page_factory(), body=body, toc=toc)
 
     @app.get("/aide", response_class=HTMLResponse)
     def aide(request: Request) -> HTMLResponse:
