@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Exécution{% endblock %}
+{% block content %}
+<h1>Exécution #{{ stored.trace.run_id if stored else "?" }}</h1>
+{% if stored %}
+{{ m.result_head(stored) }}
+{% if stored.indicators %}<h2>Indicateurs</h2><table>{% for k, v in stored.indicators.items() %}<tr><td>{{ k }}</td><td class="mono">{{ v }}</td></tr>{% endfor %}</table>{% endif %}
+<h2>Paramètres</h2><pre>{{ stored.params|yaml }}</pre>
+<h2>Sortie</h2><pre>{{ stored.output|yaml }}</pre>
+<details><summary>Résultat complet (JSON)</summary><pre>{{ stored.model_dump(mode="json")|tojson_pretty }}</pre></details>
+{% else %}{{ m.result_head(result) }}{% endif %}
+{% endblock %}

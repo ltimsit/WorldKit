@@ -1,0 +1,40 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Comparer {{ entity }}{% endblock %}
+{% block context %}
+<form class="context" method="get" action="{{ path }}" onchange="this.requestSubmit()">
+  {% for side, label in [("left", "gauche"), ("right", "droite")] %}{% set sd = sides.get(side, {}) %}
+  <b style="align-self:center">{{ label }}</b>
+  <label>cible<select name="{{ side }}.target"><option value="">monde</option>
+    {% for b in sandboxes %}<option value="{{ b.id }}" {{ 'selected' if sd.get('target')|string == b.id|string }}>bac {{ b.id }}</option>{% endfor %}</select></label>
+  <label>branche<input name="{{ side }}.branch" value="{{ sd.get('branch', '') }}" list="branch-list" placeholder="(référence)"></label>
+  <label>point<input name="{{ side }}.point" value="{{ sd.get('point', '') }}" placeholder="head"></label>
+  <label>filtre<select name="{{ side }}.filter"><option value="author">auteur</option>
+    <option value="player" {{ 'selected' if sd.get('filter') == 'player' }}>joueur</option></select></label>
+  {% endfor %}
+  <datalist id="branch-list">{% for b in branches %}<option value="{{ b.id }}">{% endfor %}</datalist>
+</form>
+{% endblock %}
+{% block content %}
+{% set o = result.output %}
+<h1>Comparer {{ entity }}</h1>
+{{ m.result_head(result) }}
+{% if o %}
+<p><span class="badge" style="background:var(--add)">+{{ result.indicators.added }} seulement à droite</span>
+<span class="badge" style="background:var(--del)">−{{ result.indicators.removed }} seulement à gauche</span>
+<span class="badge" style="background:var(--chg)">~{{ result.indicators.changed }} changés</span></p>
+<div class="cols">
+  {% for side in ["left", "right"] %}{% set w = o[side].where %}
+  <div>
+    <p class="small muted">{{ w.target }} · {{ w.branch }} · rang {{ w.seq }} · {{ "joueur" if w.filter == "player" else "auteur" }}</p>
+    {% if o[side].page %}{{ m.entity_page(o[side].page, "", marks[side]) }}
+    {% else %}<p class="muted">aucune page dans cette lecture</p>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+<h2>Différences ({{ o.diff|length }})</h2>
+<table><tr><th>section</th><th>état</th><th>gauche</th><th>droite</th></tr>
+{% for d in o.diff %}<tr class="{{ d.status }}"><td>{{ d.section }}</td><td>{{ d.status }}</td>
+<td class="mono small">{{ line_text(d.left) }}</td><td class="mono small">{{ line_text(d.right) }}</td></tr>
+{% endfor %}</table>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,63 @@
+{% macro vis(v) %}{% if v %}<span class="badge v-{{ v }}">{{ v }}</span>{% endif %}{% endmacro %}
+
+{% macro issues(list) %}
+{% if list %}
+<ul class="issues">
+{% for i in list %}
+  <li class="sev-{{ i.severity }}">{{ i.severity }} {% if i.rule %}<b>[{{ i.rule }}]</b> {% endif %}<code>{{ i.code }}</code>{% if i.path %} <code>{{ i.path }}</code>{% endif %} : {{ i.message }}</li>
+{% endfor %}
+</ul>
+{% endif %}
+{% endmacro %}
+
+{% macro status(r) %}<b class="s-{{ r.status }}">{{ r.status }}</b>{% endmacro %}
+
+{% macro result_head(r) %}
+<p class="small muted">{{ r.operation }} [{{ r.kind }}] → {{ r.target }} : {{ status(r) }} · {{ r.trace.duration_ms }} ms
+{% if r.trace.run_id %}· <a href="/runs/{{ r.trace.run_id }}">exécution #{{ r.trace.run_id }}</a>{% endif %}
+· <a href="{{ raw_link(r) }}">JSON brut</a></p>
+{{ issues(r.issues) }}
+{% endmacro %}
+
+{# Page de wiki structurée ; `status` : (section, clé) → added | removed | changed (comparaison, I2) #}
+{% macro entity_page(p, ctx_q, status={}) %}
+<h3>{{ p.title }} <code>{{ p.id }}</code> <span class="muted">{{ p.type }}{% if p.closed %} · close{% endif %}</span> {{ vis(p.visibility) }}</h3>
+{% if p.members|length > 1 %}<p class="small muted">page consolidée : {{ p.members|join(", ") }}</p>{% endif %}
+<table>
+  <tr><th>attribut</th><th>valeur</th><th>notoriété</th><th>provenance</th></tr>
+  {% for a in p.attributes %}{% set st = status.get(("attributes", a.fact|factkey), "") %}
+  <tr class="{{ st }}"><td>{{ a.name }}{% if a.entity != p.id %} <span class="muted small">({{ a.entity }})</span>{% endif %}</td>
+    <td>{{ a.value }}{% if a.redefined_later %} <span class="redefined">redéfini plus tard</span>{% endif %}</td>
+    <td>{{ vis(a.visibility) }}</td><td class="mono small"><a href="/edit/{{ a.provenance }}?{{ ctx_q }}">{{ a.provenance }}</a></td></tr>
+  {% endfor %}
+</table>
+<table>
+  <tr><th>relation</th><th>autre</th><th>sens</th><th>notoriété</th><th>provenance</th></tr>
+  {% for r in p.relations %}{% set st = status.get(("relations", r.fact|factkey), "") %}
+  <tr class="{{ st }}"><td>{{ r.relation }}</td>
+    <td>{% if r.other %}<a href="/wiki/{{ r.other }}?{{ ctx_q }}">{{ r.other }}</a>{% else %}<span class="muted">(non publique)</span>{% endif %}</td>
+    <td>{{ "→" if r.direction == "out" else "←" }}</td><td>{{ vis(r.visibility) }}{% if r.redefined_later %} <span class="redefined">redéfini plus tard</span>{% endif %}</td>
+    <td class="mono small"><a href="/edit/{{ r.provenance }}?{{ ctx_q }}">{{ r.provenance }}</a></td></tr>
+  {% endfor %}
+</table>
+{% if p.sheets %}<h3>Fiches</h3>
+  {% for s in p.sheets %}{% set sb = status.get(("sheet_bindings", s.sheet), "") %}
+  <table><tr class="{{ sb }}"><th colspan="4">{{ s.system }} ({{ s.category }}) <code>{{ s.sheet }}</code></th></tr>
+    {% for a in s.attributes %}{% set st = status.get(("sheets", a.fact|factkey), "") %}
+    <tr class="{{ st }}"><td>{{ a.name }}</td><td>{{ a.value }}</td><td>{{ vis(a.visibility) }}</td><td class="mono small">{{ a.provenance }}</td></tr>
+    {% endfor %}</table>
+  {% endfor %}
+{% endif %}
+{% if p.identities %}<h3>Identités</h3><table>
+  {% for i in p.identities %}{% set st = status.get(("identities", i.other ~ "|" ~ i.kind), "") %}
+  <tr class="{{ st }}"><td>{{ i.other }}</td><td>{{ i.kind }}</td><td>{{ vis(i.visibility) }}</td><td class="mono small">{{ i.provenance }}</td></tr>
+  {% endfor %}</table>{% endif %}
+{% if p.claims %}<h3>Affirmations</h3><table>
+  <tr><th>affirmation</th><th>qualification</th><th>notoriété</th><th>provenance</th></tr>
+  {% for c in p.claims %}{% set st = status.get(("claims", c.claim), "") %}
+  <tr class="{{ st }}"><td>« {{ c.text }} »</td><td>{{ c.qualification or "—" }} {{ vis(c.qualification_visibility) }}</td>
+    <td>{{ vis(c.visibility) }}</td><td class="mono small">{{ c.provenance }}</td></tr>
+  {% endfor %}</table>{% endif %}
+{% if p.drafts %}<h3>Pistes ouvertes</h3><ul>{% for d in p.drafts %}<li>{{ d }}</li>{% endfor %}</ul>{% endif %}
+{% if p.documents %}<p class="small muted">documents sources : {{ p.documents|join(", ") }}</p>{% endif %}
+{% endmacro %}

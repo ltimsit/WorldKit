@@ -69,7 +69,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **J8 — fait** (branche `j8-meta`) : méta à l'ingestion (T-ING-20) — nature des passages, garde de classement, questions de nature (`worldkit review nature`), formes réduites LLM `sheet_values` / `schema_constraint`, T2 étendu au méta (`worldkit/ingest/meta.py`). Fiche : `docs/j8-brief.md`. La mesure T2 réelle du méta attend l'accord de l'auteur (quota).
 - **I0 — fait** : cadre d'interface validé (`docs/cadre-interface.md` v0.2, décisions I-TEC-01 à I-LLM-01).
 - **I1 — fait** (branche `i1-service`) : couche de service (`worldkit/service/`), registre d'opérations, résultat de forme commune, exécutions `monde.runs.db`, bacs à sable ; commandes `ops`, `call`, `sandbox`, `runs` (I-SVC-01 à I-SVC-04). Fiche : `docs/i1-brief.md`.
-- **Prochain : I2** (application FastAPI, tableau de bord, wiki, branches en lecture). En parallèle, côté auteur : second jet du corpus (choix du LLM, T-TST-01).
+- **I2 — fait** (branche `i2-lecture`) : application web locale en lecture (`worldkit/web/`, `worldkit serve`) : tableau de bord, wiki, comparaison de deux lectures (`wiki.compare`), branches, journal, exécutions (I-WEB-01 à I-WEB-03). Fiche : `docs/i2-brief.md`.
+- **Prochain : I3** (saisie YAML vérifiée en direct, banc de mécanismes, rendre réel un essai de bac). En parallèle, côté auteur : second jet du corpus (choix du LLM, T-TST-01).
 - Lacunes L1, L2, L6 du corpus tranchées avant J8 (cadre R-MET-02, R-MET-04, T-FAI-01 ; analyse 00.50) : toutes les lacunes du corpus v1 sont closes.
 
 ## Carte du code
@@ -86,7 +87,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 | M6–M9 ingestion | `worldkit/ingest/` | déclaration et passages, lots, propositions, file de revue vivante, décisions ; méta : nature, questions de nature, `sheet_values` (`meta.py`) ; report des propositions en fin de rejeu (`carry.py`) |
 | Périphérie | `worldkit/periphery/` | extracteur oracle, adaptateurs LLM et profils (`llm/`), extracteur LLM, mesure T2 |
 | Service | `worldkit/service/` | registre d'opérations (`registry.py`, `ops.py`), `Session.call` (`session.py`), `Result` (`result.py`), exécutions et bacs (`runs.py`), commandes `ops`/`call`/`sandbox`/`runs` (`cli.py`) |
-| CLI | `worldkit/cli.py` | `worldkit --db monde.db <commande>` ; `worldkit --help` ; `worldkit ops` |
+| Web | `worldkit/web/` | application FastAPI (`app.py`), gabarits Jinja (`templates/`), style, htmx et Mermaid copiés (`static/`) ; lecture seule jusqu'à I3 |
+| CLI | `worldkit/cli.py` | `worldkit --db monde.db <commande>` ; `worldkit --help` ; `worldkit ops` ; `worldkit serve` |
 
 Tests : `tests/` ; aides dans `tests/support.py` (`base_world`, `edit`, `rel`…), `tests/test_w10_w11.py` (`after_w05` : état après la revue de W05) et `tests/test_w15_replay.py` (`setup_w15`, `file_world` : état de départ de W15, en mémoire ou sur fichier).
 
@@ -94,7 +96,7 @@ La branche de référence n'est plus forcément `reference` : après un rejeu, c
 
 ## Commandes et environnement
 
-- Environnement : `.venv` (Python 3.12). Tests : `.venv\Scripts\python -m pytest -q` (tous doivent passer ; aucun n'appelle un vrai modèle). Corpus : `cd corpus/valmont-v1; ..\..\.venv\Scripts\python tools/check_corpus.py`.
+- Environnement : `.venv` (Python 3.12) ; interface : `pip install -e .[ui]` (FastAPI, Uvicorn, Jinja2), puis `worldkit --db monde.db serve`. Tests : `.venv\Scripts\python -m pytest -q` (tous doivent passer ; aucun n'appelle un vrai modèle). Corpus : `cd corpus/valmont-v1; ..\..\.venv\Scripts\python tools/check_corpus.py`.
 - Windows, PowerShell 5.1 : `@base` doit s'écrire `'@base'` ou `base` (le `@` est facultatif) ; `0,1` devient deux arguments (les options d'indices l'acceptent) ; les guillemets d'un argument JSON passé à un exécutable natif sont mangés (passer par Python).
 - LLM : l'adaptateur `claude-code` appelle `claude -p` avec l'abonnement de l'auteur (usage personnel), binaire trouvé dans l'extension VS Code. Une mesure `worldkit eval extraction` consomme le quota : demander avant d'en lancer une complète.
 - Pour modifier un fichier par script, écrire le script dans le dossier temporaire de session puis l'exécuter : les apostrophes françaises cassent les here-docs de bash.

@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}{{ entity }}{% endblock %}
+{% block content %}
+{% set o = result.output %}
+<h1>Page {{ entity }} <span class="muted small">{{ "joueur" if ctx.filter == "player" else "auteur" }}{% if o %} · {{ o.branch }}, rang {{ o.seq }}{% endif %}</span></h1>
+{{ m.result_head(result) }}
+<p class="small">Comparer : <a href="/compare/{{ entity }}?{{ compare_qs(ctx, 'author', 'player') }}">auteur / joueur</a>
+ · <a href="/compare/{{ entity }}?{{ compare_qs(ctx) }}">avec une autre lecture…</a></p>
+{% if o %}
+{{ m.entity_page(o.page, qs(ctx)) }}
+<details><summary>Texte (Markdown)</summary><pre>{{ o.markdown }}</pre></details>
+{% endif %}
+{% endblock %}

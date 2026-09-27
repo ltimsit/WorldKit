@@ -22,6 +22,7 @@
     worldkit --db valmont.db review nature <document> <passage> accept|refuse [--reason …]   (R-DEC-02)
     worldkit --db valmont.db ops | call <opération> [params.yaml] [--param clé=valeur]… [--sandbox N] [--json]
     worldkit --db valmont.db sandbox create|list|drop … | runs list|show|purge …   (couche de service, I1)
+    worldkit --db valmont.db serve [--port 8765] [--no-browser]   (banc d'essai web, I2)
     worldkit --db valmont.db redefine <changes.yaml> --after e003 [--from BRANCHE]          (aperçu, R-RED-01)
     worldkit --db valmont.db redefine <changes.yaml> --after e003 --mode retroactive [--branch NOM] [--id r1]
     worldkit --db valmont.db redefine <changes.yaml> --mode point [--id ID]
@@ -823,7 +824,30 @@ def build_parser() -> argparse.ArgumentParser:
     view_opts(commands.add_parser("check", help="non-conformités, fiches manquantes, faits masqués"), False)
     from worldkit.service.cli import add_parsers
     add_parsers(commands)
+    serve = commands.add_parser("serve", help="banc d'essai web local, en lecture (I2)")
+    serve.add_argument("--port", type=int, default=8765)
+    serve.add_argument("--no-browser", action="store_true", help="ne pas ouvrir le navigateur")
     return parser
+
+
+def _serve(args: argparse.Namespace) -> int:
+    """Application locale : écoute sur 127.0.0.1 seulement ; arrêt par Ctrl+C (I-TEC-01, I2)."""
+    import threading
+    import webbrowser
+    try:
+        import uvicorn
+        from worldkit.web import create_app
+    except ImportError:
+        print("ERREUR : dépendances de l'interface absentes (pip install -e .[ui])")
+        return 2
+    if not Path(args.db).exists():
+        raise FileNotFoundError(f"monde introuvable : {args.db}")
+    url = f"http://127.0.0.1:{args.port}/"
+    print(f"banc d'essai : {url} — monde {args.db} — Ctrl+C pour arrêter")
+    if not args.no_browser:
+        threading.Timer(1.0, webbrowser.open, [url]).start()
+    uvicorn.run(create_app(args.db), host="127.0.0.1", port=args.port, log_level="warning")
+    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -833,6 +857,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "schema":
         return _schema_validate(args.files)
     try:
+        if args.command == "serve":
+            return _serve(args)
         if args.command in ("ops", "call", "sandbox", "runs"):
             from worldkit.service.cli import run
             return run(args)
