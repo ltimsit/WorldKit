@@ -23,7 +23,7 @@ from worldkit.core.schema.changes import AddRelation, AddValue, SetAttribute
 from worldkit.core.schema.keys import UnknownRelation
 from worldkit.core.world import World
 
-from .declaration import Mode, normalize
+from .declaration import Mode, name_key
 from .proposals import Item, NewEntity, qualify_item, _context
 from .store import dumps, ensure_tables, loads_key
 
@@ -132,7 +132,7 @@ def pending_new_entities(world: World, head: State) -> dict[str, NewEntity]:
 
 def name_index(entities: dict[str, NewEntity]) -> dict[tuple[str, str], NewEntity]:
     """Empreinte (type, nom normalisé) d'une création : sert à reconnaître une création en attente (T-ING-08)."""
-    return {(e.type, normalize(e.name).casefold()): e for e in entities.values() if e.name}
+    return {(e.type, name_key(e.name)): e for e in entities.values() if e.name}
 
 
 def passage_fp(world: World, doc: str, version_fp: str, passage: int) -> str:

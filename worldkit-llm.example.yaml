@@ -1,0 +1,11 @@
+# Profils de modèles et routage par tâche (T-LLM-01). Copier en worldkit-llm.yaml pour l'utiliser.
+# Adaptateurs : claude-code (abonnement, usage personnel, via « claude -p »), anthropic-api (clé d'API),
+# ollama (modèle local). « concurrency » : appels simultanés (défaut 4).
+profiles:
+  haiku:      { adapter: claude-code, model: claude-haiku-4-5 }
+  sonnet:     { adapter: claude-code, model: claude-sonnet-5 }
+  api-haiku:  { adapter: anthropic-api, model: claude-haiku-4-5 }
+  api-sonnet: { adapter: anthropic-api, model: claude-sonnet-5 }
+  local:      { adapter: ollama, model: qwen2.5:7b }
+tasks:
+  extraction: sonnet

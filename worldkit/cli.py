@@ -10,7 +10,8 @@
     worldkit --db valmont.db wiki render --out <dossier> [--filter …] [--point …]
     worldkit --db valmont.db export [--filter …] [--point …]
     worldkit --db valmont.db check [--point …]
-    worldkit --db valmont.db ingest <lot> [documents…] [--batches batches.yaml] --oracle <gold/>
+    worldkit --db valmont.db ingest <lot> [documents…] [--batches batches.yaml] (--oracle <gold/> | --profile P)
+    worldkit --db valmont.db eval extraction --batches batches.yaml --oracle <gold/> --profile P [--batch b1]…
     worldkit --db valmont.db review list [--batch LOT] | review show <proposition>
     worldkit --db valmont.db review accept <proposition>… [--keep 0,1] [--drop-optional]
     worldkit --db valmont.db review refuse <proposition>… [--changes 2] [--reason …]
@@ -86,6 +87,13 @@ def _tags(tags: list[str]) -> str:
     return ", ".join(TAG_FR.get(t, t) for t in tags)
 
 
+def _llm_extractor(args: argparse.Namespace) -> Any:
+    from worldkit.periphery.llm import load_config, make_adapter
+    from worldkit.periphery.llm_extractor import LLMExtractor
+    profile = load_config(args.llm_config).profile(args.profile, "extraction")
+    return LLMExtractor(make_adapter(profile), profile)
+
+
 def _run_ingest(world: Any, args: argparse.Namespace) -> int:
     from worldkit.ingest.batch import batch_documents, ingest
     from worldkit.periphery.extraction import OracleExtractor
@@ -93,7 +101,9 @@ def _run_ingest(world: Any, args: argparse.Namespace) -> int:
     if not paths:
         print("ERREUR : aucun document (donner les fichiers, ou --batches)")
         return 2
-    report = ingest(world, args.batch, paths, OracleExtractor(Path(args.oracle)))
+    extractor = OracleExtractor(Path(args.oracle)) if args.oracle else _llm_extractor(args)
+    print(f"extracteur : {extractor.version}")
+    report = ingest(world, args.batch, paths, extractor)
     base = report.base
     print(f"lot {report.batch_id} : base {base.branch}, rang {base.seq} (schema_rev {base.schema_rev})")
     print(f"  {len(report.documents)} document(s), passages extraits {report.extracted}, relus du cache {report.cached}")
@@ -107,6 +117,54 @@ def _run_ingest(world: Any, args: argparse.Namespace) -> int:
               f" décisions reprises sans question {report.remembered}")
     for doc in report.obsolete:
         print(f"  {doc} : document obsolète, rien d'ingéré (R-DOC-05)")
+    for where, error in report.errors.items():
+        print(f"  {where} : erreur d'extraction ({error[:160]})")
+    return 0
+
+
+def _run_eval(world: Any, args: argparse.Namespace) -> int:
+    import json as _json
+    from worldkit.ingest.batch import batch_documents, extraction_context
+    from worldkit.periphery.evaluation import evaluate
+    from worldkit.periphery.extraction import OracleExtractor
+    import yaml as _yaml
+    declared = _yaml.safe_load(Path(args.batches).read_text(encoding="utf-8"))["batches"]
+    batches = args.batch or [b["id"] for b in declared]
+    paths = [batch_documents(args.batches, b) for b in batches]
+    from worldkit.ingest.batch import CachedExtractor, schema_fingerprint
+    state = world.state()
+    extractor = _llm_extractor(args)
+    if not args.no_cache:
+        extractor = CachedExtractor(extractor, world, schema_fingerprint(state))
+    print(f"extracteur : {extractor.version} ; {sum(map(len, paths))} document(s) ; répétitions : {args.repeat}")
+    report = evaluate(extractor, OracleExtractor(Path(args.oracle)), Path(args.oracle), paths,
+                      extraction_context(world, state), args.repeat, state)
+    if not args.no_cache:
+        print(f"  cache : {extractor.hits} relu(s), {extractor.flush()} ajouté(s)")
+    summary = report.summary()
+    for k, v in summary.items():
+        if k != "per_op":
+            print(f"  {k} : {v}")
+    for op, m in summary["per_op"].items():
+        print(f"  {op:16} précision {m['precision']:.2f}  rappel {m['recall']:.2f}  (vp {m['tp']}, fp {m['fp']}, fn {m['fn']})")
+    for r in report.passages:
+        missing, extra = r.expected - r.found, r.found - r.expected
+        if missing or extra or r.traps or r.error or not r.attribution_ok:
+            print(f"  -- {r.doc} p{r.index}" + (f" : ERREUR {r.error[:120]}" if r.error else ""))
+            for k in sorted(missing, key=repr):
+                print(f"     manque  {dict(k)}")
+            for k in sorted(extra, key=repr):
+                print(f"     en trop {dict(k)}")
+            for t in r.traps:
+                print(f"     piège   {t}")
+            if not r.attribution_ok:
+                print("     attribution mal détectée")
+    if args.out:
+        Path(args.out).write_text(_json.dumps({"summary": summary, "passages": [
+            {"doc": r.doc, "passage": r.index, "expected": sorted(map(str, r.expected)),
+             "found": sorted(map(str, r.found)), "traps": r.traps, "error": r.error, "stability": r.stability}
+            for r in report.passages]}, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"rapport écrit : {args.out}")
     return 0
 
 
@@ -223,6 +281,8 @@ def _run_world(args: argparse.Namespace) -> int:
     try:
         if args.command == "ingest":
             return _run_ingest(world, args)
+        if args.command == "eval":
+            return _run_eval(world, args)
         if args.command == "review":
             return _run_review(world, args)
         if args.command == "edit":
@@ -355,7 +415,21 @@ def build_parser() -> argparse.ArgumentParser:
     ing.add_argument("batch", help="identifiant du lot (b1…)")
     ing.add_argument("documents", nargs="*", help="documents du lot (sinon : --batches)")
     ing.add_argument("--batches", help="fichier batches.yaml qui déclare les documents du lot")
-    ing.add_argument("--oracle", required=True, help="dossier gold/ lu par l'extracteur oracle (T-ING-19)")
+    ing.add_argument("--oracle", help="dossier gold/ lu par l'extracteur oracle (T-ING-19)")
+    ing.add_argument("--profile", help="profil LLM (voir worldkit-llm.yaml) ; défaut : tasks.extraction")
+    ing.add_argument("--llm-config", default=None, help="fichier de profils LLM (défaut : worldkit-llm.yaml)")
+
+    ev = commands.add_parser("eval", help="mesures T2 d'un extracteur contre le gold")
+    ev_cmds = ev.add_subparsers(dest="eval_command", required=True)
+    evx = ev_cmds.add_parser("extraction", help="précision, rappel, pièges, stabilité")
+    evx.add_argument("--batches", required=True)
+    evx.add_argument("--oracle", required=True, help="dossier gold/")
+    evx.add_argument("--profile", default=None)
+    evx.add_argument("--llm-config", default=None)
+    evx.add_argument("--batch", action="append", help="lot à mesurer (répétable) ; défaut : tous")
+    evx.add_argument("--repeat", type=int, default=1, help="2 pour mesurer la stabilité (deux appels par passage)")
+    evx.add_argument("--out", default=None, help="rapport JSON détaillé")
+    evx.add_argument("--no-cache", action="store_true", help="rappeler le modèle même pour un passage déjà extrait")
 
     review = commands.add_parser("review", help="file de revue des propositions")
     review_cmds = review.add_subparsers(dest="review_command", required=True)
@@ -403,7 +477,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _schema_validate(args.files)
     try:
         return _run_world(args)
-    except (OSError, KeyError, ValueError, ValidationError, yaml.YAMLError) as e:
+    except (OSError, KeyError, ValueError, RuntimeError, ValidationError, yaml.YAMLError) as e:
         print(f"ERREUR : {e}")
         return 2
 

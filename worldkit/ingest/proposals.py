@@ -40,7 +40,7 @@ from worldkit.core.schema.changes import (
 from worldkit.core.schema.check import check_edit, check_fact_change
 from worldkit.core.schema.keys import UnknownRelation, target_keys
 
-from .declaration import Mode, normalize
+from .declaration import Mode, name_key, normalize
 
 NEW = "new:"
 PENDING = "pending:"  # entité dont la création est proposée par un lot en attente (T-ING-07)
@@ -150,7 +150,7 @@ def change_fingerprint(q: Qualified, new_by_id: dict[str, NewEntity]) -> str:
             return [canon(i) for i in x]
         if isinstance(x, str) and x in new_by_id:
             e = new_by_id[x]
-            return ["new", e.type, _norm_value(e.name or e.label)]
+            return ["new", e.type, name_key(e.name or e.label)]
         return x
     c = q.item.change
     keys = q.keys or [(c.op, getattr(c, "entity", None), getattr(c, "from_", None), getattr(c, "relation", None),
