@@ -22,6 +22,7 @@ from worldkit.core.schema import Issue, IssueCode, Schema, load_schema, read_yam
 from worldkit.core.schema.changes import SchemaSetRelation, SchemaSetType, WORLD_SCOPE
 
 SCHEMA_EDIT_ID = "e000"
+_STATUS_FR = {"archived": "archivée", "abandoned": "abandonnée"}
 
 
 def point_name(name: str) -> str:
@@ -103,7 +104,9 @@ class World:
 
     @property
     def reference_branch(self) -> str:
-        return self.decl.reference_branch
+        """Branche de référence courante (R-MON-02) : la dernière de l'historique des références, sinon
+        celle de la déclaration. Un rejeu rétroactif la fait basculer (§6.4)."""
+        return self.store.current_reference() or self.decl.reference_branch
 
     # --- États ---
 
@@ -237,6 +240,9 @@ class World:
             issues.append(Issue(IssueCode.EDIT_RULE, f"identifiant d'édition déjà utilisé : {edit.id}", "R-CYC-01"))
         if edit.branch not in self.store.branches():
             issues.append(Issue(IssueCode.EDIT_RULE, f"branche inconnue : {edit.branch}", "T-BRA-01"))
+        elif (status := self.store.branch_status(edit.branch)) != "active":
+            issues.append(Issue(IssueCode.EDIT_RULE, f"branche {edit.branch} {_STATUS_FR.get(status, status)} : "
+                                "consultable, plus modifiable", "R-HIS-04"))
         return issues
 
     def _commit(self, edit: Edit, state: State, effects: Effects, pending: EditRecord | None) -> int:

@@ -54,6 +54,17 @@ CREATE TRIGGER edits_no_delete BEFORE DELETE ON edits
 """
 
 
+# Ajoutées en J7 ; créées à l'ouverture si absentes (mondes créés avant J7).
+_DDL_J7 = """
+CREATE TABLE IF NOT EXISTS reference_history (
+    rank INTEGER PRIMARY KEY AUTOINCREMENT, branch_id TEXT NOT NULL, replay_id TEXT);
+CREATE TRIGGER IF NOT EXISTS reference_history_u BEFORE UPDATE ON reference_history
+  BEGIN SELECT RAISE(ABORT, 'R-HIS-01 : l''historique des références ne fait que s''allonger'); END;
+CREATE TRIGGER IF NOT EXISTS reference_history_d BEFORE DELETE ON reference_history
+  BEGIN SELECT RAISE(ABORT, 'R-HIS-01 : l''historique des références ne fait que s''allonger'); END;
+"""
+
+
 def encode_keys(keys: Iterable[FactKey]) -> str:
     return json.dumps(sorted((list(k) for k in keys), key=repr), ensure_ascii=False)
 
@@ -83,6 +94,8 @@ class WorldExists(FileExistsError):
 class Store:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self.conn = conn
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'world'").fetchone():
+            conn.executescript(_DDL_J7)
 
     # --- Ouverture ---
 
@@ -93,6 +106,7 @@ class Store:
             raise WorldExists(f"le monde existe déjà : {path}")
         conn = sqlite3.connect(str(path))
         conn.executescript(_DDL)
+        conn.executescript(_DDL_J7)
         store = cls(conn)
         with conn:
             conn.execute("INSERT INTO world VALUES ('declaration', ?)", (_encode_decl(decl),))
@@ -244,6 +258,32 @@ class Store:
             (writes,) = self.conn.execute("SELECT writes FROM edits WHERE edit_id = ?", (edit_id,)).fetchone()
             out |= decode_keys(writes)
         return out
+
+    def branch_status(self, branch: str) -> str:
+        """`active`, `archived` (remplacée par un rejeu, consultable, R-HIS-04) ou `abandoned` (rejeu abandonné)."""
+        row = self.conn.execute("SELECT status FROM branches WHERE branch_id = ?", (branch,)).fetchone()
+        if row is None:
+            raise KeyError(f"branche inconnue : {branch}")
+        return row[0]
+
+    def set_branch_status(self, branch: str, status: str) -> None:
+        self.conn.execute("UPDATE branches SET status = ? WHERE branch_id = ?", (status, branch))
+
+    def children(self, branch: str) -> list[tuple[str, int]]:
+        return self.conn.execute("SELECT branch_id, fork_seq FROM branches WHERE parent = ? ORDER BY branch_id",
+                                 (branch,)).fetchall()
+
+    # --- Branche de référence (R-MON-02 ; historique en ajout seul, décision J7) ---
+
+    def reference_history(self) -> list[tuple[int, str, str | None]]:
+        return self.conn.execute("SELECT rank, branch_id, replay_id FROM reference_history ORDER BY rank").fetchall()
+
+    def current_reference(self) -> str | None:
+        row = self.conn.execute("SELECT branch_id FROM reference_history ORDER BY rank DESC LIMIT 1").fetchone()
+        return row[0] if row else None
+
+    def set_reference(self, branch: str, replay_id: str | None) -> None:
+        self.conn.execute("INSERT INTO reference_history (branch_id, replay_id) VALUES (?, ?)", (branch, replay_id))
 
     def branches(self) -> list[str]:
         return [b for (b,) in self.conn.execute("SELECT branch_id FROM branches ORDER BY branch_id")]

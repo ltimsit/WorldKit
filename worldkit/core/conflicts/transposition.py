@@ -30,6 +30,7 @@ class Divergence:
     kind: str             # "missing" (dépendance absente) | "different" (contradiction)
     assumed: Any          # fait supposé par l'édition (identifiant, ou valeur d'attribut)
     found: Any            # ce que la cible contient
+    written: bool = True  # l'édition écrit la clé (sinon elle ne fait que la lire)
 
     def describe(self) -> str:
         if self.kind == "missing":
@@ -62,12 +63,15 @@ class Analysis:
 
 def keep_changes(analysis: Analysis, changes: list[Any], head: State) -> tuple[list[Any], int]:
     """Garder malgré une contradiction : retirer explicitement chaque fait qui occupe une clé visée
-    (R-FAI-05) ; abandonner les retraits devenus sans objet sur la cible (le fait n'y existe pas),
+    (R-FAI-05) — une clé seulement lue n'est pas touchée ; abandonner les retraits devenus sans objet sur
+    la cible (le fait n'y existe pas),
     puisque libérer la clé est l'affaire du retrait de l'occupant réel. Rend (changements, abandonnés)."""
     from worldkit.core.projection.state import fact_id_of
     from worldkit.core.schema.changes import RemoveRelation
     removals: list[Any] = []
     for d in analysis.contradictions:
+        if not d.written:
+            continue  # clé seulement lue : garder l'édition ne touche pas au fait de la cible
         fid = head.occupancy.get(d.key)
         fact = head.facts.get(fid) if fid is not None else None
         if fact is not None and fact.kind == "rel":
@@ -106,5 +110,5 @@ def analyse(edit_id: str, source: str, source_seq: int, before: State, after: St
         if key in reads and assumed is not None and found is None:
             out.divergences.append(Divergence(key, "missing", assumed, found))
         elif found is not None:
-            out.divergences.append(Divergence(key, "different", assumed, found))
+            out.divergences.append(Divergence(key, "different", assumed, found, key in writes))
     return out
