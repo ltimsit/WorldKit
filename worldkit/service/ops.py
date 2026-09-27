@@ -798,3 +798,202 @@ def replay_status(ctx: Context, p: ReplayId) -> Output:
     out = _replay_report(R.pending_conflict(ctx.world, p.id))
     out.value["steps"] = R.steps(ctx.world, p.id)
     return out
+
+
+# ---------------------------------------------------------------------------
+# Revue complète (I-VUE-05, jalon I5)
+# ---------------------------------------------------------------------------
+
+class ProposalId(Params):
+    proposal: str
+
+
+@operation("review.show", "read", ProposalId, "une proposition : changements, étiquettes, détail, dépendances",
+           ("T-ING-02", "T-ING-05", "T-ING-18"), example={"proposal": "b1.notes-baron.p3.1"})
+def review_show(ctx: Context, p: ProposalId) -> Output:
+    from worldkit.ingest.meta import awaiting_nature
+    from worldkit.ingest.queue import blocked, load_one
+    from worldkit.ingest.review import describe as describe_change
+    assert ctx.world is not None
+    found = load_one(ctx.world, p.proposal)
+    if found is None:
+        raise KeyError(f"proposition inconnue : {p.proposal}")
+    head = ctx.world.state(found.base.branch if found.base else None)
+    return Output({"id": found.id, "batch": found.batch, "doc": found.doc, "passage": found.passage,
+                   "subject": found.subject, "kind": found.kind, "status": found.status, "base": found.base,
+                   "needs_recheck": found.needs_recheck, "depends_on": found.depends_on, "issues": found.issues,
+                   "closed_reason": found.closed_reason, "blocked": blocked(head, found.doc),
+                   "awaiting_nature": awaiting_nature(ctx.world, found),
+                   "changes": [{"index": c.index, "text": describe_change(c.change), "change": c.change,
+                                "tags": sorted(c.tags), "detail": c.detail, "state": c.state} for c in found.changes]})
+
+
+class ChooseParams(Params):
+    proposal: str
+    reason: str | None = None
+
+
+@operation("review.choose", "write", ChooseParams,
+           "trancher un conflit : accepter cette proposition, refuser celles qui la contredisent",
+           ("R-PRI-03", "R-PRI-07"))
+def review_choose(ctx: Context, p: ChooseParams) -> Output:
+    from worldkit.ingest import decide
+    assert ctx.world is not None
+    return _decided(decide.choose(ctx.world, p.proposal, p.reason))
+
+
+class AdaptParams(Params):
+    proposal: str
+    changes: list[dict[str, Any]]
+    replace: bool = Field(False, description="remplacer les changements (sinon : les ajouter avant)")
+    reason: str | None = None
+
+
+@operation("review.adapt", "write", AdaptParams, "confirmer en adaptant : édition dérivée", ("R-EDI-08", "T-ING-04"))
+def review_adapt(ctx: Context, p: AdaptParams) -> Output:
+    from worldkit.core.schema import parse_change
+    from worldkit.ingest import decide
+    assert ctx.world is not None
+    return _decided([decide.adapt(ctx.world, p.proposal, [parse_change(c) for c in p.changes], p.replace, p.reason)])
+
+
+class QualifyParams(Params):
+    target: str = Field(description="proposition d'affirmation, ou affirmation déjà dans l'état")
+    value: Literal["true", "false", "undetermined"]
+    visibility: str | None = None
+    reason: str | None = None
+
+
+@operation("review.qualify", "write", QualifyParams, "qualifier une affirmation", ("R-DOC-07", "T-ING-12"))
+def review_qualify(ctx: Context, p: QualifyParams) -> Output:
+    from worldkit.ingest import decide
+    assert ctx.world is not None
+    return _decided([decide.qualify(ctx.world, p.target, p.value, p.visibility, p.reason)])
+
+
+class PromoteClaimParams(Params):
+    proposal: str
+    visibility: str | None = None
+    reason: str | None = None
+
+
+@operation("review.promote", "write", PromoteClaimParams, "promouvoir une affirmation en fait", ("R-DOC-07",))
+def review_promote(ctx: Context, p: PromoteClaimParams) -> Output:
+    from worldkit.ingest import decide
+    assert ctx.world is not None
+    return _decided([decide.promote(ctx.world, p.proposal, p.visibility, p.reason)])
+
+
+class AbandonParams(Params):
+    proposals: list[str]
+    reason: str | None = None
+
+
+@operation("review.abandon", "write", AbandonParams, "abandonner des propositions (tracé)", ("R-CYC-02",))
+def review_abandon(ctx: Context, p: AbandonParams) -> Output:
+    from worldkit.ingest import decide
+    assert ctx.world is not None
+    return _decided([decide.abandon(ctx.world, pid, p.reason) for pid in p.proposals])
+
+
+class DismissParams(Params):
+    document: str
+    passage: int
+    reason: str | None = None
+
+
+@operation("review.dismiss", "write", DismissParams, "écarter un passage signalé (attribution)", ("R-DEC-03",))
+def review_dismiss(ctx: Context, p: DismissParams) -> Output:
+    from worldkit.ingest import decide
+    assert ctx.world is not None
+    decide.dismiss(ctx.world, p.document, p.passage, p.reason)
+    return Output({"document": p.document, "passage": p.passage, "dismissed": True})
+
+
+# ---------------------------------------------------------------------------
+# Points, branches, scénarios, pistes, déroulés (parcours exécutables, I5)
+# ---------------------------------------------------------------------------
+
+class PointParams(Params):
+    name: str
+    point: str | int | None = Field(None, description="rang ou point (défaut : tête)")
+    branch: str | None = None
+
+
+@operation("point.set", "write", PointParams, "nommer un rang du journal (@base)", ("T-STO-01",),
+           example={"name": "@essai"})
+def point_set(ctx: Context, p: PointParams) -> Output:
+    assert ctx.world is not None
+    seq = ctx.world.set_point(p.name, p.point, p.branch)
+    return Output({"name": p.name, "seq": seq, "branch": _branch(ctx, p.branch)})
+
+
+class BranchCreate(Params):
+    name: str
+    from_: str | None = Field(None, alias="from", description="branche d'origine (défaut : référence)")
+    point: str | int | None = Field(None, description="point de divergence (défaut : tête)")
+
+
+@operation("branch.create", "write", BranchCreate, "créer une branche depuis un état", ("R-HIS-03", "T-BRA-01"),
+           example={"name": "variante-essai", "point": "@base"})
+def branch_create(ctx: Context, p: BranchCreate) -> Output:
+    assert ctx.world is not None
+    seq = ctx.world.create_branch(p.name, p.from_, p.point)
+    return Output({"branch": p.name, "from": p.from_ or ctx.world.reference_branch, "fork_seq": seq})
+
+
+class FilesParams(Params):
+    files: list[str]
+
+
+@operation("scenario.load", "write", FilesParams, "charger des scénarios (versions nouvelles seulement)",
+           ("R-SCN-01", "R-SCN-04"))
+def scenario_load(ctx: Context, p: FilesParams) -> Output:
+    from worldkit.core.workflows import scenarios as S
+    assert ctx.world is not None
+    return Output({f: S.load_scenario(ctx.world, f) for f in p.files})
+
+
+class DraftsParams(Params):
+    file: str
+    branch: str | None = None
+
+
+@operation("drafts.load", "write", DraftsParams, "charger des pistes d'auteur (éditions en attente)", ("R-SCN-09",))
+def drafts_load(ctx: Context, p: DraftsParams) -> Output:
+    from worldkit.core.workflows import scenarios as S
+    assert ctx.world is not None
+    outcomes = S.load_author_drafts(ctx.world, p.file, p.branch)
+    return Output([{"edit": o.edit_id, "status": o.status} for o in outcomes], [i for o in outcomes for i in o.issues])
+
+
+class PlayParams(Params):
+    playthrough: str = Field(description="déroulé du fichier (pt-1)")
+    file: str = Field(description="fichier des déroulés (playthroughs.yaml)")
+    id: str | None = Field(None, description="identifiant du déroulé joué (défaut : celui du fichier)")
+    branch: str | None = None
+    version: int | None = None
+    confirmations: list[dict[str, Any]] | None = Field(None, description="remplace les pistes confirmées du fichier")
+    free: list[dict[str, Any]] | None = Field(None, description="remplace les éditions libres du fichier")
+
+
+@operation("scenario.play", "write", PlayParams, "jouer un déroulé sur une branche", ("R-SCN-05", "R-SCN-06"))
+def scenario_play(ctx: Context, p: PlayParams) -> Output:
+    from worldkit.core.schema import parse_change
+    from worldkit.core.workflows import scenarios as S
+    assert ctx.world is not None
+    scenario, version, branch, confirmations, free = S.load_playthrough(p.file, p.playthrough)
+    if p.confirmations is not None:
+        confirmations = [S.Confirmation(c["draft"], tuple(parse_change(x) for x in c["changes"]) if c.get("changes")
+                                        else None, c.get("decision", "auto")) for c in p.confirmations]
+    if p.free is not None:
+        free = [(f.get("title", "édition libre"), [parse_change(x) for x in f["changes"]]) for f in p.free]
+    report = S.play(ctx.world, p.id or p.playthrough, scenario, p.version or version, confirmations, free,
+                    p.branch or branch)
+    items = [{"draft": i.draft, "title": i.title, "outcome": i.outcome, "edit": i.edit_id, "adapted": i.adapted,
+              "divergences": [d.describe() for d in i.analysis.divergences] if i.analysis else []}
+             for i in report.items]
+    return Output({"playthrough": report.playthrough, "branch": report.branch, "scenario": report.scenario,
+                   "version": report.version, "items": items}, report.warnings + [x for i in report.items for x in i.issues],
+                  {"applied": sum(1 for i in report.items if i.outcome == "applied"),
+                   "conflicts": sum(1 for i in report.items if i.outcome == "conflict")})

@@ -242,6 +242,50 @@ for p in sorted((V / "gold").glob("*.yaml")):
                 if k not in base_facts or base_facts[k] == v:
                     err(f"{p.name} p{idx} : anomalie attendue mais pas de collision sur {k}")
 
+# ---------- 7. parcours (format exécutable, jalon I5) ----------
+VERBS = {"load_world", "apply_edits", "set_point", "ingest_batch", "decide", "apply_edit", "create_branch", "transpose",
+         "play", "load_scenarios", "load_drafts", "retroactive_redefinition", "validate_schema"}
+ACTIONS = {"accept", "refuse", "choose", "adapt", "qualify", "promote", "abandon", "dismiss", "nature", "leave_pending"}
+CHECKS = {"fact", "no_fact", "pending", "proposal", "support", "signal", "page", "branch", "step", "call"}
+wts = load(V / "walkthroughs" / "walkthroughs.yaml")["walkthroughs"]
+ids = [w["id"] for w in wts]
+if len(ids) != len(set(ids)):
+    err("parcours : identifiants en double")
+by_id = {w["id"]: w for w in wts}
+def cycle(w, stack=()):
+    if w in stack:
+        return True
+    return any(cycle(r, stack + (w,)) for r in by_id.get(w, {}).get("requires", []) or [])
+for w in wts:
+    where = f"parcours {w['id']}"
+    for r in w.get("requires", []) or []:
+        if r not in by_id:
+            err(f"{where} : prérequis inconnu {r}")
+    if cycle(w["id"]):
+        err(f"{where} : prérequis circulaires")
+    for i, st in enumerate(w.get("steps", []) or [], start=1):
+        if st.get("do") not in VERBS:
+            err(f"{where} étape {i} : verbe inconnu {st.get('do')}")
+        for d in st.get("decisions", []) or []:
+            if "all" in d:
+                if d["all"] not in ("accept", "abandon") or "batch" not in d:
+                    err(f"{where} étape {i} : « all » attend accept|abandon et un lot (batch)")
+            elif st["do"] == "decide" and d.get("action") not in ACTIONS:
+                err(f"{where} étape {i} : action inconnue {d.get('action')}")
+            if "/" in str(d.get("proposal", "")) or "claim" in d:
+                err(f"{where} étape {i} : proposition désignée de façon informelle ({d.get('proposal') or d.get('claim')})")
+    for e in w.get("expect", []) or []:
+        if isinstance(e, str):
+            continue
+        if not isinstance(e, dict) or "text" not in e:
+            err(f"{where} : attendu structuré sans « text »")
+            continue
+        for c in e.get("checks", []) or []:
+            if c.get("check") not in CHECKS:
+                err(f"{where} : vérification inconnue {c.get('check')}")
+structured = [w["id"] for w in wts if any(isinstance(e, dict) for e in w.get("expect", []) or [])]
+notes.append(f"parcours aux attendus structurés : {', '.join(structured) or 'aucun'}")
+
 # ---------- rapport ----------
 print(f"Entités de base : {len(base_entities)} ; faits de base : {len(base_facts)}")
 for n in notes: print("NOTE   ", n)

@@ -1,5 +1,11 @@
 # Parcours de test : séquences d'actions et résultats attendus, rejouables de bout en bout.
 # Chaque parcours indique le jalon où il devient exécutable et les règles qu'il exerce.
+# Format exécutable (jalon I5, cadre d'interface I-ACC-01) :
+#   - requires : parcours à rejouer avant (chaîne de prérequis) ;
+#   - décisions : identifiants réels de propositions et actions du service (accept [keep, drop_optional],
+#     refuse [changes], choose, adapt, qualify, promote, abandon, dismiss, nature, leave_pending ; all: accept|abandon) ;
+#   - attendus : une phrase (non structuré, vérifié à l'œil) ou {text, checks} (vérifications typées :
+#     fact, no_fact, pending, proposal, support, signal, page, branch, step, call).
 # Les parcours W01 à W12, W14 et W16 s'enchaînent sur la branche « reference » ; W13, W15 et W17 créent des branches.
 # Points nommés : @base, @after-b1, @after-b4, @after-siege (utilisés par scenarios/ et questions.yaml).
 
@@ -42,6 +48,7 @@ walkthroughs:
   - id: W02
     title: "Ingestion du premier lot (b1)"
     milestone: J3
+    requires: [W01]
     rules: [R-DOC-01, T-ING-01, T-ING-02, T-ING-03, T-ING-05, T-ING-07, R-PRI-03, R-ING-02, R-SCH-06, R-DEC-02, R-DEC-03]
     steps:
       - { do: ingest_batch, batch: b1, extractor: oracle }
@@ -61,6 +68,7 @@ walkthroughs:
   - id: W03
     title: "Lot b5 ingéré pendant que b1 est en attente"
     milestone: J3
+    requires: [W02]
     rules: [R-PRI-02, R-PRI-07, T-ING-08, T-ING-18]
     steps:
       - { do: ingest_batch, batch: b5, extractor: oracle }
@@ -73,6 +81,7 @@ walkthroughs:
   - id: W04
     title: "Péremption : une édition structurée pendant la revue"
     milestone: J3
+    requires: [W03]
     rules: [T-ING-06, R-HIS-05]
     steps:
       - do: apply_edit
@@ -89,19 +98,28 @@ walkthroughs:
   - id: W05
     title: "Revue des lots b1 et b5"
     milestone: J3
+    requires: [W04]
     rules: [R-EDI-08, R-CYC-02, R-PRI-04, R-PRI-07, T-ING-04, T-ING-06]
     steps:
       - do: decide
         decisions:
-          - { proposal: "b1/notes p3", action: confirm_partial, keep: [create_entity, set_attribute name], refuse: [add_relation rules brume] }
-          - { proposal: "b1/notes p4 member_of", action: accept }
-          - { proposal: "based_in (conflit de lot + concurrence)", action: choose, value: brume }
-          - { proposal: "b1/notes p5", action: accept, include_visibility: secret }
-          - { proposal: "b1/notes p6", action: dismiss }
-          - { proposal: "title (régent / gouverneur)", action: refuse_all }
-          - { proposal: "b1/lieux p3 taverne", action: accept, drop_optional: [contrebandiers] }
-          - { proposal: "b1/lieux p4 alias Roi Gris", action: accept }
-          - { proposal: "b1/notes p2 vassal_of", action: leave_pending }
+          # p3 : garder la création du conseil et son nom, pas « le conseil gouverne Brume » (changement 2)
+          - { proposal: b1.notes-baron.p3.1, action: accept, keep: [0, 1] }
+          - { proposal: b1.notes-baron.p4.1, action: accept }
+          # conflit de lot et concurrence sur (conseil, based_in) : choisir Brume
+          - { proposal: b1.notes-baron.p4.2, action: choose }
+          # p5 : l'appartenance, puis l'indice « en secret »
+          - { proposal: b1.notes-baron.p5.1, action: accept }
+          - { proposal: b1.notes-baron.p5.2, action: accept }
+          - { document: notes-baron, passage: 6, action: dismiss }
+          # titre : ni « régent » (b1) ni « gouverneur » (b5, changement 1)
+          - { proposal: b1.notes-baron.p7.1, action: refuse }
+          - { proposal: b5.notes-conseil.p2.1, action: refuse, changes: [1] }
+          # taverne oui, contrebandiers (facultatif) non
+          - { proposal: b1.lieux-de-valmont.p3.1, action: accept }
+          - { proposal: b1.lieux-de-valmont.p3.2, action: refuse }
+          - { proposal: b1.lieux-de-valmont.p4.1, action: accept }
+          - { proposal: b1.notes-baron.p2.1, action: leave_pending }
       - { do: set_point, name: "@after-b1" }
     expect:
       - "Édition appliquée pour le conseil : création + nom seulement, derived_from = proposition notes p3 ; la relation rules refusée a une décision tracée."
@@ -114,18 +132,19 @@ walkthroughs:
   - id: W06
     title: "Chronique de la Chute : affirmations et qualification"
     milestone: J3
+    requires: [W05]
     rules: [R-DOC-06, R-DOC-07, R-DOC-08, R-NOT-05, T-ING-12]
     steps:
       - { do: ingest_batch, batch: b2, extractor: oracle }
       - do: decide
         decisions:
-          - { claim: "mort au combat", action: qualify, value: false }
-          - { claim: "Chute en 1492", action: qualify, value: true }
-          - { claim: "Mervin règne", action: qualify, value: true }
-          - { claim: "Corvin mort dans l'incendie", action: qualify, value: false }
-          - { claim: "le Loup hante les plaines", action: qualify, value: true }
-          - { claim: "achevée en 1493", action: promote, visibility: public }
-          - { claim: "commandée par Mervin", action: qualify, value: true }
+          - { proposal: b2.chronique-de-la-chute-extraits.p1.1, action: qualify, value: false }   # mort au combat
+          - { proposal: b2.chronique-de-la-chute-extraits.p1.2, action: qualify, value: true }    # Chute en 1492
+          - { proposal: b2.chronique-de-la-chute-extraits.p2.1, action: qualify, value: true }    # Mervin règne
+          - { proposal: b2.chronique-de-la-chute-extraits.p3.1, action: qualify, value: false }   # Corvin mort dans l'incendie
+          - { proposal: b2.chronique-de-la-chute-extraits.p4.1, action: qualify, value: true }    # le Loup hante les plaines
+          - { proposal: b2.chronique-de-la-chute-extraits.p5.1, action: promote, visibility: public }  # achevée en 1493
+          - { proposal: b2.chronique-de-la-chute-extraits.p5.2, action: qualify, value: true }    # commandée par Mervin
     expect:
       - "Aucun fait créé par l'ingestion elle-même ; uniquement des add_claim, publics par héritage du document."
       - "Suggestions du noyau conformes au gold (false, true, true, false, true, undetermined, undetermined, undetermined, true)."
@@ -137,10 +156,11 @@ walkthroughs:
   - id: W07
     title: "Les Veilleurs : valeurs multiples, marqueur, indice"
     milestone: J3
+    requires: [W06]
     rules: [R-FAI-05, R-DEC-01, T-ING-15]
     steps:
       - { do: ingest_batch, batch: b3, extractor: oracle }
-      - { do: decide, decisions: [ { all: accept } ] }
+      - { do: decide, decisions: [ { all: accept, batch: b3 } ] }
     expect:
       - "add_value vows « pauvreté » : enrichissement, aucune collision avec « silence »."
       - "p4 : le segment balisé produit une affirmation de la Chronique, le reste du passage rien."
@@ -150,10 +170,15 @@ walkthroughs:
   - id: W08
     title: "Bestiaire : fiche, système, détection de nature"
     milestone: J8
+    requires: [W07]
     rules: [R-MET-01, R-MET-02, R-MET-06, R-SCH-02, R-SCH-06, R-SCH-10, R-DEC-02, R-DEC-03]
     steps:
       - { do: ingest_batch, batch: b4, extractor: oracle }
-      - { do: decide, decisions: [ { passage: 6, action: accept_nature, nature: meta_sheet }, { passage: 6, action: accept }, { passage: 2, action: accept } ] }
+      - do: decide
+        decisions:
+          - { document: bestiaire-loup-de-cendre, passage: 6, action: nature, decision: accept }
+          - { proposal: b4.bestiaire-loup-de-cendre.p6.1, action: accept }
+          - { proposal: b4.bestiaire-loup-de-cendre.p2.1, action: accept }
       - { do: set_point, name: "@after-b4" }
       - do: apply_edit
         edit:
@@ -163,22 +188,38 @@ walkthroughs:
           changes:
             - { op: schema_set_type, scope: system-a, type: Creature, attribute: hp, constraint: { min: 6, max: 10 } }
     expect:
-      - "Avant J8 : les passages 3, 4 et 6 sont découpés et conservés sans produire de propositions."
-      - "p3 : supports pour la fiche A ; « Constitution 13 » hors schéma (système A)."
-      - "p6 : nature méta PROPOSÉE (détection), jamais décidée ; après acceptation, fiche B créée et le signalement de fiche manquante disparaît."
-      - "Après e102 : la fiche A du Loup (PV 5) est signalée non conforme, sans être modifiée."
+      - text: "Natures (J8, R-DEC-04) : p3 et p4 méta par marqueur, les autres passages à déterminer ; p6, sans marqueur, porte une question de nature."
+        checks:
+          - { check: call, op: document.declare, params: { file: corpus/valmont-v1/valmont/docs/b4/bestiaire-loup-de-cendre.md }, path: [output, passages, 2, nature], equals: meta }
+          - { check: call, op: document.declare, params: { file: corpus/valmont-v1/valmont/docs/b4/bestiaire-loup-de-cendre.md }, path: [output, passages, 5, nature], equals: undetermined }
+          - { check: step, step: 1, path: [output, flagged, "bestiaire-loup-de-cendre p6"], contains: nature_detected }
+      - text: "p3 : supports pour la fiche A ; « Constitution 13 » hors schéma (système A)."
+        checks:
+          - { check: support, key: [attr, loup-de-cendre@system-a, hp] }
+          - { check: support, key: [value, loup-de-cendre@system-a, abilities, "system-a:bite"] }
+          - { check: proposal, id: b4.bestiaire-loup-de-cendre.p3.1, status: pending, tags: [out_of_schema] }
+      - text: "p6 : nature méta PROPOSÉE (détection), jamais décidée ; après acceptation, fiche B créée et le signalement de fiche manquante disparaît."
+        checks:
+          - { check: fact, id: [attr, loup-de-cendre@system-b, level], value: 7 }
+          - { check: fact, id: [attr, loup-de-cendre@system-b, threat], value: 8 }
+          - { check: signal, code: missing_sheet, path: loup-de-cendre@system-b, present: false }
+      - text: "Après e102 : la fiche A du Loup (PV 5) est signalée non conforme, sans être modifiée."
+        checks:
+          - { check: fact, id: [attr, loup-de-cendre@system-a, hp], value: 5 }
+          - { check: signal, code: non_conforming, path: loup-de-cendre@system-a.hp }
 
   - id: W09
     title: "Hors schéma : étendre le schéma dans la même édition"
     milestone: J3
+    requires: [W08]
     rules: [R-SCH-03, R-SCH-06, R-SCH-10, R-MET-05, R-EDI-08]
     steps:
-      - { do: decide, decisions: [ { proposal: "b1/notes p2 vassal_of", action: accept } ] }
+      - { do: decide, decisions: [ { proposal: b1.notes-baron.p2.1, action: accept, expect_refused: true } ] }
       - do: decide
         decisions:
-          - proposal: "b1/notes p2 vassal_of"
-            action: confirm_adapted
-            prepend:
+          - proposal: b1.notes-baron.p2.1
+            action: adapt
+            changes:
               - { op: schema_set_relation, scope: world, relation: vassal_of, definition: { from: Character, to: Character, cardinality: many_to_one, labels: { fr: "vassal de" } } }
     expect:
       - "Première tentative refusée : changement hors schéma (R-SCH-06)."
@@ -187,13 +228,15 @@ walkthroughs:
   - id: W10
     title: "Ré-ingestion de notes-baron (v2)"
     milestone: J3
+    requires: [W09]
     rules: [R-DOC-04, R-PRI-04, R-FAI-01, R-FAI-06, T-ING-08, T-ING-09, T-ING-10, T-ING-11]
     steps:
       - { do: ingest_batch, batch: b6, extractor: oracle }
       - do: decide
         decisions:
-          - { proposal: "régent par intérim", action: refuse }
-          - { proposal: "Maëlle", action: accept, refuse: [ward_of] }
+          - { proposal: b6.notes-baron.p5.1, action: refuse }             # régent par intérim
+          - { proposal: b6.notes-baron.p6.1, action: accept, keep: [0, 1] }  # Maëlle, sans « confiée aux Veilleurs » (hors schéma)
+          - { proposal: b6.notes-baron.p6.2, action: accept }             # Maëlle, fille d'Odon
     expect:
       - "Passages 1 à 4 inchangés : aucune extraction, aucune question."
       - "Le fait « Odon membre du Cercle des Cendres » devient orphelin et reste dans l'état."
@@ -203,10 +246,11 @@ walkthroughs:
   - id: W11
     title: "Mode edit : diff présenté, puis abandonné"
     milestone: J3
+    requires: [W10]
     rules: [R-ING-01, R-PRI-01, R-CYC-02, R-CYC-04]
     steps:
       - { do: ingest_batch, batch: b7, extractor: oracle }
-      - { do: decide, decisions: [ { all: abandon, reason: "le siège sera joué en scénario" } ] }
+      - { do: decide, decisions: [ { all: abandon, batch: b7, reason: "le siège sera joué en scénario" } ] }
     expect:
       - "Les deux changements sont présentés comme intentions, en diff (odon → conseil sur (rules, brume) ; titre baron → vide)."
       - "Rien n'est appliqué sans confirmation ; l'abandon est tracé (statut abandoned)."
@@ -214,6 +258,7 @@ walkthroughs:
   - id: W12
     title: "Scénarios, pistes et déroulés"
     milestone: J6
+    requires: [W11]
     rules: [R-SCN-01, R-SCN-03, R-SCN-04, R-SCN-05, R-SCN-06, R-SCN-07, R-SCN-08, R-SCN-09, R-CYC-03, R-MET-05, R-VUE-02]
     steps:
       - { do: load_scenarios, files: [scenarios/eveil-du-loup.yaml, scenarios/siege-de-brume.yaml] }
@@ -234,6 +279,7 @@ walkthroughs:
   - id: W13
     title: "Variante : redéfinition ponctuelle puis transposition"
     milestone: J5
+    requires: [W12]
     rules: [R-HIS-03, R-HIS-05, R-MON-04, R-SCN-08, R-VUE-03, §6.3]
     steps:
       - { do: create_branch, name: variante-mj, from: "@base" }
@@ -247,7 +293,14 @@ walkthroughs:
             # Retrait explicite d'Odon : un ajout sur une clé occupée exige de retirer l'occupant (R-FAI-05)
             - { op: remove_relation, from: odon, relation: rules, to: brume }
             - { op: add_relation, from: mervin, relation: rules, to: brume, visibility: public }
-      - { do: transpose, scenario: siege-de-brume, version: latest, to: variante-mj, playthrough_like: pt-2 }
+      - do: transpose
+        scenario: siege-de-brume
+        to: variante-mj
+        playthrough_like: pt-2
+        id: pt-2-variante
+        version: 2
+        confirmations: [ { draft: x-d1 }, { draft: x-d3 } ]
+        free: []
     expect:
       - "e201 remplace Odon par Mervin sur la clé (rules, brume) de la variante uniquement."
       - "Vue de la variante au point @base : « gouvernement de Brume redéfini plus tard »."
@@ -259,6 +312,7 @@ walkthroughs:
   - id: W14
     title: "Document obsolète"
     milestone: J3
+    requires: [W12]
     rules: [R-DOC-05, R-PRI-01, R-EDI-09]
     steps:
       - { do: ingest_batch, batch: b8, extractor: oracle }
@@ -276,6 +330,7 @@ walkthroughs:
   - id: W15
     title: "Redéfinition rétroactive : Aldren est mort de fièvre"
     milestone: J7
+    requires: [W13]
     rules: [R-RED-01, R-RED-02, R-RED-03, R-RED-04, R-HIS-01, R-HIS-04, R-MON-02]
     steps:
       - do: retroactive_redefinition
@@ -284,17 +339,41 @@ walkthroughs:
         changes:
           - { op: set_attribute, entity: aldren-ii, attribute: death_cause, value: "fièvre", visibility: secret }
           - { op: remove_relation, from: mervin, relation: killed, to: aldren-ii }
+        decisions:
+          - { action: keep }   # la qualification « mort au combat : fausse » (W06), présentée par le rejeu
     expect:
-      - "Aperçu d'impact avant confirmation : les éditions ultérieures qui lisent (aldren-ii, death_cause) ou (killed, aldren-ii) sont comptées (la qualification « mort au combat : fausse » de W06)."
-      - "Rejeu : toutes les autres éditions passent sans intervention ; la qualification de W06 est présentée à l'humain, qui la garde (« combat » reste faux)."
-      - "La piste ad-2 (retirer le meurtre) passe à revérifier ; ad-1 non concernée."
-      - "La nouvelle branche devient la branche de référence ; l'ancienne est archivée et consultable."
-      - "La variante variante-mj est notifiée, pas modifiée."
-      - "Vues antérieures de la nouvelle branche : Aldren mort de fièvre depuis l'ancrage."
+      - text: "Aperçu d'impact avant confirmation : les éditions ultérieures qui lisent (aldren-ii, death_cause) ou (killed, aldren-ii) sont comptées (la qualification « mort au combat : fausse » de W06)."
+        checks:
+          - { check: step, step: 1, call: 0, status: ok, path: [output, edits, 0, edit], equals: b2.chronique-de-la-chute-extraits.p1.1.d }
+          - { check: step, step: 1, call: 0, path: [output, pending, 0, edit], equals: ad-2 }
+      - text: "Rejeu : toutes les autres éditions passent sans intervention ; la qualification de W06 est présentée à l'humain, qui la garde (« combat » reste faux)."
+        checks:
+          - { check: step, step: 1, call: 1, status: pending, path: [output, current], equals: b2.chronique-de-la-chute-extraits.p1.1.d }
+          - { check: step, step: 1, call: 2, status: ok, path: [output, replay, status], equals: finished }
+          - { check: page, entity: chronique-de-la-chute, branch: reference-r1, contains: ["« Aldren est mort en combattant les pillards de Cendrelande. » — qualifiée fausse"] }
+      - text: "La piste ad-2 (retirer le meurtre) passe à revérifier ; ad-1 non concernée."
+        checks:
+          - { check: pending, edit: ad-2@reference-r1, needs_recheck: true }
+          - { check: pending, edit: ad-1@reference-r1, needs_recheck: false }
+      - text: "La nouvelle branche devient la branche de référence ; l'ancienne est archivée et consultable."
+        checks:
+          - { check: branch, id: reference-r1, reference: true, status: active }
+          - { check: branch, id: reference, status: archived }
+          - { check: fact, branch: reference, id: [attr, aldren-ii, death_cause], value: poison }
+      - text: "La variante variante-mj est notifiée, pas modifiée."
+        checks:
+          - { check: signal, branch: variante-mj, code: archived_branch, rule: R-RED-04 }
+          - { check: branch, id: variante-mj, status: active }
+          - { check: fact, branch: variante-mj, id: [attr, aldren-ii, death_cause], value: poison }
+      - text: "Vues antérieures de la nouvelle branche : Aldren mort de fièvre depuis l'ancrage."
+        checks:
+          - { check: fact, branch: reference-r1, point: "@base", id: [attr, aldren-ii, death_cause], value: fièvre }
+          - { check: no_fact, branch: reference-r1, point: "@base", id: [rel, mervin, killed, aldren-ii] }
 
   - id: W16
     title: "Corrections : doublon et entité inventée"
     milestone: J3
+    requires: [W14]
     rules: [R-IDT-01, R-IDT-02, R-IDT-04, R-EDI-07, R-HIS-04]
     steps:
       - do: apply_edit
@@ -327,6 +406,7 @@ walkthroughs:
   - id: W17
     title: "Changer l'ordre des scénarios"
     milestone: J6
+    requires: [W12]
     rules: [R-HIS-06, R-SCN-07, R-SCN-08]
     steps:
       - { do: create_branch, name: ordre-inverse, from: "@after-b4" }

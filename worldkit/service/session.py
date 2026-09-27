@@ -124,6 +124,16 @@ class Session:
         sid = self.runs.add_sandbox(str(file), origin, heads, note)
         return self.runs.sandbox(sid)
 
+    def create_acceptance(self, world_yaml: str | Path, walkthrough: str) -> Sandbox:
+        """Monde d'acceptation neuf, créé depuis `world.yaml`, enregistré comme un bac consultable ; son origine
+        (`acceptance:<parcours>`) le rend impossible à promouvoir (I-ACC-01)."""
+        n = self.runs.next_sandbox_id()
+        file = self.db.with_name(f"{self.db.stem}.acceptance-{n}.db")
+        world = World.create(file, world_yaml)
+        world.close()
+        sid = self.runs.add_sandbox(str(file), f"acceptance:{walkthrough}", {}, f"parcours {walkthrough}")
+        return self.runs.sandbox(sid)
+
     def drop_sandbox(self, sandbox_id: int) -> Sandbox:
         """Jeter un bac : son fichier est supprimé, ses exécutions restent (décision I1)."""
         sandbox = self.runs.sandbox(sandbox_id)
@@ -154,6 +164,8 @@ class Session:
         box = self.runs.sandbox(sandbox_id)
         if box.status != "active":
             raise ValueError(f"bac à sable {sandbox_id} {box.status} : rien à rendre réel")
+        if box.origin.startswith("acceptance:"):
+            raise ValueError(f"le bac {sandbox_id} est un monde d'acceptation ({box.origin}) : il ne se rend pas réel")
         steps = [(rec, self.runs.result(rec.id)) for b, upto in self.chain(sandbox_id)
                  for rec in self.runs.writes(b.target, upto)]
         rehearsal = self.create_sandbox(WORLD, note=f"répétition du bac {sandbox_id}")
