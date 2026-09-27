@@ -209,6 +209,8 @@ def meta_draft(change: dict[str, Any], systems: dict[str, Schema]) -> dict[str, 
     for pair in change.get("values") or []:
         attr = _system_attribute(schema, pair["attribute"])
         v = _coerce_def(pair["value"], attr)
+        if attr is None and _int(v) is not None:
+            v = _int(v)  # attribut hors système (« Constitution 13 ») : une valeur de fiche chiffrée reste un entier
         if attr is not None and attr.type.is_list:
             values.setdefault(pair["attribute"], []).append(v)
         else:

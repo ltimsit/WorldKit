@@ -320,3 +320,13 @@ def test_meta_passages_are_measured_after_translation_J8():
     assert p6.found == p6.expected  # sheet_values traduit = création de la fiche B, niveau, menace
     p4 = next(r for r in llm.passages if r.index == 4)
     assert p4.found == p4.expected and p4.found <= p4.supports
+
+
+def test_numeric_value_of_an_attribute_unknown_to_the_system_stays_an_integer_J8():
+    """Mesure réelle (Haiku, b4 p3) : « Constitution 13 » arrivait en chaîne, faute d'attribut déclaré."""
+    from worldkit.periphery.llm_extractor import meta_draft
+    world = base_world()
+    draft = meta_draft(meta_change("sheet_values", entity="loup-de-cendre", system="system-a",
+                                   values=[{"attribute": "constitution", "value": "13"},
+                                           {"attribute": "note", "value": "rapide"}]), world.state().systems)
+    assert draft["values"] == {"constitution": 13, "note": "rapide"}
