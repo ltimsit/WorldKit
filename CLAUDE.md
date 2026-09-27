@@ -10,7 +10,8 @@ Par ordre de priorité en cas de divergence :
 
 1. **`docs/cadre-fondation.md`** — base de vérité du modèle conceptuel. Règles `R-XXX-nn`, invariants (§9), périmètre (§1.4), glossaire FR ↔ EN (§3).
 2. **`docs/cadre-technique.md`** — décisions techniques `T-XXX-nn` (toutes validées), modules M1–M11, impact du noyau sur l'ingestion (§5), stratégie de test, jalons J0–J8.
-3. **`docs/analyse-structuration-narrative-jdr.md`** — document historique : le *pourquoi* des décisions. À consulter pour le contexte, jamais pour les règles.
+3. **`docs/cadre-interface.md`** — interface conçue comme banc d'essai : objectifs, principes, étapes du pipeline, espaces, indicateurs ; décisions `I-XXX-nn`, questions `QI-nn`.
+4. **`docs/analyse-structuration-narrative-jdr.md`** — document historique : le *pourquoi* des décisions. À consulter pour le contexte, jamais pour les règles.
 
 Lis le cadre concerné **avant** de coder une fonctionnalité. Ne devine pas une règle : cherche son identifiant.
 
@@ -66,7 +67,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **J6 — fait** (branche `j6-scenarios`) : scénarios versionnés, pistes d'auteur, déroulés, transposition de scénario, pistes ouvertes sur les pages (`worldkit/core/workflows/`).
 - **J7 — fait** (branche `j7-replay`) : redéfinition rétroactive (T-RED-01) — aperçu d'impact, session de rejeu suspendable, reprenable et abandonnable, bascule de la référence (historique en ajout seul), ancienne branche archivée, report des points, pistes, propositions et déroulés, variantes signalées (`worldkit/core/workflows/replay.py`, `worldkit/ingest/carry.py`).
 - **J8 — fait** (branche `j8-meta`) : méta à l'ingestion (T-ING-20) — nature des passages, garde de classement, questions de nature (`worldkit review nature`), formes réduites LLM `sheet_values` / `schema_constraint`, T2 étendu au méta (`worldkit/ingest/meta.py`). Fiche : `docs/j8-brief.md`. La mesure T2 réelle du méta attend l'accord de l'auteur (quota).
-- **Prochain** : second jet du corpus écrit par l'auteur (choix du LLM, T-TST-01) ; interface au-delà de la ligne de commande (tests humains de J7 et J8 en attente) (cadre technique §7, §8).
+- **I0 — fait** : cadre d'interface validé (`docs/cadre-interface.md` v0.2, décisions I-TEC-01 à I-LLM-01).
+- **Prochain : I1** (couche de service, forme commune d'un résultat, exécutions `monde.runs.db`, bacs à sable), puis I2 (FastAPI, lecture). En parallèle, côté auteur : second jet du corpus (choix du LLM, T-TST-01).
 - Lacunes L1, L2, L6 du corpus tranchées avant J8 (cadre R-MET-02, R-MET-04, T-FAI-01 ; analyse 00.50) : toutes les lacunes du corpus v1 sont closes.
 
 ## Carte du code
