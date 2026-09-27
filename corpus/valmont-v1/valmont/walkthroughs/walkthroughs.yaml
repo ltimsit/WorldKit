@@ -222,7 +222,7 @@ walkthroughs:
       - { do: play, playthrough: pt-2 }
       - { do: set_point, name: "@after-siege" }
     expect:
-      - "Wiki d'auteur, page Odon (avant pt-2) : deux pistes ouvertes (ad-1, ad-2) et trois pistes du scénario X."
+      - "Wiki d'auteur, page Odon (avant pt-2) : une piste d'auteur (ad-1 ; ad-2 concerne Mervin et Aldren) et trois pistes du scénario X."
       - "x-d1 et x-d2 coexistent sans contradiction (alternatives)."
       - "pt-1 : une seule édition modifie le lore (Cœur de braise clos, flame_bearer) et la fiche A (PV 8) ; la fiche redevient conforme."
       - "pt-2 : dépendance « X suppose Y » satisfaite ; x-d3 applicable (lit (rules, brume) = odon)."
