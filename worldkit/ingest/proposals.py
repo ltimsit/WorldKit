@@ -35,9 +35,10 @@ from worldkit.core.projection.state import State, relation_fact_id, target_fact_
 from worldkit.core.schema import Change, EntityInfo, FactKey, IssueCode, SchemaContext, fact_keys, qualify
 from worldkit.core.schema.changes import (
     AddClaim, AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, RemoveRelation, RemoveValue,
-    SetAttribute, SetVisibility, UnsetAttribute, parse_change,
+    SchemaRemoveRelation, SchemaRemoveType, SchemaSetRelation, SchemaSetType, SetAttribute, SetVisibility,
+    UnsetAttribute, parse_change,
 )
-from worldkit.core.schema.check import check_edit, check_fact_change
+from worldkit.core.schema.check import SchemaChangeError, apply_schema_change, check_edit, check_fact_change
 from worldkit.core.schema.keys import UnknownRelation, target_keys
 
 from .declaration import Mode, name_key, normalize
@@ -57,6 +58,7 @@ class Item:
     change: Change
     mode: Mode
     optional: bool = False
+    awaiting_nature: bool = False  # passage dont la nature méta est détectée, pas encore décidée (R-DEC-02)
 
 
 @dataclass
@@ -163,11 +165,57 @@ def change_fingerprint(q: Qualified, new_by_id: dict[str, NewEntity]) -> str:
 # Qualification
 # ---------------------------------------------------------------------------
 
-def _context(base: State, new: dict[str, NewEntity]) -> SchemaContext:
+def _context(base: State, new: dict[str, NewEntity], items: list[Item] | None = None) -> SchemaContext:
+    """Contexte de qualification : l'état de base, les entités nouvelles du lot, et les entités qu'il crée
+    sous un identifiant explicite (une fiche `entité@système`, un élément de système : J8)."""
     ctx = base.context()
     for e in new.values():
         ctx = ctx.with_entity(EntityInfo(e.id, e.type))
+    for it in items or []:
+        c = it.change
+        if isinstance(c, CreateEntity) and qualify(c.entity, c.scope) not in ctx.entities:
+            ctx = ctx.with_entity(EntityInfo(qualify(c.entity, c.scope), c.type, c.scope, c.sheet))
     return ctx
+
+
+def _schema_element(schema: Any, c: Change) -> Any:
+    """Définition visée par un changement de schéma, sous forme comparable (None si absente)."""
+    if schema is None:
+        return None
+    if isinstance(c, (SchemaSetRelation, SchemaRemoveRelation)):
+        r = schema.relations.get(c.relation)
+        return r.model_dump(mode="json") if r is not None else None
+    t = schema.types.get(c.type)
+    attribute = getattr(c, "attribute", None)
+    if t is None or attribute is None:
+        return t.model_dump(mode="json") if t is not None else None
+    a = t.attributes.get(attribute)
+    return a.model_dump(mode="json") if a is not None else None
+
+
+def _qualify_schema(q: Qualified, c: Change, base: State) -> None:
+    """Un changement de schéma se qualifie comme un fait (T-FAI-01, L6) : identique au schéma de la base →
+    support (le passage corrobore la règle) ; définition nouvelle → enrichissement ; définition existante
+    modifiée ou retirée → anomalie ou intention."""
+    schema = base.context().schema_for(c.scope)
+    before = _schema_element(schema, c)
+    if isinstance(c, (SchemaRemoveType, SchemaRemoveRelation)):
+        q.value = ("removed",)
+        q.tags.add(_conflict_tag(q.item.mode) if before is not None else "support")
+        return
+    try:
+        after = _schema_element(apply_schema_change(schema, c), c)
+    except SchemaChangeError:
+        q.tags.add("out_of_schema")
+        return
+    q.value = after
+    if before is None:
+        q.tags.add("enrichment")
+    elif before == after:
+        q.tags.add("support")
+    else:
+        q.tags.add(_conflict_tag(q.item.mode))
+        q.detail["occupied_by"] = {"fact": list(q.keys[0]), "value": before}
 
 
 def suggest(claimed: Any, state: State, ctx: SchemaContext) -> str:
@@ -265,6 +313,8 @@ def qualify_item(item: Item, base: State, ctx: SchemaContext) -> Qualified:
                 q.detail["occupied_by"] = {"fact": list(other)}
             else:
                 q.tags.add("enrichment")
+        case SchemaSetType() | SchemaSetRelation() | SchemaRemoveType() | SchemaRemoveRelation():
+            _qualify_schema(q, c, base)
         case UnsetAttribute() | RemoveValue() | RemoveRelation() | CloseEntity() | DeleteEntity():
             q.value = ("removed",)
             q.tags.add(_conflict_tag(item.mode))  # le document dit que quelque chose a cessé (R-PRI-01)
@@ -337,26 +387,29 @@ def depends(reads: set[FactKey] | frozenset[FactKey], writes: set[FactKey] | fro
 def assemble(batch_id: str, items: list[Item], base: State,
              new: dict[str, NewEntity]) -> tuple[list[Qualified], list[ProposalDraft]]:
     """Qualifie les changements du lot ; rend (supports, propositions)."""
-    ctx = _context(base, new)
+    ctx = _context(base, new, items)
     new_by_id = {e.id: e for e in new.values()}
     qualified = [qualify_item(i, base, ctx) for i in items]
     _cross_checks(qualified)
     for q in qualified:
         q.fingerprint = change_fingerprint(q, new_by_id)
-    supports = [q for q in qualified if q.is_support]
+    # Un passage dont la nature est à décider ne soutient rien tant qu'elle ne l'est pas (R-DEC-02).
+    supports = [q for q in qualified if q.is_support and not q.item.awaiting_nature]
 
     groups: dict[tuple[Any, ...], list[Qualified]] = {}
     for q in qualified:
         if q.is_support:
             continue
         c = q.item.change
+        if q.item.awaiting_nature:
+            q.tags.add("nature_detected")
         kind = "hint" if isinstance(c, SetVisibility) else "claim" if isinstance(c, AddClaim) else "facts"
-        key = (q.item.doc_id, q.item.version_fp, q.item.passage, kind, _subject(c, c.scope))
+        key = (q.item.doc_id, q.item.version_fp, q.item.passage, kind, _subject(c, c.scope), q.item.awaiting_nature)
         groups.setdefault(key, []).append(q)
 
     proposals: list[ProposalDraft] = []
     counters: dict[tuple[str, int], int] = {}
-    for (doc, vfp, passage, kind, subject), group in sorted(groups.items(), key=lambda kv: kv[1][0].item.order):
+    for (doc, vfp, passage, kind, subject, _), group in sorted(groups.items(), key=lambda kv: kv[1][0].item.order):
         n = counters[(doc, passage)] = counters.get((doc, passage), 0) + 1
         p = ProposalDraft(f"{batch_id}.{doc}.p{passage}.{n}", doc, vfp, passage, subject, kind, group)
         created = {qualify(q.item.change.entity, q.item.change.scope) for q in group

@@ -14,6 +14,7 @@ from worldkit.core.schema.changes import (
 )
 from worldkit.core.world import World
 
+from .meta import awaiting_nature
 from .queue import blocked, load, refresh
 from .store import dumps, ensure_tables, loads_key
 
@@ -92,15 +93,17 @@ class ProposalView:
         return sort_tags(sorted({t for c in self.changes if c.state == "open" for t in c.tags}))
 
 
-def proposals(world: World, batch: str | None = None,
-              status: EditStatus | None = EditStatus.PENDING, branch: str | None = None) -> list[ProposalView]:
-    """Propositions d'une branche, requalifiées contre sa tête au préalable (T-ING-06)."""
+def proposals(world: World, batch: str | None = None, status: EditStatus | None = EditStatus.PENDING,
+              branch: str | None = None, awaiting: bool = False) -> list[ProposalView]:
+    """Propositions d'une branche, requalifiées contre sa tête au préalable (T-ING-06). Celles qu'une
+    question de nature ouverte bloque ne sont pas présentées, sauf `awaiting` (R-DEC-02)."""
     refresh(world, branch)
     head = world.state(branch)
     return [ProposalView(p.id, p.status, p.needs_recheck, p.batch, p.doc, p.passage, p.subject, p.kind, p.base,
                          [ChangeView(c.change, sort_tags(sorted(c.tags)), c.detail, c.fingerprint, c.state)
                           for c in p.changes], p.depends_on, p.issues, p.closed_reason, blocked(head, p.doc))
-            for p in load(world, branch, None, status) if batch is None or p.batch == batch]
+            for p in load(world, branch, None, status) if (batch is None or p.batch == batch)
+            and (awaiting or not awaiting_nature(world, p))]
 
 
 @dataclass(frozen=True)

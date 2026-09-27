@@ -19,6 +19,7 @@
     worldkit --db valmont.db review refuse <proposition>… [--changes 2] [--reason …]
     worldkit --db valmont.db review choose <proposition> | adapt <proposition> --prepend|--replace <changes.yaml>
     worldkit --db valmont.db review dismiss <document> <passage>
+    worldkit --db valmont.db review nature <document> <passage> accept|refuse [--reason …]   (R-DEC-02)
     worldkit --db valmont.db redefine <changes.yaml> --after e003 [--from BRANCHE]          (aperçu, R-RED-01)
     worldkit --db valmont.db redefine <changes.yaml> --after e003 --mode retroactive [--branch NOM] [--id r1]
     worldkit --db valmont.db redefine <changes.yaml> --mode point [--id ID]
@@ -86,8 +87,16 @@ TAG_FR = {
     "out_of_schema": "hors schéma", "invalid_value": "valeur invalide", "unresolved": "entité inconnue",
     "anomaly": "anomalie", "intention": "intention", "internal_contradiction": "contradiction interne",
     "batch_conflict": "conflit dans le lot", "competing": "concurrente", "duplicate": "déjà proposé",
-    "hint_visibility": "indice de notoriété", "claim": "affirmation",
+    "hint_visibility": "indice de notoriété", "claim": "affirmation", "nature_detected": "nature détectée",
     "enrichment": "enrichissement", "optional": "facultatif", "support": "support",
+}
+
+
+FLAG_FR = {
+    "attribution": "attribution (aucun fait)", "extraction_error": "erreur d'extraction",
+    "nature_detected": "nature méta détectée (question de nature)",
+    "meta_in_diegetic": "changement méta dans un passage déclaré diégétique : non ingéré (le marquer [meta])",
+    "diegetic_in_meta": "fait du monde dans un segment méta : non ingéré (le sortir du marqueur)",
 }
 
 
@@ -196,6 +205,13 @@ def _print_decided(results: list[Any]) -> int:
 def _run_decision(world: Any, args: argparse.Namespace) -> int:
     from worldkit.ingest import decide
     cmd = args.review_command
+    if cmd == "nature":
+        from worldkit.ingest.meta import decide_nature
+        accept = args.decision == "accept"
+        ids = decide_nature(world, args.document, args.passage, accept, args.reason)
+        verdict = "acceptée : propositions présentées" if accept else "refusée : propositions closes"
+        print(f"{args.document} p{args.passage} : nature méta {verdict} — {', '.join(ids)}")
+        return 0
     if cmd == "accept":
         return _print_decided([decide.accept(world, pid, _indices(args.keep), args.drop_optional, args.reason)
                                for pid in args.proposals])
@@ -239,10 +255,14 @@ def _run_review(world: Any, args: argparse.Namespace) -> int:
                     hint = f"   (suggestion : {suggested})" if suggested else ""
                     print(f"    {c.text}{hint}")
         print(f"{len(views)} proposition(s) en attente ; {len(supports(world, args.batch))} support(s)")
+        from worldkit.ingest.meta import open_questions
+        for doc, idx, _, subjects in open_questions(world, args.branch):
+            print(f"  question de nature : {doc} p{idx} — méta détecté ({', '.join(subjects)}) ;"
+                  f" worldkit review nature {doc} {idx} accept|refuse")
         for doc, idx, flags in flagged_passages(world, args.batch):
-            print(f"  passage {doc} p{idx} : {', '.join(flags)}")
+            print(f"  passage {doc} p{idx} : {', '.join(FLAG_FR.get(f, f) for f in flags)}")
         return 0
-    found = [v for v in proposals(world, None, None) if v.id == args.proposal]
+    found = [v for v in proposals(world, None, None, awaiting=True) if v.id == args.proposal]
     if not found:
         print(f"proposition inconnue : {args.proposal}")
         return 1
@@ -779,6 +799,11 @@ def build_parser() -> argparse.ArgumentParser:
     grp = ada.add_mutually_exclusive_group(required=True)
     grp.add_argument("--prepend", help="fichier YAML de changements ajoutés en tête")
     grp.add_argument("--replace", help="fichier YAML de changements qui remplacent la proposition")
+    nat = review_cmds.add_parser("nature", help="trancher une nature méta détectée (R-DEC-02)")
+    nat.add_argument("document")
+    nat.add_argument("passage", type=int)
+    nat.add_argument("decision", choices=["accept", "refuse"])
+    nat.add_argument("--reason", default=None)
     dis = review_cmds.add_parser("dismiss", help="écarter un passage signalé (attribution)")
     dis.add_argument("document")
     dis.add_argument("passage", type=int)

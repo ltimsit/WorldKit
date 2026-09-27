@@ -29,7 +29,7 @@ from .store import dumps, ensure_tables, loads_key
 
 # Étiquettes qui ne dépendent pas de l'état : elles survivent à la requalification.
 STICKY = {"internal_contradiction", "batch_conflict", "competing", "duplicate", "hint_visibility", "optional",
-          "claim"}
+          "claim", "nature_detected"}
 
 
 @dataclass

@@ -26,13 +26,12 @@ from worldkit.core.world import World
 from worldkit.periphery.extraction import Extraction, ExtractionContext, Extractor, KnownEntity
 from worldkit.periphery.llm.adapters import LLMError
 
-from .declaration import DocumentVersion, Nature, Voice, read_document
+from .declaration import DocumentVersion, Voice, read_document
 from .declaration import name_key, normalize
+from .meta import DIEGETIC, METAN, NATURE_FLAG, UNDETERMINED, expand_sheet_values, is_meta, passage_nature
 from .proposals import NEW, Item, NewEntity, ProposalDraft, Qualified, assemble, depends, new_entities, resolve
 from .queue import StoredProposal, load, name_index, pending_new_entities, refresh, save_change
 from .store import dumps, ensure_tables
-
-META = {Nature.META_SYSTEM, Nature.META_SHEET}
 
 
 class BatchError(ValueError):
@@ -175,6 +174,8 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
     # Extraction (ou cache), puis brouillons à résoudre.
     raw: list[tuple[DocumentVersion, int, int, dict[str, Any], bool]] = []
     passage_flags: dict[tuple[str, int], list[str]] = {}
+    awaiting: set[tuple[str, int, int]] = set()  # (document, passage, brouillon) : nature à décider (R-DEC-02)
+    sheets: dict[tuple[str, str], str] = {}      # fiches créées par le lot (forme `sheet_values`)
     retracted: list[tuple[str, str, int]] = []
     with conn:
         for doc in docs:
@@ -186,22 +187,30 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
                     report.removed += 1
             for index, ex in _extract(world, extractor, doc, schema_fp, report, set(known), context):
                 flags = list(ex.flags)
-                nature = Nature(ex.nature) if ex.nature in Nature._value2member_map_ else None
                 passage = doc.passages[index - 1]
-                if doc.axes.nature in META or nature in META:
-                    flags.append("meta")  # conservé, sans proposition avant J8 (cadre technique §7)
-                else:
-                    if doc.axes.voice is not Voice.IN_WORLD:  # en in_world, le contenu n'établit pas de faits
-                        for i, draft in enumerate(ex.drafts):
-                            raw.append((doc, index, i, draft, i in ex.optional))
-                    speakers = passage.speakers()
-                    for n, claim in enumerate(ex.claims, start=1):
-                        speaker = claim.get("speaker") or (speakers[0] if speakers else doc.axes.speaker)
-                        if speaker is None:
-                            continue  # une affirmation a un énonciateur (R-DOC-02)
-                        raw.append((doc, index, len(ex.drafts) + n, {
-                            "op": "add_claim", "claim": f"{doc.doc_id}.p{index}.c{n}", "document": doc.doc_id,
-                            "speaker": speaker, "text": claim["text"], "claimed": claim.get("claimed")}, False))
+                declared = passage_nature(doc, passage)
+                if doc.axes.voice is not Voice.IN_WORLD:  # en in_world, le contenu n'établit pas de faits
+                    for draft, optional in _expanded(ex, head, sheets, flags):
+                        meta = is_meta(draft, head)
+                        if declared == DIEGETIC and meta:  # la déclaration l'emporte (R-DEC-01, R-MET-03)
+                            _flag(flags, "meta_in_diegetic")
+                            continue
+                        if declared == METAN and not meta:
+                            _flag(flags, "diegetic_in_meta")
+                            continue
+                        i = sum(1 for r in raw if r[0] is doc and r[1] == index)
+                        if declared == UNDETERMINED and meta:  # détection : proposée, jamais décidée (R-DEC-02)
+                            _flag(flags, NATURE_FLAG)
+                            awaiting.add((doc.doc_id, index, i))
+                        raw.append((doc, index, i, draft, optional))
+                speakers = passage.speakers()
+                for n, claim in enumerate(ex.claims, start=1):
+                    speaker = claim.get("speaker") or (speakers[0] if speakers else doc.axes.speaker)
+                    if speaker is None:
+                        continue  # une affirmation a un énonciateur (R-DOC-02)
+                    raw.append((doc, index, sum(1 for r in raw if r[0] is doc and r[1] == index), {
+                        "op": "add_claim", "claim": f"{doc.doc_id}.p{index}.c{n}", "document": doc.doc_id,
+                        "speaker": speaker, "text": claim["text"], "claimed": claim.get("claimed")}, False))
                 passage_flags[(doc.doc_id, index)] = flags
 
     # Résolution : les créations proposées par les lots en attente sont reprises, jamais dupliquées (T-ING-07).
@@ -224,7 +233,7 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
     own = new_entities([r[3] for r in raw], taken)
     new = {**reused, **own}
     items: list[Item] = []
-    for order, (doc, index, _, draft, optional) in enumerate(raw):
+    for order, (doc, index, i, draft, optional) in enumerate(raw):
         draft = resolve(draft, new)
         if doc.axes.visibility is not None and "visibility" not in draft \
                 and draft.get("op") not in ("close_entity", "delete_entity", "set_visibility"):
@@ -234,7 +243,8 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
         except (ValidationError, ValueError):
             passage_flags.setdefault((doc.doc_id, index), []).append("extraction_error")  # T-ING-17
             continue
-        items.append(Item(doc.doc_id, doc.fingerprint, index, order, change, doc.axes.mode, optional))
+        items.append(Item(doc.doc_id, doc.fingerprint, index, order, change, doc.axes.mode, optional,
+                          (doc.doc_id, index, i) in awaiting))
 
     supports, proposals = assemble(batch_id, items, head, new)
     others = [p for p in load(world, branch) if p.batch != batch_id]
@@ -291,6 +301,27 @@ def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extr
                 world.store.update_pending(p.id, status=EditStatus.ABANDONED)
                 conn.execute("UPDATE proposals SET closed_reason = 'remembered' WHERE edit_id = ?", (p.id,))
     return report
+
+
+def _flag(flags: list[str], flag: str) -> None:
+    if flag not in flags:
+        flags.append(flag)
+
+
+def _expanded(ex: Extraction, head: Any, sheets: dict[tuple[str, str], str],
+              flags: list[str]) -> list[tuple[dict[str, Any], bool]]:
+    """Brouillons du passage, la forme réduite `sheet_values` traduite en changements (décision J8)."""
+    out: list[tuple[dict[str, Any], bool]] = []
+    for i, draft in enumerate(ex.drafts):
+        if draft.get("op") != "sheet_values":
+            out.append((draft, i in ex.optional))
+            continue
+        changes = expand_sheet_values(draft, head, sheets)
+        if changes is None:  # sujet inconnu ou catégorie introuvable : sortie inexploitable (T-ING-17)
+            _flag(flags, "extraction_error")
+            continue
+        out += [(c, i in ex.optional) for c in changes]
+    return out
 
 
 def _merge_new_labels(raw: list[tuple[Any, int, int, dict[str, Any], bool]]) -> list[tuple[Any, int, int, dict[str, Any], bool]]:
