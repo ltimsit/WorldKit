@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}{% import "_bars.html" as b %}
+{% block title %}Mesures{% endblock %}
+{% block content %}
+<h1>Mesures T2</h1>
+<p class="small muted">Un extracteur contre le gold (T-ING-19) ; avec un modèle : estimation exacte, confirmation, plafond (I-LLM-01). Pour choisir un modèle ou régler un prompt : comparer deux mesures, jusqu'au passage (T-TST-01).</p>
+{% if error %}<div class="error-banner">{{ error }}</div>{% endif %}
+{% if estimate %}<div class="stat" style="border-color:var(--warn)">{{ m.result_head(estimate) }}
+  {% if estimate.output and estimate.output.estimate %}{{ estimate.output.estimate.calls }} appel(s) au modèle {{ estimate.output.estimate.model }} pour {{ estimate.output.estimate.passages }} passage(s) mesuré(s). Cocher « confirmer » puis relancer.{% endif %}</div>{% endif %}
+<form method="post" action="/measures" hx-boost="false" class="stat">
+  <p><label>batches.yaml <input name="batches" value="{{ defaults.batches }}" size="44"></label>
+     <label>gold <input name="oracle" value="{{ defaults.oracle }}" size="30"></label></p>
+  <p>lots {% for x in batches %}<label><input type="checkbox" name="batch" value="{{ x }}"> {{ x }}</label> {% endfor %}<span class="small muted">(aucun coché : tous)</span></p>
+  <p><label><input type="radio" name="extractor" value="oracle" checked> oracle (contrôle)</label>
+     <label><input type="radio" name="extractor" value="profile"> modèle</label>
+     <select name="profile">{% for pr in profiles %}<option>{{ pr }}</option>{% endfor %}</select>
+     <label>répétitions <select name="repeat"><option>1</option><option value="2">2 (stabilité)</option></select></label>
+     <label>plafond <input name="max_calls" size="4" placeholder="30"></label>
+     <label><input type="checkbox" name="confirm" value="1"> confirmer les appels au modèle</label>
+     <button>Mesurer</button></p>
+</form>
+<h2>Historique ({{ history|length }})</h2>
+<form method="get" action="/measures-compare" class="small">comparer <input name="a" size="4" placeholder="#"> et <input name="b" size="4" placeholder="#"> <button>comparer</button></form>
+<table><tr><th>#</th><th>quand</th><th>extracteur</th><th>lots</th><th>précision</th><th>rappel</th><th>précision (questions)</th><th>rappel (questions)</th><th>pièges</th><th>erreurs</th><th>stabilité</th><th>appels</th><th>s</th></tr>
+{% for h in history %}<tr><td><a href="/measures/{{ h.run }}">{{ h.run }}</a></td><td class="small">{{ h.created }}</td><td class="mono small">{{ h.model or h.extractor }}</td>
+<td class="small">{{ (h.batches or [])|join(", ") }}</td><td>{{ b.bar(h.precision) }}</td><td>{{ b.bar(h.recall, "#1b7f3b") }}</td>
+<td>{{ b.bar(h.questions.precision if h.questions else none) }}</td><td>{{ b.bar(h.questions.recall if h.questions else none, "#1b7f3b") }}</td>
+<td>{{ h.traps }}</td><td>{{ h.errors }}</td><td>{{ h.stability if h.stability is not none else "—" }}</td><td>{{ h.calls or 0 }}</td><td>{{ h.seconds }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Mesure #{{ run.id }}{% endblock %}
+{% block content %}
+<h1>Mesure #{{ run.id }}</h1>
+{% include "_measure_status.html" %}
+<p><a href="/measures">← mesures</a> · <form method="get" action="/measures-compare" style="display:inline">comparer avec <input type="hidden" name="a" value="{{ run.id }}"><input name="b" size="4" placeholder="#"> <button>comparer</button></form></p>
+{% endblock %}

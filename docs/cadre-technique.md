@@ -1,7 +1,7 @@
 # Cadre technique de la fondation
 
 **Objet :** décisions techniques de la fondation : éléments structurants, découpage en modules, architecture, articulation entre le noyau et l'ingestion, stratégie de test et étapes de construction.
-**Version :** 2.16 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21, qu'il cite sans le dupliquer.
+**Version :** 2.17 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21, qu'il cite sans le dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (argumenté, en attente de validation). En cas de divergence, *cadre-fondation.md* prévaut.
 
 **Conventions**
@@ -402,7 +402,7 @@ flowchart LR
 | Stratégie d'extraction (une passe ou plusieurs) et contexte fourni | J4 : une passe par passage, contexte = schéma + entités connues et en attente. Limite observée : un passage isolé ne résout pas « son frère », « ils » ; ablation à faire : fournir le passage précédent |
 | Résolution d'entités : similarité de noms, embeddings, seuils | J4 : résolution par le modèle contre la liste des entités connues, puis regroupement au niveau du lot par (type, nom normalisé sans article). Le piège « le Roi Gris » tombe avec Haiku comme avec Sonnet ; à mesurer avec un profil dédié à la résolution avant d'envisager des embeddings |
 | Fréquence des points de sauvegarde | Reportée : aucun besoin mesuré en J2 ; à reprendre quand un monde réel ralentira la projection |
-| Interface au-delà de la ligne de commande | Après J4 |
+| Interface au-delà de la ligne de commande | Faite (jalons I0 à I6, *cadre-interface.md*) : banc d'essai web local au-dessus d'une couche de service partagée avec la ligne de commande |
 | Lacunes L1 à L7 révélées par le corpus v1 (lien double face, forme des fiches, résolution contre les entités en attente, notoriété des qualifications, propagation contre notoriété explicite, clés des éléments de schéma, origine des décisions documentaires) | Toutes tranchées (L1, L2, L6 avant J8 : R-MET-02, R-MET-04, T-FAI-01) |
 | Export vers une ontologie de référence (GOLEM, CIDOC-CRM) | Hors fondation ; export possible depuis M11 |
 

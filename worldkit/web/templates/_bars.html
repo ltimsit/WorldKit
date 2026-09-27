@@ -1,0 +1,1 @@
+{% macro bar(value, color="#1f5fbf") %}{% if value is not none %}<svg width="80" height="10" style="vertical-align:middle"><rect width="80" height="10" fill="#eee"/><rect width="{{ (value * 80)|round(1) }}" height="10" fill="{{ color }}"/></svg> {{ "%.2f"|format(value) }}{% else %}—{% endif %}{% endmacro %}

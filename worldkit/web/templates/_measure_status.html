@@ -1,0 +1,22 @@
+{% import "_macros.html" as m %}{% import "_bars.html" as b %}
+<div id="measure-status" {% if run.status == "running" %}hx-get="/fragments/measure/{{ run.id }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+{% if run.status == "running" %}<p>Mesure en cours{% if run.progress.passages %} : {{ run.progress.passages }} passage(s), {{ run.progress.calls }} appel(s) estimé(s){% endif %}…</p>{% endif %}
+{% if run.result %}{% set r = run.result %}{% set o = r.output %}
+{{ m.result_head(r) }}
+{% if o and o.summary %}{% set s = o.summary %}
+<p>Extracteur <b class="mono">{{ o.extractor }}</b>{% if o.model %} ({{ o.model }}){% endif %} · lots {{ o.batches|join(", ") }} · {{ s.passages }} passages · {{ s.seconds }} s</p>
+<table><tr><th></th><th>précision</th><th>rappel</th></tr>
+<tr><td>global</td><td>{{ b.bar(s.precision) }}</td><td>{{ b.bar(s.recall, "#1b7f3b") }}</td></tr>
+<tr><td>questions (hors supports)</td><td>{{ b.bar(s.questions.precision) }}</td><td>{{ b.bar(s.questions.recall, "#1b7f3b") }}</td></tr></table>
+<p class="small">pièges tombés {{ s.traps_fallen }} · erreurs d'attribution {{ s.attribution_errors }} · affirmations {{ s.claims }} · changements revendiqués {{ s.claimed_changes }} · stabilité {{ s.stability if s.stability is not none else "—" }} · erreurs {{ s.errors }}</p>
+<h2>Par opération</h2>
+<table><tr><th>opération</th><th>précision</th><th>rappel</th><th>vp</th><th>fp</th><th>fn</th></tr>
+{% for op, v in s.per_op.items() %}<tr><td class="mono">{{ op }}</td><td>{{ b.bar(v.precision) }}</td><td>{{ b.bar(v.recall, "#1b7f3b") }}</td><td>{{ v.tp }}</td><td>{{ v.fp }}</td><td>{{ v.fn }}</td></tr>{% endfor %}</table>
+<h2>Par passage (écarts seulement)</h2>
+<table><tr><th>passage</th><th>manqués</th><th>en trop</th><th>pièges</th><th>erreur</th></tr>
+{% for p in o.passages if p.missed or p.extra or p.traps or p.error or not p.attribution_ok %}<tr><td>{{ p.doc }} p{{ p.index }}</td>
+<td class="small mono">{% for x in p.missed %}<span class="sev-error">− {{ x }}</span><br>{% endfor %}</td>
+<td class="small mono">{% for x in p.extra %}<span class="sev-warning">+ {{ x }}</span><br>{% endfor %}</td>
+<td class="small">{{ p.traps|join(", ") }}{{ " attribution manquée" if not p.attribution_ok }}</td><td class="small">{{ p.error or "" }}</td></tr>{% else %}<tr><td colspan="5" class="s-ok">aucun écart</td></tr>{% endfor %}</table>
+{% endif %}{% endif %}
+</div>

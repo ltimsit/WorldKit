@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}{% import "_bars.html" as b %}
+{% block title %}Comparer deux mesures{% endblock %}
+{% block content %}
+<h1>Comparer deux mesures</h1>
+<form method="get" action="/measures-compare"><input name="a" value="{{ a }}" size="4"> et <input name="b" value="{{ b }}" size="4"> <button>comparer</button></form>
+{% if result %}{{ m.result_head(result) }}{% set o = result.output %}
+{% if o %}
+<table><tr><th></th><th>A : <a href="/measures/{{ o.a.run }}">#{{ o.a.run }}</a> {{ o.a.model or o.a.extractor }}</th><th>B : <a href="/measures/{{ o.b.run }}">#{{ o.b.run }}</a> {{ o.b.model or o.b.extractor }}</th></tr>
+{% for label, key in [("précision", "precision"), ("rappel", "recall")] %}<tr><td>{{ label }}</td><td>{{ b.bar(o.a.summary[key]) }}</td><td>{{ b.bar(o.b.summary[key]) }}</td></tr>{% endfor %}
+<tr><td>précision (questions)</td><td>{{ b.bar(o.a.summary.questions.precision) }}</td><td>{{ b.bar(o.b.summary.questions.precision) }}</td></tr>
+<tr><td>rappel (questions)</td><td>{{ b.bar(o.a.summary.questions.recall, "#1b7f3b") }}</td><td>{{ b.bar(o.b.summary.questions.recall, "#1b7f3b") }}</td></tr>
+<tr><td>pièges tombés</td><td>{{ o.a.summary.traps_fallen }}</td><td>{{ o.b.summary.traps_fallen }}</td></tr>
+<tr><td>durée (s)</td><td>{{ o.a.summary.seconds }}</td><td>{{ o.b.summary.seconds }}</td></tr></table>
+<h2>Par opération</h2>
+<table><tr><th>opération</th><th>A précision</th><th>A rappel</th><th>B précision</th><th>B rappel</th></tr>
+{% for x in o.per_op %}<tr><td class="mono">{{ x.op }}</td><td>{{ b.bar(x.a.precision if x.a else none) }}</td><td>{{ b.bar(x.a.recall if x.a else none, "#1b7f3b") }}</td>
+<td>{{ b.bar(x.b.precision if x.b else none) }}</td><td>{{ b.bar(x.b.recall if x.b else none, "#1b7f3b") }}</td></tr>{% endfor %}</table>
+<h2>Passages où A et B diffèrent ({{ o.passages|length }})</h2>
+<table><tr><th>passage</th><th>seulement A</th><th>seulement B</th><th>pièges A / B</th></tr>
+{% for p in o.passages %}<tr><td>{{ p.doc }} p{{ p.index }}</td>
+<td class="small mono">{% for x in p.only_a %}<span class="{{ 's-ok' if x in p.a_right else 'sev-warning' }}">{{ "✔" if x in p.a_right else "+" }} {{ x }}</span><br>{% endfor %}</td>
+<td class="small mono">{% for x in p.only_b %}<span class="{{ 's-ok' if x in p.b_right else 'sev-warning' }}">{{ "✔" if x in p.b_right else "+" }} {{ x }}</span><br>{% endfor %}</td>
+<td class="small">{{ p.traps_a|join(", ") }} / {{ p.traps_b|join(", ") }}</td></tr>{% endfor %}</table>
+<p class="small muted">✔ : trouvé par l'un seulement et attendu par le gold · + : trouvé par l'un seulement, en trop.</p>
+{% endif %}{% endif %}
+{% endblock %}
