@@ -211,15 +211,20 @@ def test_independent_edits_replay_without_intervention_T1(later):
 
 # --- Suspendre, reprendre, abandonner (R-RED-02) ---
 
-def test_replay_suspends_and_resumes_after_reopening_the_world_R_RED_02(tmp_path):
-    db = tmp_path / "valmont.db"
+def file_world(db) -> World:
+    """Monde sur fichier, à l'état de départ de W15 (sans la revue de W05, inutile ici)."""
     w = World.create(db, VALMONT / "world.yaml")
     base = base_world()
     for _, e in base.store.journal("reference")[1:]:
         assert w.apply(e).ok
     base.close()
     w.set_point("@base")
-    setup_w15(w)
+    return setup_w15(w)
+
+
+def test_replay_suspends_and_resumes_after_reopening_the_world_R_RED_02(tmp_path):
+    db = tmp_path / "valmont.db"
+    w = file_world(db)
     report = R.start(w, w15_changes(), "e003", limit=2)
     assert len(report.replayed) == 2 and report.conflict is None and report.replay.status == R.OPEN
     w.close()
@@ -293,4 +298,40 @@ def test_refusals():
     R.start(w, w15_changes(), "e003")
     assert not R.start(w, w15_changes(), "e003").ok  # un seul rejeu ouvert par source
     assert not R.decide(w, "r1", "adapt").ok
+    w.close()
+
+
+def test_cli_redefine_preview_replay_decide(tmp_path, capsys):
+    from worldkit.cli import main
+    db = tmp_path / "valmont.db"
+    file_world(db).close()
+    changes = tmp_path / "w15.yaml"
+    changes.write_text(
+        "changes:\n"
+        "  - { op: set_attribute, entity: aldren-ii, attribute: death_cause, value: fièvre, visibility: secret }\n"
+        "  - { op: remove_relation, from: mervin, relation: killed, to: aldren-ii }\n", encoding="utf-8")
+    run = lambda *a: main(["--db", str(db), *a])
+    assert run("redefine", str(changes), "--after", "e003") == 0
+    out = capsys.readouterr().out
+    assert "dont 1 concernée" in out and QUALIFICATION in out and "ad-2" in out and "--mode" in out
+    assert R.replays(World.open(db)) == []  # l'aperçu seul n'écrit rien (R-RED-01)
+    assert run("redefine", str(changes), "--after", "e003", "--mode", "retroactive") == 1
+    out = capsys.readouterr().out
+    assert "suspendu sur" in out and "« poison »" in out and "« fièvre »" in out and "clé seulement lue" in out
+    assert run("replay", "decide", "r1", "--keep") == 0
+    out = capsys.readouterr().out
+    assert "branche de référence : reference-r1" in out and "ad-2@reference-r1" in out and "variante-mj" in out
+    assert run("check", "--branch", "variante-mj") == 0
+    assert "R-RED-04" in capsys.readouterr().out
+    assert run("draft", "adopt", "ad-1") == 1
+    assert "adopter ad-1@reference-r1" in capsys.readouterr().out
+    assert run("branch", "list") == 0
+    assert "reference [archivée]" in capsys.readouterr().out
+    point = tmp_path / "point.yaml"
+    point.write_text("changes:\n  - { op: set_attribute, entity: odon, attribute: condition, value: las }\n",
+                     encoding="utf-8")
+    assert run("redefine", str(point), "--mode", "point", "--id", "p1") == 0
+    assert "p1 : applied (redéfinition ponctuelle)" in capsys.readouterr().out
+    w = World.open(db)
+    assert w.store.locate("p1")[0] == "reference-r1" and w.store.edit("p1").edit.redefinition == "point"
     w.close()

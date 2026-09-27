@@ -34,8 +34,21 @@ class Divergence:
 
     def describe(self) -> str:
         if self.kind == "missing":
-            return f"{format_key(self.key)} : supposé {self.assumed}, absent de la branche cible"
-        return f"{format_key(self.key)} : supposé {self.assumed}, la branche cible a {self.found}"
+            return f"{format_key(self.key)} : supposé {_show(self.assumed)}, absent de la branche cible"
+        return f"{format_key(self.key)} : supposé {_show(self.assumed)}, la branche cible a {_show(self.found)}"
+
+
+def _show(x: Any) -> str:
+    """Lisible par l'auteur : la valeur d'un attribut, ou le fait (relation, valeur, entité)."""
+    if x is None:
+        return "rien"
+    if isinstance(x, tuple) and len(x) == 2 and isinstance(x[0], tuple):
+        return f"« {x[1]} »"  # (identifiant, valeur) d'un attribut
+    if isinstance(x, tuple) and x and x[0] == "rel" and len(x) >= 4:
+        return f"{x[2]}({x[1]}, {x[3]})"
+    if isinstance(x, tuple):
+        return "(" + ", ".join(str(i) for i in x[1:]) + ")"
+    return str(x)
 
 
 @dataclass
