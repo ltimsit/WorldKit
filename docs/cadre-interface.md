@@ -1,7 +1,7 @@
 # Cadre de l'interface
 
 **Objet :** vision, principes, découpage et points à trancher de l'interface de `worldkit`, conçue d'abord comme un **banc d'essai** : tester, suivre l'efficacité, contrôler, et obtenir des retours complets et explicites.
-**Version :** 0.2 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
+**Version :** 0.3 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (en attente). En cas de divergence, le cadre de la fondation puis le cadre technique prévalent.
 
 **Conventions**
@@ -182,6 +182,17 @@ flowchart LR
 | I-CLI-01 | Parité | **Parité par le service** : toute opération du service est accessible en ligne de commande (`worldkit run stages`, `worldkit sandbox`, `worldkit walkthrough run`, `worldkit runs`…) ; seul le purement visuel reste propre à l'interface. Les commandes actuelles passent progressivement par le service ; les tests visent le service. | Parité souhaitée seulement (opérations non scriptables) ; ligne de commande figée (perte de la reproductibilité). | validé | QI-09 |
 | I-LLM-01 | Coût des modèles | Avant toute extraction par un modèle : **estimation exacte** (passages absents du cache pour ce profil et ce prompt), **confirmation explicite** (dialogue ; `--yes` en ligne de commande), **plafond par exécution** (`max_calls_per_run` dans `worldkit-llm.yaml`, 30 par défaut ; au-delà, arrêt propre, passages restants marqués « non extrait : plafond atteint », repris à la relance). Chaque exécution relève ses appels, durées, modèle et version du prompt ; le tableau de bord les cumule. Oracle et cache ne demandent rien ; les tests n'appellent aucun modèle. | Confirmation seule (sans filet) ; relevé après coup (contraire à I-PRI-06). | validé | QI-10 |
 
+### 8.1 Couche de service (I1)
+
+| ID | Sujet | Décision | Alternatives écartées | Statut |
+|---|---|---|---|---|
+| I-SVC-01 | Forme d'une opération | **Registre d'opérations nommées** (`worldkit/service/registry.py`) : un nom (`edit.apply`), une sorte, un modèle pydantic de paramètres (tout paramètre inconnu est refusé), une fonction qui appelle le code métier. Un appel est une donnée (nom + paramètres JSON) : enregistré tel quel, rejouable pour rendre un bac réel (I3), exposé en ligne de commande et, en I2, en HTTP. Point d'entrée unique : `Session(monde).call(nom, paramètres, cible)`. | Fonctions ordinaires (enregistrement, validation, routes et commandes à réécrire par fonction). | validé |
+| I-SVC-02 | Exécutions enregistrées | Quatre sortes : `read` (consultation, **non enregistrée**, sauf si on l'épingle : `--pin`), `compute` (mécanisme sans écriture, enregistré pour comparer), `write` (enregistrée, rejouable), `admin` (bacs et exécutions, enregistrée, jamais rejouée). | Tout enregistrer (journal noyé de lectures) ; les seules écritures (plus d'historique des mesures et des mécanismes). | validé |
+| I-SVC-03 | Ligne de commande | Générique et dédiée : `worldkit ops`, `worldkit call <opération> [paramètres.yaml] [--param clé=valeur]… [--sandbox N] [--pin] [--json]` (valeur lue en YAML, clés pointées pour imbriquer : `edit.id=x1`) ; commandes dédiées `sandbox create|list|drop` et `runs list|show|purge`. Sortie : résumé lisible (statut, signalements avec règle, indicateurs, sortie en YAML ou Markdown), `--json` pour le résultat brut. Les commandes existantes restent inchangées. | Générique seule (lourde au quotidien) ; une commande dédiée par opération (parité à la discipline). | validé |
+| I-SVC-04 | Bacs et exécutions | Un seul `monde.runs.db` par monde de travail : exécutions (chacune porte sa cible, `world` ou `sandbox:<n>`) et registre des bacs (fichier, origine, têtes des branches à la copie, statut). Bacs **à plat**, nés du monde ou d'un autre bac (parenté notée ; rendre réel rejouera la chaîne). Jeter un bac supprime son fichier et **garde ses exécutions** ; un bac jeté n'est plus une cible. | Un runs.db par bac (historique perdu en jetant, comparaisons éclatées) ; bacs nés du seul monde (la chaîne de rejeu sera nécessaire de toute façon). | validé |
+
+Opérations d'I1 (`worldkit ops`) : consultations `world.summary`, `branch.list`, `journal.list`, `edit.show`, `wiki.page`, `wiki.index`, `state.check`, `export.graph`, `review.list`, `sandbox.list`, `runs.list`, `runs.show`, `ops.list` ; calcul `edit.check` (clés, lectures, écritures, signalements, diff de l'état, sans écrire) ; écritures `edit.apply`, `edit.submit`, `ingest.batch` (extracteur oracle seul jusqu'à I4, I-LLM-01), `review.accept`, `review.refuse`, `review.nature` ; administration `sandbox.create`, `sandbox.drop`, `runs.purge`.
+
 ## 9. Périmètre
 
 | Dans le périmètre | Préparé (possible plus tard) | Hors périmètre |
@@ -193,7 +204,7 @@ flowchart LR
 | Jalon | Contenu | Test |
 |---|---|---|
 | I0 | Cadre d'interface validé (ce document) | — |
-| I1 | Couche de service et forme commune d'un résultat (§7) ; exécutions enregistrées (`monde.runs.db`) ; bacs à sable (créer, lister, jeter) ; commandes correspondantes (I-CLI-01) | tests automatiques du service |
+| I1 — **fait** | Couche de service et forme commune d'un résultat (§7) ; exécutions enregistrées (`monde.runs.db`) ; bacs à sable (créer, dupliquer, lister, jeter) ; commandes `ops`, `call`, `sandbox`, `runs` (I-SVC-01 à I-SVC-04) | tests automatiques du service (`tests/test_service.py`) |
 | I2 | Application FastAPI et squelette : tableau de bord, wiki auteur et joueur, branches et historique, en lecture seule ; JSON brut de chaque résultat | relire le retcon d'Aldren entre `reference` et `reference-r1` |
 | I3 | Saisie YAML vérifiée en direct (I-SAI-01) ; banc de mécanismes ; rendre réel un essai de bac à sable (I-SBX-01) | refaire le retcon d'Aldren dans un bac à sable, puis le rendre réel |
 | I4 | Découpage du pipeline (E1 à E12, I-PIP-01) ; banc de pipeline de x à y ; contrôle du coût (I-LLM-01) | Loup sous deux systèmes (J8), de E1 à E12 et par morceaux |

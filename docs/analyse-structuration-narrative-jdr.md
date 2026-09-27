@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v32** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v33** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -1080,6 +1080,21 @@ La voie **traçable** est retenue partout où elle ne retarde pas le premier éc
 - Des parcours d'acceptation exécutables, avec des attendus structurés progressivement.
 - L'ordre de construction : service et lecture d'abord (I1, I2).
 
+### 00.53 Couche de service (v33)
+
+> Décision du 27 septembre 2026, jalon I1.
+
+**Problème.** L'interface, la ligne de commande et les tests doivent passer par un même point d'entrée (I-PRI-02, I-CLI-01). Chaque appel doit pouvoir être enregistré (I-RUN-01), puis rejoué pour rendre un bac réel (I-SBX-01).
+
+**Voies comparées.**
+- *Fonctions ordinaires* : écartées, car tout serait à réécrire par fonction.
+- *Registre d'opérations nommées à paramètres typés* : **retenu**.
+- *Tout enregistrer*, ou *seulement les écritures* : écartés, au profit de quatre sortes, où la consultation n'est pas enregistrée.
+- *Une ligne de commande générique seule*, ou *une commande par opération* : écartées, au profit d'une commande générique complétée de quelques commandes dédiées.
+- *Un journal d'exécutions par bac* : écarté, au profit d'un seul par monde, avec des bacs à plat.
+
+**Décision.** I-SVC-01 à I-SVC-04 (*cadre-interface.md* §8.1).
+
 ---
 
 ## 0. Comment lire ce document
@@ -1682,6 +1697,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 77. Comment relier les deux faces d'un élément, rattacher une fiche, et adresser un élément de schéma ? — **Réponse (v30) :** ✅ `counterpart_of` avec une contrepartie par système ; une fiche naît avec un rattachement immuable, une par système, `has_sheet` et `conforms_to` calculées ; la clé de schéma est définitive, écrite par les seules éditions de schéma, la dépendance aux définitions passant par la revalidation (00.50).
 78. Comment ingérer le méta sans que la détection décide ? — **Réponse (v31) :** ✅ La nature se déclare par l'en-tête ou par `[meta]` ; la destination se lit dans chaque changement ; un changement contraire à la déclaration est signalé, non ingéré ; une nature détectée pose une question par passage, avant toute proposition ; le LLM décrit une fiche sous une forme réduite que le noyau traduit (00.51).
 79. Quelle interface pour tester, suivre et contrôler le système ? — **Réponse (v32) :** ✅ Un banc d'essai web local (FastAPI, HTML et htmx, Cytoscape.js), au-dessus d'une couche de service partagée avec la ligne de commande : bacs à sable, exécutions enregistrées, pipeline en 12 étapes exécutable de x à y, parcours d'acceptation exécutables, coût des modèles contrôlé (00.52, *cadre-interface.md*).
+80. Comment l'interface, la ligne de commande et les tests appellent-ils le système ? — **Réponse (v33) :** ✅ Par un registre d'opérations nommées à paramètres typés, derrière un point d'entrée unique qui rend un résultat de forme commune ; calculs, écritures et administration sont enregistrés dans `monde.runs.db`, à côté des bacs à sable (00.53).
 
 ---
 
