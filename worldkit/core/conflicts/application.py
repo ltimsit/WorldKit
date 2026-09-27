@@ -20,8 +20,8 @@ from dataclasses import dataclass, field
 from worldkit.core.projection.state import State, apply_change, fact_id_of, target_fact_id
 from worldkit.core.schema import Change, FactKey, Issue, IssueCode, check_edit, fact_keys, qualify
 from worldkit.core.schema.changes import (
-    AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, RemoveRelation, RemoveValue, SCHEMA_OPS,
-    SetAttribute, SetVisibility, UnsetAttribute,
+    AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, QualifyClaim, RemoveRelation, RemoveValue,
+    SCHEMA_OPS, SetAttribute, SetVisibility, UnsetAttribute, parse_change,
 )
 from worldkit.core.schema.issues import Severity
 from worldkit.core.schema.keys import format_key, target_keys
@@ -147,8 +147,24 @@ def _check_one(change: Change, sim: State, t: _Tracker, path: str) -> None:
                      "R-EDI-04", path)
             t.reads.update(target)
             t.writes.update(keys)
+        case QualifyClaim():
+            t.reads.update(_claimed_keys(change.claim, sim))
+            t.writes.update(keys)
         case _:
             t.writes.update(keys)
+
+
+def _claimed_keys(claim: str, sim: State) -> list[FactKey]:
+    """Une qualification juge l'affirmation contre le monde : elle lit les clés du changement revendiqué
+    (T-ING-12, décision J7). L'affirmation elle-même ne lit rien : le document dit ce qu'il dit."""
+    record = sim.claims.get(claim)
+    claimed = record.get("claimed") if record else None
+    if not claimed:
+        return []
+    try:
+        return list(fact_keys(parse_change(claimed), sim.context()))
+    except Exception:  # changement revendiqué hors schéma : rien à lire (R-SCH-06)
+        return []
 
 
 def _write(t: _Tracker, keys: list[FactKey], value: object, path: str) -> None:
