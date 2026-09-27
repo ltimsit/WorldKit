@@ -13,6 +13,7 @@ JSON en argument, dont les guillemets seraient mangés.
 from __future__ import annotations
 
 import argparse
+import json
 from typing import Any
 
 import yaml
@@ -161,3 +162,120 @@ def run(args: argparse.Namespace) -> int:
                 return show(stored)
             return show(Result.model_validate(stored.output), args.json)
         return show(s.call("runs.purge", {"ids": args.ids, "before": args.before, "all": args.all}))
+
+
+# ---------------------------------------------------------------------------
+# Pipeline en ligne de commande (I-CLI-01, décisions I4)
+# ---------------------------------------------------------------------------
+
+def add_pipeline_parsers(commands: Any) -> None:
+    run = commands.add_parser("run", help="pipeline d'ingestion en étapes (I4)")
+    run_cmds = run.add_subparsers(dest="run_command", required=True)
+    st = run_cmds.add_parser("stages", help="étapes E1 à E9, de x à y, sans rien écrire (cache excepté)")
+    st.add_argument("--batch-id", default=None, help="identifiant du lot (défaut : --batch)")
+    st.add_argument("--batch", default=None, help="lot déclaré dans --batches")
+    st.add_argument("--batches", default=None, help="batches.yaml")
+    st.add_argument("documents", nargs="*", help="ou des documents")
+    st.add_argument("--from", dest="first", default="E1")
+    st.add_argument("--to", dest="last", default="E9")
+    st.add_argument("--oracle", default=None, help="dossier gold/ (extracteur oracle)")
+    st.add_argument("--profile", default=None, help="profil de modèle (extracteur LLM)")
+    st.add_argument("--llm-config", default=None)
+    st.add_argument("--input", type=int, default=None, help="exécution dont on reprend l'artefact")
+    st.add_argument("--input-stage", default=None)
+    st.add_argument("--artifact", default=None, help="artefact saisi (fichier YAML ou JSON)")
+    st.add_argument("--max-calls", type=int, default=None)
+    st.add_argument("--yes", action="store_true", help="confirmer les appels au modèle estimés")
+    st.add_argument("--sandbox", default=None)
+    st.add_argument("--json", action="store_true")
+    sv = run_cmds.add_parser("save", help="enregistrer le lot d'une exécution (E9+), jusqu'à E12")
+    sv.add_argument("input", type=int)
+    sv.add_argument("--input-stage", default=None)
+    sv.add_argument("--to", default="E9+")
+    sv.add_argument("--decisions", default=None, help="décisions scriptées pour E10 (fichier YAML)")
+    sv.add_argument("--sandbox", default=None, help="numéro du bac (défaut : le monde, comme les autres commandes)")
+    sv.add_argument("--json", action="store_true")
+    df = commands.add_parser("runs-diff", help="comparer deux exécutions de pipeline étape par étape")
+    df.add_argument("a", type=int)
+    df.add_argument("b", type=int)
+    df.add_argument("--json", action="store_true")
+
+
+def run_pipeline(args: argparse.Namespace) -> int:
+    import threading
+    from . import Session
+    with Session(args.db) as s:
+        if args.command == "runs-diff":
+            result = s.call("runs.diff", {"a": args.a, "b": args.b})
+            if args.json or not result.ok:
+                return show(result, args.json)
+            o = result.output
+            print(f"#{o['a']} ↔ #{o['b']} : " + (f"première différence en {o['first_difference']}"
+                                                   if o["first_difference"] else "identiques sur les étapes communes"))
+            for st in o["stages"]:
+                print(f"  {st['stage']:4} {'identique' if st['same'] else 'DIFFÉRENT'}"
+                      f"  ({st['duration_ms']['a']} / {st['duration_ms']['b']} ms)")
+                for k in st["only_a"]:
+                    print(f"       − seulement #{o['a']} : {k}")
+                for k in st["only_b"]:
+                    print(f"       + seulement #{o['b']} : {k}")
+                for c in st["changed"]:
+                    print(f"       ~ {c['key']} : {c['a']} → {c['b']}")
+            return 0
+        if args.run_command == "save":
+            params: dict[str, Any] = {"input": args.input, "to": args.to}
+            if args.input_stage:
+                params["input_stage"] = args.input_stage
+            if args.decisions:
+                params["decisions"] = read_yaml(args.decisions) or []
+            return show(s.call("pipeline.save", params, args.sandbox), args.json)
+        params = {"batch_id": args.batch_id or args.batch or "lot", "from": args.first, "to": args.last}
+        for key, value in (("batches", args.batches), ("batch", args.batch), ("oracle", args.oracle),
+                           ("profile", args.profile), ("llm_config", args.llm_config), ("input", args.input),
+                           ("input_stage", args.input_stage), ("max_calls", args.max_calls)):
+            if value is not None:
+                params[key] = value
+        if args.documents:
+            params["documents"] = list(args.documents)
+        if args.artifact:
+            params["artifact"] = read_yaml(args.artifact)
+        if args.yes:
+            params["confirm"] = True
+        cancel = threading.Event()
+
+        def progress(stage: str, info: dict[str, Any]) -> None:
+            detail = f" {info['done']}/{info['total']} passages" if info.get("total") else ""
+            calls = f", {info['calls']} appel(s)" if info.get("calls") else ""
+            if "completed" not in info:
+                print(f"  … {stage}{detail}{calls}", flush=True)
+
+        box: dict[str, Result] = {}
+        worker = threading.Thread(target=lambda: box.update(r=Session(args.db).call(
+            "pipeline.run", params, args.sandbox, progress=progress, cancel=cancel)), daemon=True)
+        worker.start()
+        try:
+            while worker.is_alive():
+                worker.join(0.2)
+        except KeyboardInterrupt:  # Ctrl+C : arrêt propre entre deux groupes de passages
+            print("  arrêt demandé…", flush=True)
+            cancel.set()
+            worker.join()
+        result = box["r"]
+        if args.json:
+            return show(result, True)
+        out = result.output or {}
+        run_id = f", exécution #{result.trace.run_id}" if result.trace.run_id else ""
+        print(f"pipeline.run {params['from']} → {params['to']} : {result.status}{run_id}")
+        for i in result.issues:
+            print(f"  - {i.severity} [{i.rule}] {i.message}")
+        if result.status == "pending" and out.get("estimate"):
+            e = out["estimate"]
+            print(f"  estimation : {e['calls']} appel(s) au modèle {e['model']} (plafond {e['max_calls']}) ;"
+                  " relancer avec --yes pour confirmer")
+        for stg in out.get("stages", []):
+            print(f"  {stg['stage']:4} {stg['name']:<14} {stg['duration_ms']:>8} ms  {json.dumps(stg['indicators'], ensure_ascii=False)}")
+        if out.get("proposals"):
+            print(f"  propositions : {', '.join(out['proposals'])}")
+        if result.trace.run_id and out.get("stages"):
+            print(f"  enregistrer : worldkit run save {result.trace.run_id} [--sandbox N] [--to E12]")
+        return 0 if result.ok else 1

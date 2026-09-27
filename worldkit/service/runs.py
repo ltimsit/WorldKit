@@ -23,6 +23,8 @@ _DDL = """
 CREATE TABLE IF NOT EXISTS runs (
     run_id INTEGER PRIMARY KEY AUTOINCREMENT, operation TEXT NOT NULL, kind TEXT NOT NULL, target TEXT NOT NULL,
     status TEXT NOT NULL, params TEXT NOT NULL, result TEXT NOT NULL, created TEXT NOT NULL DEFAULT (datetime('now')));
+CREATE TABLE IF NOT EXISTS artifacts (
+    run_id INTEGER NOT NULL, stage TEXT NOT NULL, artifact TEXT NOT NULL, PRIMARY KEY (run_id, stage));
 CREATE TABLE IF NOT EXISTS sandboxes (
     sandbox_id INTEGER PRIMARY KEY AUTOINCREMENT, file TEXT NOT NULL, origin TEXT NOT NULL, heads TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active', created TEXT NOT NULL DEFAULT (datetime('now')), note TEXT,
@@ -68,23 +70,75 @@ class RunStore:
         cols = {r[1] for r in self.conn.execute("PRAGMA table_info(sandboxes)")}
         if "after_run" not in cols:  # journaux créés avant I3
             self.conn.execute("ALTER TABLE sandboxes ADD COLUMN after_run INTEGER NOT NULL DEFAULT 0")
+        if "progress" not in {r[1] for r in self.conn.execute("PRAGMA table_info(runs)")}:  # avant I4
+            self.conn.execute("ALTER TABLE runs ADD COLUMN progress TEXT")
 
     def close(self) -> None:
         self.conn.close()
 
     # --- Exécutions ---
 
-    def record(self, result: Result) -> int:
-        with self.conn:
-            cur = self.conn.execute(
-                "INSERT INTO runs (operation, kind, target, status, params, result) VALUES (?, ?, ?, ?, ?, ?)",
-                (result.operation, result.kind, result.target, result.status,
-                 json.dumps(result.params, ensure_ascii=False, sort_keys=True), result.to_json(None)))
-        run_id = int(cur.lastrowid or 0)
+    def record(self, result: Result, run_id: int | None = None) -> int:
+        if run_id is None:
+            with self.conn:
+                cur = self.conn.execute(
+                    "INSERT INTO runs (operation, kind, target, status, params, result) VALUES (?, ?, ?, ?, ?, ?)",
+                    (result.operation, result.kind, result.target, result.status,
+                     json.dumps(result.params, ensure_ascii=False, sort_keys=True), result.to_json(None)))
+            run_id = int(cur.lastrowid or 0)
+        else:
+            with self.conn:
+                self.conn.execute("UPDATE runs SET status = ?, params = ? WHERE run_id = ?",
+                                  (result.status, json.dumps(result.params, ensure_ascii=False, sort_keys=True), run_id))
         result.trace.run_id = run_id
         with self.conn:
             self.conn.execute("UPDATE runs SET result = ? WHERE run_id = ?", (result.to_json(None), run_id))
         return run_id
+
+    # --- Exécutions longues (tâches de fond, décision I4) ---
+
+    def begin(self, operation: str, kind: str, target: str, params: dict[str, Any]) -> int:
+        """Crée l'exécution « en cours » avant qu'elle ne commence ; `record(result, run_id)` la terminera."""
+        with self.conn:
+            cur = self.conn.execute(
+                "INSERT INTO runs (operation, kind, target, status, params, result) VALUES (?, ?, ?, 'running', ?, '{}')",
+                (operation, kind, target, json.dumps(params, ensure_ascii=False, sort_keys=True)))
+        return int(cur.lastrowid or 0)
+
+    def set_progress(self, run_id: int, progress: dict[str, Any]) -> None:
+        with self.conn:
+            self.conn.execute("UPDATE runs SET progress = ? WHERE run_id = ?",
+                              (json.dumps(progress, ensure_ascii=False), run_id))
+
+    def progress(self, run_id: int) -> tuple[str, dict[str, Any]]:
+        row = self.conn.execute("SELECT status, progress FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+        if row is None:
+            raise KeyError(f"exécution inconnue : {run_id}")
+        return row[0], json.loads(row[1]) if row[1] else {}
+
+    # --- Artefacts des étapes (I-PIP-01) ---
+
+    def save_artifact(self, run_id: int, stage: str, artifact: str) -> None:
+        with self.conn:
+            self.conn.execute("INSERT OR REPLACE INTO artifacts VALUES (?, ?, ?)", (run_id, stage, artifact))
+
+    def artifact(self, run_id: int, stage: str | None = None) -> tuple[str, str]:
+        """(étape, JSON) : l'artefact d'une étape, ou le dernier de l'exécution."""
+        rows = self.conn.execute("SELECT stage, artifact FROM artifacts WHERE run_id = ?", (run_id,)).fetchall()
+        if not rows:
+            raise KeyError(f"aucun artefact pour l'exécution {run_id}")
+        from worldkit.ingest.stages import STAGES
+        by = dict(rows)
+        if stage is None:
+            stage = max(by, key=STAGES.index)
+        if stage not in by:
+            raise KeyError(f"exécution {run_id} : pas d'artefact pour {stage} (connus : {', '.join(sorted(by, key=STAGES.index))})")
+        return stage, by[stage]
+
+    def artifact_stages(self, run_id: int) -> list[str]:
+        from worldkit.ingest.stages import STAGES
+        return sorted((s for (s,) in self.conn.execute("SELECT stage FROM artifacts WHERE run_id = ?", (run_id,))),
+                      key=STAGES.index)
 
     def runs(self, limit: int | None = None, target: str | None = None,
              operation: str | None = None) -> list[RunRecord]:
@@ -101,15 +155,19 @@ class RunStore:
             raise KeyError(f"exécution inconnue : {run_id}")
         return Result.model_validate_json(row[0])
 
-    def purge(self, ids: list[int] | None = None, before: int | None = None, everything: bool = False) -> int:
-        """Purge manuelle (I-RUN-01) : sans effet sur l'histoire du monde."""
+    def purge(self, ids: list[int] | None = None, before: int | None = None, everything: bool = False,
+              keep: int | None = None) -> int:
+        """Purge manuelle (I-RUN-01) : sans effet sur l'histoire du monde ; `keep` : l'exécution de la purge."""
+        spare = keep if keep is not None else -1
         with self.conn:
             if everything:
-                cur = self.conn.execute("DELETE FROM runs")
+                cur = self.conn.execute("DELETE FROM runs WHERE run_id != ?", (spare,))
             elif before is not None:
-                cur = self.conn.execute("DELETE FROM runs WHERE run_id < ?", (before,))
+                cur = self.conn.execute("DELETE FROM runs WHERE run_id < ? AND run_id != ?", (before, spare))
             else:
-                cur = self.conn.executemany("DELETE FROM runs WHERE run_id = ?", [(i,) for i in ids or []])
+                cur = self.conn.executemany("DELETE FROM runs WHERE run_id = ? AND run_id != ?",
+                                            [(i, spare) for i in ids or []])
+            self.conn.execute("DELETE FROM artifacts WHERE run_id NOT IN (SELECT run_id FROM runs)")
         return cur.rowcount
 
     # --- Bacs à sable ---

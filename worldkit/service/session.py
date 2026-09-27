@@ -60,6 +60,15 @@ class Context:
     session: Session
     target: str
     world: World | None = None
+    run_id: int | None = None          # exécution enregistrée, créée avant l'appel (artefacts, progression)
+    progress: Any = None               # rappel (étape, informations) : tâches de fond (décision I4)
+    cancel: Any = None                 # threading.Event : arrêt demandé
+
+    def report(self, stage: str, info: dict[str, Any]) -> None:
+        if self.run_id is not None:
+            self.session.runs.set_progress(self.run_id, {"stage": stage, **info})
+        if self.progress is not None:
+            self.progress(stage, info)
 
 
 class Session:
@@ -176,7 +185,8 @@ class Session:
     # --- Appel ---
 
     def call(self, name: str, params: dict[str, Any] | None = None, target: str | int | None = None,
-             record: bool | None = None) -> Result:
+             record: bool | None = None, run_id: int | None = None, progress: Any = None,
+             cancel: Any = None) -> Result:
         op = REGISTRY.get(name)
         if op is None:
             known = ", ".join(sorted(REGISTRY))
@@ -184,10 +194,14 @@ class Session:
         raw = dict(params or {})
         start = time.perf_counter()
         target_name = WORLD
+        keep = record if record is not None else op.kind != "read"
         try:
             target_name = parse_target(target)
             p = op.params.model_validate(raw)
-            ctx = Context(self, target_name)
+            if keep and run_id is None:  # l'exécution existe avant de commencer : artefacts et progression s'y rangent
+                run_id = self.runs.begin(name, op.kind, target_name, jsonable(p.model_dump(mode="json",
+                                                                                            exclude_defaults=True)))
+            ctx = Context(self, target_name, None, run_id, progress, cancel)
             if op.needs_world:
                 ctx.world = self.open(target_name)
                 try:
@@ -210,8 +224,8 @@ class Session:
             result = _error(name, op.kind, target_name, raw, [
                 IssueView(code="service_error", severity=str(Severity.ERROR), rule="", message=str(message))])
         result.trace = Trace(duration_ms=round((time.perf_counter() - start) * 1000, 1), code_version=code_version())
-        if record if record is not None else op.kind != "read":
-            self.runs.record(result)
+        if keep:
+            self.runs.record(result, run_id)
         return result
 
 

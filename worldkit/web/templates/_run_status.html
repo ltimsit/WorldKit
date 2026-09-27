@@ -1,0 +1,17 @@
+{% import "_macros.html" as m %}
+<div id="run-status" {% if run.status == "running" %}hx-get="/fragments/run/{{ run.id }}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
+<p>Statut : <b class="s-{{ run.status }}">{{ run.status }}</b>
+{% if run.status == "running" %} — étape <b>{{ run.progress.stage or "…" }}</b>
+  {% if run.progress.total %} · passages {{ run.progress.done }}/{{ run.progress.total }}{% endif %}
+  {% if run.progress.calls is defined %} · appels au modèle {{ run.progress.calls }}{% endif %}{% endif %}
+{% if run.status == "interrupted" %} — le serveur s'est arrêté pendant l'exécution{% endif %}</p>
+{% if run.result %}{{ m.result_head(run.result) }}{% endif %}
+{% set summary = (run.result.output.stages if run.result and run.result.output and run.result.output.stages is defined else []) %}
+<table><tr><th>étape</th><th>nom</th><th>état</th><th>durée (ms)</th><th>indicateurs</th><th>artefact</th></tr>
+{% for s in stages %}{% set done = s in run.stages %}{% set info = (summary|selectattr("stage", "equalto", s)|list) %}
+<tr class="{{ 'added' if done else '' }}"><td><b>{{ s }}</b></td><td>{{ names[s] if names is defined else "" }}</td>
+<td>{% if done %}fait{% elif run.status == "running" and run.progress.stage == s %}<b class="s-pending">en cours</b>{% else %}<span class="muted">—</span>{% endif %}</td>
+<td>{{ info[0].duration_ms if info else "" }}</td><td class="mono small">{{ (info[0].indicators|tojson) if info else "" }}</td>
+<td>{% if done %}<a href="/runs/{{ run.id }}/artifact/{{ s }}">voir</a> · <a href="/pipeline?input={{ run.id }}&input_stage={{ s }}&from={{ stages[loop.index] if loop.index < 9 else 'E9' }}">reprendre après</a>{% endif %}</td></tr>
+{% endfor %}</table>
+</div>

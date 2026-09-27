@@ -19,6 +19,7 @@
     <a href="/journal?{{ q }}" class="{{ 'on' if path.startswith('/journal') or path.startswith('/edit') }}">Journal</a>
     <a href="/editor?{{ qs(ctx) }}" class="{{ 'on' if path.startswith('/editor') }}">Saisie</a>
     <a href="/bench?{{ q }}" class="{{ 'on' if path.startswith('/bench') }}">Banc</a>
+    <a href="/pipeline" class="{{ 'on' if path.startswith('/pipeline') or path.startswith('/runs-diff') or '/artifact/' in path }}">Pipeline</a>
     <a href="/runs?{{ q }}" class="{{ 'on' if path.startswith('/runs') }}">Exécutions</a>
     <a href="/ops?{{ q }}" class="{{ 'on' if path == '/ops' }}">Opérations</a>
   </nav>

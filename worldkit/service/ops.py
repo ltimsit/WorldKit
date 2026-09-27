@@ -429,6 +429,10 @@ class RunId(Params):
 @operation("runs.show", "read", RunId, "le résultat complet d'une exécution enregistrée", ("I-RUN-01",),
            needs_world=False)
 def runs_show(ctx: Context, p: RunId) -> Output:
+    status, progress = ctx.session.runs.progress(p.id)
+    if status in ("running", "interrupted"):  # tâche de fond : pas encore de résultat (décision I4)
+        return Output({"run": p.id, "status": status, "progress": progress,
+                       "stages": ctx.session.runs.artifact_stages(p.id)}, status="pending")
     return Output(ctx.session.runs.result(p.id))
 
 
@@ -443,7 +447,7 @@ class RunsPurge(Params):
 def runs_purge(ctx: Context, p: RunsPurge) -> Output:
     if not (p.ids or p.before is not None or p.all):
         raise ValueError("purge : donner ids, before ou all")
-    n = ctx.session.runs.purge(p.ids, p.before, p.all)
+    n = ctx.session.runs.purge(p.ids, p.before, p.all, keep=ctx.run_id)
     return Output({"purged": n}, [], {"purged": n})
 
 

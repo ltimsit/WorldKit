@@ -456,7 +456,10 @@ def e6_classify(run: Run, art: PipelineArt) -> PipelineArt:
                     continue  # une affirmation a un énonciateur (R-DOC-02)
                 raw.append({"doc_id": d.doc_id, "passage": p.index, "i": count(), "optional": False, "awaiting": False,
                             "draft": {"op": "add_claim", "claim": f"{d.doc_id}.p{p.index}.c{n}", "document": d.doc_id,
-                                      "speaker": speaker, "text": claim["text"], "claimed": claim.get("claimed")}})
+                                      "speaker": speaker, "text": claim["text"],
+                                      # clés triées : le même changement revendiqué, quel que soit le chemin
+                                      # (extraction fraîche, cache, artefact réinjecté)
+                                      "claimed": json.loads(json.dumps(claim.get("claimed"), sort_keys=True))}})
     art.raw = raw
     return _done(art, "E6")
 
