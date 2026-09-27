@@ -1,0 +1,23 @@
+{% import "_macros.html" as m %}
+{% if checked.error %}
+<p class="sev-error"><b>Brouillon illisible</b> : {{ checked.error }}</p>
+{% elif checked.result %}{% set r = checked.result %}{% set o = r.output %}
+<p><b>Vérification</b> (rien n'est écrit) : {% if o and o.applicable %}<b class="s-ok">applicable</b>{% else %}<b class="s-refused">non applicable</b>{% endif %}
+{% if o %} contre {{ r.target }}, {{ o.branch }}, rang {{ o.seq }}{% endif %}</p>
+{{ m.result_head(r) }}
+{% if checked.lines %}<ul class="small">{% for path, line in checked.lines.items() %}{% if path %}<li><code>{{ path }}</code> → ligne {{ line or "?" }}</li>{% endif %}{% endfor %}</ul>{% endif %}
+{% if o %}
+<h3>Clés de fait</h3>
+<table><tr><th>#</th><th>opération</th><th>clés</th></tr>
+{% for k in o["keys"] %}<tr><td>{{ k.index }}</td><td>{{ k.op }}</td><td class="mono small">{% for key in k["keys"] %}{{ key|tojson }}<br>{% endfor %}</td></tr>{% endfor %}</table>
+<p class="small">lectures {{ o.reads|length }} · écritures {{ o.writes|length }}</p>
+{% if o.diff %}
+<h3>Effet sur l'état</h3>
+<table><tr><th>état</th><th>fait</th><th>valeur</th><th>notoriété</th></tr>
+{% for f in o.diff.added %}<tr class="added"><td>ajouté</td><td class="mono small">{{ f.id|tojson }}</td><td>{{ f.value }}</td><td>{{ m.vis(f.visibility) }}</td></tr>{% endfor %}
+{% for f in o.diff.removed %}<tr class="removed"><td>retiré</td><td class="mono small">{{ f.id|tojson }}</td><td>{{ f.value }}</td><td>{{ m.vis(f.visibility) }}</td></tr>{% endfor %}
+{% for c in o.diff.changed %}<tr class="changed"><td>changé</td><td class="mono small">{{ c.after.id|tojson }}</td><td>{{ c.before.value }} → {{ c.after.value }}</td><td>{{ m.vis(c.before.visibility) }} → {{ m.vis(c.after.visibility) }}</td></tr>{% endfor %}
+</table>
+{% endif %}
+{% endif %}
+{% endif %}

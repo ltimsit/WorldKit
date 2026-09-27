@@ -1,0 +1,48 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Saisie{% endblock %}
+{% block content %}
+<h1>Saisie d'une édition</h1>
+<p class="small muted">Le brouillon est vérifié par le service à chaque pause de frappe, sans rien écrire (I-SAI-01). Destination par défaut : un bac à sable (I-PRI-04).</p>
+<div class="cols" style="grid-template-columns: 3fr 1fr">
+<div>
+<form id="edform" method="post" action="/editor" hx-boost="false">
+  <p>
+    <label>gabarit
+      <select onchange="if(this.value){const t=document.getElementById('yaml');t.value=t.value.replace(/\s*$/,'\n')+this.value+'\n';t.dispatchEvent(new Event('keyup'));this.value='';}">
+        <option value="">insérer un changement…</option>
+        {% for name, snippet in templates.items() %}<option value="{{ snippet }}">{{ name }}</option>{% endfor %}
+      </select></label>
+    <label>point de base <input name="point" placeholder="head" style="width:90px"></label>
+  </p>
+  <textarea id="yaml" name="yaml" rows="16" style="width:100%" class="mono" spellcheck="false"
+    hx-post="/fragments/check" hx-trigger="keyup changed delay:600ms" hx-target="#check" hx-include="#edform">{{ text }}</textarea>
+  <p>
+    <label>destination
+      <select name="destination" hx-post="/fragments/check" hx-trigger="change" hx-target="#check" hx-include="#edform">
+        <option value="new" {{ 'selected' if dest == 'new' }}>nouveau bac à sable</option>
+        {% for b in sandboxes %}<option value="{{ b.id }}" {{ 'selected' if dest|string == b.id|string }}>bac {{ b.id }}{% if b.note %} — {{ b.note }}{% endif %}</option>{% endfor %}
+        <option value="world" {{ 'selected' if dest == 'world' }}>monde de travail (confirmation requise)</option>
+      </select></label>
+    <label><input type="checkbox" name="confirm_world" value="1"> je confirme l'écriture dans le monde de travail</label>
+  </p>
+  <p><button name="action" value="apply">Appliquer</button> <button name="action" value="submit">Soumettre (en attente)</button></p>
+</form>
+{% if outcome %}
+<h2>Résultat</h2>
+{% if outcome.error %}<p class="sev-error">{{ outcome.error }}</p>{% endif %}
+{% if outcome.result %}{{ m.result_head(outcome.result) }}<pre>{{ outcome.result.output|yaml }}</pre>
+  {% if outcome.target and outcome.target != "world" %}<p>Écrit dans le <b>bac {{ outcome.target }}</b> : <a href="/?target={{ outcome.target }}">l'ouvrir</a> · <a href="/sandbox/{{ outcome.target }}/promote">rendre réel…</a></p>{% endif %}
+{% endif %}
+{% endif %}
+<h2>Vérification en direct</h2>
+<div id="check">{% include "_check.html" %}</div>
+</div>
+<div>
+<h3>Entités connues</h3>
+<p class="small muted">cliquer pour insérer l'identifiant</p>
+<table class="small">
+{% for p in (index.output.pages if index.output else []) %}<tr><td><a href="#" onclick="const t=document.getElementById('yaml');const s=t.selectionStart;t.setRangeText('{{ p.id }}',s,t.selectionEnd,'end');t.focus();t.dispatchEvent(new Event('keyup'));return false;" class="mono">{{ p.id }}</a></td><td>{{ p.type }}</td></tr>{% endfor %}
+</table>
+</div>
+</div>
+{% endblock %}

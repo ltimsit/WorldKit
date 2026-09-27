@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Rendre réel le bac {{ sandbox_id }}{% endblock %}
+{% block content %}
+{% set o = result.output %}
+<h1>Rendre réel le bac {{ sandbox_id }}</h1>
+<p class="small muted">Répétition à blanc sur une copie du monde de travail tel qu'il est maintenant ; application en tout ou rien, seulement si rien ne diverge (I-SBX-01).</p>
+{{ m.result_head(result) }}
+{% if error %}<p class="sev-error">{{ error }}</p>{% endif %}
+{% if o %}
+<p>Chaîne rejouée : bacs {{ o.chain|join(" → ") }} · {{ o.steps|length }} écriture(s) ·
+{% for k, v in result.indicators.items() %}{% if k not in ["steps"] %}{{ k }} {{ v }} · {% endif %}{% endfor %}</p>
+<table><tr><th>exécution</th><th>depuis</th><th>opération</th><th>essai</th><th>répétition</th><th>verdict</th><th>détail</th></tr>
+{% for s in o.steps %}<tr class="{{ 'removed' if s.verdict == 'divergence' else 'changed' if s.verdict == 'gap' else '' }}">
+<td><a href="/runs/{{ s.run }}">#{{ s.run }}</a></td><td>{{ s["from"] }}</td><td class="mono">{{ s.operation }}</td><td>{{ s.recorded }}</td>
+<td>{{ s.rehearsed or "" }}</td><td>{{ {"same": "identique", "gap": "écart", "divergence": "DIVERGENCE", "ignored": "ignorée"}[s.verdict] }}</td><td class="small">{{ s.detail }}</td></tr>{% endfor %}
+</table>
+{% if applied and o.applied %}<p class="s-ok"><b>Appliqué au monde de travail</b> : {% for a in o.applied %}#{{ a.from_run }} → <a href="/runs/{{ a.run }}">#{{ a.run }}</a> ({{ a.status }}) {% endfor %}</p>
+{% elif result.status == "pending" %}
+<form method="post" action="/sandbox/{{ sandbox_id }}/promote" hx-boost="false">
+  <label><input type="checkbox" name="confirm_world" value="1"> je confirme l'écriture de ces {{ o.steps|length }} écriture(s) dans le monde de travail</label>
+  <button>Appliquer au monde de travail</button>
+</form>
+{% elif result.status == "refused" %}<p class="sev-error">Rien n'a été écrit : corriger dans un nouveau bac, créé depuis le monde à jour.</p>{% endif %}
+{% endif %}
+{% endblock %}

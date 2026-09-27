@@ -23,7 +23,7 @@ from worldkit.service import REGISTRY, Result, Session
 
 HERE = Path(__file__).parent
 CONTEXT_KEYS = ("target", "branch", "point", "filter")
-READ_ONLY = {"read"}  # I2 : consultations seulement ; les écritures arrivent avec I3
+READ_ONLY = {"read"}  # GET : consultations ; calculs et écritures passent par POST (I3)
 NAME_KEYS = {"branch", "point", "entity", "document", "target", "batch", "batch_id", "origin", "note", "reason",
              "operation", "filter"}
 
@@ -149,7 +149,7 @@ def create_app(db: str | Path) -> FastAPI:
         if op is None:
             return JSONResponse({"error": f"opération inconnue : {operation}"}, status_code=404)
         if op.kind not in READ_ONLY:
-            return JSONResponse({"error": f"{operation} est une opération « {op.kind} » : lecture seule en I2"},
+            return JSONResponse({"error": f"{operation} est une opération « {op.kind} » : l'appeler en POST"},
                                 status_code=405)
         query = dict(request.query_params)
         target = query.pop("target", None) or None
@@ -238,6 +238,8 @@ def create_app(db: str | Path) -> FastAPI:
         result = page.call("ops.list")
         return render(request, "ops.html", page, result=result)
 
+    from .actions import register
+    register(app, db, render, lambda: Page(db), templates)
     return app
 
 

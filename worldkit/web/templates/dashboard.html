@@ -22,7 +22,7 @@
 <h2>Bacs à sable</h2>
 {% if sandboxes %}<table><tr><th>bac</th><th>origine</th><th>têtes à la copie</th><th>note</th><th></th></tr>
 {% for b in sandboxes %}<tr><td>{{ b.id }}</td><td>{{ b.origin }}</td><td class="mono small">{{ b.heads|tojson }}</td><td>{{ b.note or "" }}</td>
-<td><a href="/?{{ qs(ctx, target=b.id|string) }}">ouvrir</a></td></tr>{% endfor %}</table>
+<td><a href="/?{{ qs(ctx, target=b.id|string) }}">ouvrir</a> · <a href="/sandbox/{{ b.id }}/promote">rendre réel…</a></td></tr>{% endfor %}</table>
 {% else %}<p class="muted">aucun bac à sable (<code>worldkit sandbox create</code>)</p>{% endif %}
 <h2>Dernières exécutions</h2>
 <table><tr><th>#</th><th>quand</th><th>opération</th><th>sorte</th><th>cible</th><th>statut</th></tr>

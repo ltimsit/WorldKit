@@ -50,17 +50,19 @@ class Operation:
     summary: str
     rules: tuple[str, ...] = ()
     needs_world: bool = True  # False : opération de session (bacs, exécutions)
+    example: dict[str, Any] | None = None  # paramètres d'exemple sur Valmont (banc de mécanismes, I3)
 
 
 REGISTRY: dict[str, Operation] = {}
 
 
 def operation(name: str, kind: Kind, params: type[Params], summary: str, rules: tuple[str, ...] = (),
-              needs_world: bool = True) -> Callable[[Callable[..., Output]], Callable[..., Output]]:
+              needs_world: bool = True, example: dict[str, Any] | None = None
+              ) -> Callable[[Callable[..., Output]], Callable[..., Output]]:
     def register(func: Callable[..., Output]) -> Callable[..., Output]:
         if name in REGISTRY:
             raise ValueError(f"opération déjà déclarée : {name}")
-        REGISTRY[name] = Operation(name, kind, params, func, summary, rules, needs_world)
+        REGISTRY[name] = Operation(name, kind, params, func, summary, rules, needs_world, example)
         return func
     return register
 
@@ -72,4 +74,7 @@ def describe(op: Operation) -> dict[str, Any]:
     params = {k: {"type": v.get("type") or v.get("anyOf") or v.get("$ref"), "required": k in required,
                   "description": v.get("description", ""), "default": v.get("default")}
               for k, v in schema.get("properties", {}).items()}
-    return {"name": op.name, "kind": op.kind, "summary": op.summary, "rules": list(op.rules), "params": params}
+    template = {k: (v["default"] if v["default"] is not None else f"<{k}>") for k, v in params.items()
+                if v["required"] or v["default"] not in (None, [], {}, False)}
+    return {"name": op.name, "kind": op.kind, "summary": op.summary, "rules": list(op.rules), "params": params,
+            "template": template, "example": op.example}
