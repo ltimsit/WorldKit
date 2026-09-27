@@ -52,6 +52,8 @@ class Edit(BaseModel):
     tags: list[str] = Field(default_factory=list)
     derived_from: str | None = None  # R-EDI-08
     transposed_from: str | None = None  # édition d'une autre branche, transposée (R-HIS-05)
+    title: str | None = None  # intitulé d'une piste (« Et si Odon était le frère caché d'Isabeau ? »)
+    concerns: list[str] = Field(default_factory=list)  # entités visées par une piste (R-SCN-09)
     note: str | None = None  # commentaire d'auteur, sans effet
     changes: list[Change]
 

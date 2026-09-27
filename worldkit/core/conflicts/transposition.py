@@ -60,6 +60,27 @@ class Analysis:
         return "contradictory" if self.contradictions else "independent"
 
 
+def keep_changes(analysis: Analysis, changes: list[Any], head: State) -> tuple[list[Any], int]:
+    """Garder malgré une contradiction : retirer explicitement chaque fait qui occupe une clé visée
+    (R-FAI-05) ; abandonner les retraits devenus sans objet sur la cible (le fait n'y existe pas),
+    puisque libérer la clé est l'affaire du retrait de l'occupant réel. Rend (changements, abandonnés)."""
+    from worldkit.core.projection.state import fact_id_of
+    from worldkit.core.schema.changes import RemoveRelation
+    removals: list[Any] = []
+    for d in analysis.contradictions:
+        fid = head.occupancy.get(d.key)
+        fact = head.facts.get(fid) if fid is not None else None
+        if fact is not None and fact.kind == "rel":
+            removal = RemoveRelation(op="remove_relation", scope=fact.scope, **{"from": fact.subject},
+                                     relation=fact.name, to=fact.target or "")
+            if removal not in removals:
+                removals.append(removal)
+    ctx = head.context()
+    dropped = [c for c in changes if c.op in ("remove_relation", "unset_attribute", "remove_value")
+               and fact_id_of(c, ctx) not in head.facts]
+    return removals + [c for c in changes if c not in dropped], len(dropped)
+
+
 def _value(state: State, key: FactKey) -> Any:
     """Ce qu'une clé désigne dans un état : l'identifiant du fait, et sa valeur pour un attribut."""
     fid = state.occupancy.get(key)

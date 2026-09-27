@@ -44,6 +44,7 @@ class IssueCode(StrEnum):
     MISSING_FACT = "missing_fact"
     STALE_EDIT = "stale_edit"
     DOCUMENT_OBSOLETE = "document_obsolete"
+    SCENARIO_DEPENDENCY = "scenario_dependency"
 
 
 @dataclass(frozen=True)
