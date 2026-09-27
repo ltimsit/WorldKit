@@ -15,7 +15,7 @@ from .state import EntityRecord, Fact, State
 
 # À incrémenter à chaque changement de forme : une tête en cache d'un autre format est ignorée
 # et l'état est rejoué depuis le journal, qui seul fait foi (T-STO-01).
-STATE_FORMAT = 3
+STATE_FORMAT = 4
 
 
 class StaleFormat(ValueError):

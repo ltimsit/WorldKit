@@ -113,6 +113,10 @@ def _check_one(change: Change, sim: State, t: _Tracker, path: str) -> None:
         case CreateEntity():
             if keys[0] in sim.occupancy:
                 _err(t, IssueCode.KEY_COLLISION, f"l'entité « {keys[0][1]} » existe déjà", "R-FAI-05", path)
+            elif len(keys) > 1 and keys[1] in sim.occupancy:  # une fiche par système (R-MET-02)
+                other = sim.occupancy[keys[1]][1]
+                _err(t, IssueCode.KEY_COLLISION, f"« {keys[1][1]} » a déjà une fiche dans {keys[1][2]} ({other}) ; "
+                     "la clore dans la même édition pour la remplacer", "R-FAI-05", path)
             t.writes.update(keys)
         case CloseEntity() | DeleteEntity():
             t.reads.update(keys)

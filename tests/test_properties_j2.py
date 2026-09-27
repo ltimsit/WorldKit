@@ -102,6 +102,10 @@ def test_public_filter_never_leaks(data):
         assert ends <= public
         assert any(f.name == r["relation"] and ends <= {f.subject, f.target} and shown_publicly(f)
                    for f in state.facts.values())
+    for s in exported["sheets"]:  # fiches (L2) : la fiche et son entité sont publiques, ses valeurs aussi
+        assert s["id"] in public and s["of"] in public
+        shown = {f.name for f in state.facts_of(s["id"]) if f.kind != "rel" and shown_publicly(f)}
+        assert set(s["attributes"]) <= shown
 
 
 @SETTINGS

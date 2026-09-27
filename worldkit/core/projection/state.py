@@ -165,6 +165,12 @@ def _drop(state: State, fid: FactId) -> None:
         del state.occupancy[k]
 
 
+def _free_sheet(state: State, eid: str) -> None:
+    sheet = state.entities[eid].sheet
+    if sheet is not None and state.occupancy.get(("sheet", sheet.of, sheet.system)) == ("entity", eid):
+        del state.occupancy[("sheet", sheet.of, sheet.system)]
+
+
 def apply_change(state: State, change: Change, edit_id: str) -> None:
     """Applique un changement déjà vérifié (mutation de `state`)."""
     sc = change.scope
@@ -186,14 +192,18 @@ def apply_change(state: State, change: Change, edit_id: str) -> None:
                                                visibility=change.visibility or Visibility.UNQUALIFIED,
                                                established_by=edit_id, created_seq=state.seq)
             state.occupancy[("entity", eid)] = ("entity", eid)
+            if change.sheet is not None:  # une fiche par système (R-MET-02, L2)
+                state.occupancy[("sheet", change.sheet.of, change.sheet.system)] = ("entity", eid)
         case CloseEntity():
             eid = qualify(change.entity, sc)
             state.entities[eid] = replace(state.entities[eid], closed=True)
+            _free_sheet(state, eid)  # clore une fiche libère sa place : reclasser = clore puis recréer
         case DeleteEntity():
             eid = qualify(change.entity, sc)
             for f in list(state.facts.values()):
                 if eid in mentioned_entities(f, state):
                     _drop(state, f.id)
+            _free_sheet(state, eid)
             del state.entities[eid]
             state.occupancy.pop(("entity", eid), None)
         case SetAttribute() | AddValue() | AddRelation():

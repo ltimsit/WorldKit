@@ -41,7 +41,7 @@ class _Change(BaseModel):
 # --- Entités ---
 
 class SheetBinding(BaseModel):
-    """Format provisoire d'une fiche (lacune L2) : `sheet: {of, system, category}`."""
+    """Rattachement d'une fiche, immuable (lacune L2 tranchée) : `sheet: {of, system, category}`."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
     of: str

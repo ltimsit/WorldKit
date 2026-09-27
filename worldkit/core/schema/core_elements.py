@@ -12,12 +12,13 @@ CORE_TYPES: frozenset[str] = frozenset({
     "Scenario", "ScenarioVersion", "Playthrough", "Sheet",
 })
 
-# Seul type noyau créé par `create_entity` en J1 : la fiche (format provisoire, lacune L2).
+# Seul type noyau créé par `create_entity` : la fiche, qui porte son rattachement immuable
+# `sheet: {of, system, category}` (R-MET-01, R-MET-02 ; lacune L2 tranchée).
 SHEET_TYPE = "Sheet"
 
 # Cardinalité et symétrie des relations noyau, utilisées pour le calcul des clés (R-FAI-05).
-# `counterpart_of` est provisoire : lien entre les deux nœuds d'un élément à double face
-# (R-MET-04), nom et cardinalité à fixer avec la lacune L1.
+# `counterpart_of` relie un élément du monde à sa face dans un système (R-MET-04) ; sa clé est
+# propre : au plus une contrepartie par système (keys.py ; lacune L1 tranchée).
 CORE_RELATIONS: dict[str, tuple[Cardinality, bool]] = {
     "concerns": (Cardinality.MANY_TO_MANY, False),
     "asserts": (Cardinality.MANY_TO_MANY, False),
@@ -27,6 +28,10 @@ CORE_RELATIONS: dict[str, tuple[Cardinality, bool]] = {
     "counterpart_of": (Cardinality.MANY_TO_MANY, False),
 }
 
-PROVISIONAL_CORE_RELATIONS: frozenset[str] = frozenset({"counterpart_of"})
+COUNTERPART = "counterpart_of"
+
+# Relations calculées à partir du rattachement d'une fiche (lacune L2) : exposées par les vues et
+# l'export, jamais écrites par une édition.
+COMPUTED_CORE_RELATIONS: frozenset[str] = frozenset({"has_sheet", "conforms_to"})
 
 SAME_AS_KINDS: frozenset[str] = frozenset({"revelation", "duplicate"})  # R-IDT-02

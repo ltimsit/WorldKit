@@ -43,7 +43,7 @@ Ces formats sont des choix de fixture, faits pour écrire le corpus ; ils ne pr�
 | Édition | `id`, `branch`, `origin`, `tags`, `changes` ; un changement = une opération du catalogue §6.1 avec ses champs (`entity`, `attribute`, `value`, `from`, `relation`, `to`, `visibility`, `kind`, `scope`). |
 | Notoriété | Absente = `unqualified`. |
 | Système de règles | Même langage que le schéma de monde, avec `kind: rule_system` ; éléments du système adressés `system-a:bite`. |
-| Fiche | `create_entity` de type `Sheet` avec `sheet: { of, system, category }` ; identifiant `entité@système` (voir lacune L2). |
+| Fiche | `create_entity` de type `Sheet` avec `sheet: { of, system, category }` ; identifiant `entité@système`. Rattachement immuable, une fiche par système (lacune L2 tranchée). |
 | Fiches exigées | Dans `world.yaml`, par système : `sheets: { TypeDuMonde: Catégorie }`, sous-types compris (R-MET-06). |
 | Changements de schéma | `schema_set_relation` : `relation` + `definition` complète ; `schema_set_type` : `type` + `definition` complète, ou `attribute` + `definition` d'attribut, ou `attribute` + `constraint` (`min`, `max`, `required`). |
 | Affirmations (gold) | `claims` par passage, ou `segments` quand un marqueur `[in_world: …]` découpe le passage ; `suggested` est la conclusion attendue du noyau, que l'extracteur oracle ne transmet pas. |
@@ -84,12 +84,12 @@ Ces formats sont des choix de fixture, faits pour écrire le corpus ; ils ne pr�
 
 | # | Lacune | Où | Règles |
 |---|---|---|---|
-| L1 | Le lien entre les deux nœuds d'un élément à double face n'a pas de nom ; `counterpart_of` est provisoire. **En attente** (cadre v1.16) : relation noyau provisoire, acceptée et signalée ; nom et cardinalité à fixer. | base e006 | R-MET-04 |
-| L2 | La forme d'une fiche dans les changements n'est pas fixée (type noyau `Sheet`, relations `has_sheet` et `conforms_to`, ou raccourci). | base e006, b4 | R-MET-01, §4.4 |
+| L1 | ~~Le lien entre les deux nœuds d'un élément à double face n'a pas de nom.~~ **Tranchée** (cadre v1.20) : relation noyau `counterpart_of`, du monde vers un système, au plus une contrepartie par système ; une capacité de système peut servir plusieurs éléments du monde. | base e006 | R-MET-04 |
+| L2 | ~~La forme d'une fiche dans les changements n'est pas fixée.~~ **Tranchée** (cadre v1.20) : un seul `create_entity` de type `Sheet` porte le rattachement immuable `(of, system, category)` ; une fiche par système ; `has_sheet` et `conforms_to` sont calculées, jamais écrites ; reclasser = clore puis recréer. | base e006, b4 | R-MET-01, R-MET-02, §4.4 |
 | L3 | ~~Un lot peut citer une entité seulement proposée par un autre lot en attente.~~ **Tranchée** (cadre technique v2.3) : la résolution voit les créations en attente et en reprend l'identifiant ; dépendance envers la création. | b5 p1, W03 | T-ING-07, T-ING-05 |
 | L4 | ~~La notoriété d'une qualification d'affirmation n'est pas fixée.~~ **Tranchée** (cadre v1.14) : la qualification porte sa propre notoriété, non qualifiée par défaut. | W06 | R-DOC-07, R-NOT-02 |
 | L5 | ~~Un fait déclaré public qui mentionne une entité non qualifiée ou secrète.~~ **Tranchée** (cadre v1.13) : notoriété plafonnée par l'entité, levée explicite (`propagation_lifted`), faits masqués signalés. | Q01, W12 | R-NOT-04, R-NOT-07 |
-| L6 | Les éléments de schéma n'ont pas de clé de fait : on ne sait pas exprimer qu'un passage « soutient » une règle de système, ni la dépendance d'une édition à une définition de type. **En attente** (cadre technique v2.6) : clé provisoire `(portée, type|relation, nom[, attribut])`. | b4 p4, W09 | R-FAI-05, R-SCH-03 |
+| L6 | ~~Les éléments de schéma n'ont pas de clé de fait.~~ **Tranchée** (cadre technique v2.14) : clé `(portée, type|relation, nom[, attribut])`, écrite par les seules éditions de schéma ; une édition ordinaire ne la lit pas, sa dépendance aux définitions est vérifiée par la revalidation (M1, T-ING-14, R-SCH-10). | b4 p4, W09 | R-FAI-05, R-SCH-03 |
 | L7 | ~~Aucune étiquette d'origine ne convient à une décision documentaire.~~ **Tranchée** (cadre v1.15) : origine `curation`, réservée aux changements de statut de document. | W14 | R-EDI-05, R-EDI-09 |
 
 ## 6. Ce que ce jet ne teste pas bien

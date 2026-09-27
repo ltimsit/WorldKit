@@ -21,7 +21,9 @@ from .changes import (
     SchemaSetRelation, SchemaSetType, SetAttribute, SetVisibility, UnsetAttribute,
 )
 from .context import EntityInfo, SchemaContext, qualify
-from .core_elements import CORE_RELATIONS, CORE_TYPES, PROVISIONAL_CORE_RELATIONS, SAME_AS_KINDS, SHEET_TYPE
+from .core_elements import (
+    COMPUTED_CORE_RELATIONS, CORE_RELATIONS, CORE_TYPES, COUNTERPART, SAME_AS_KINDS, SHEET_TYPE,
+)
 from .issues import Issue, IssueCode, Severity
 from .keys import FactKey, relation_keys, relation_shape
 from .metaschema import AttributeDef, ScalarKind, Schema, TypeDef
@@ -215,12 +217,17 @@ def _check_relation(source: str, relation: str, target: str, scope: str, ctx: Sc
     if relation in CORE_RELATIONS:
         if relation == "same_as" and adding and kind not in SAME_AS_KINDS:
             issues.append(_invalid(f"same_as doit être qualifiée : kind ∈ {sorted(SAME_AS_KINDS)}", "R-IDT-02"))
-        if relation in PROVISIONAL_CORE_RELATIONS:
-            issues.append(Issue(
-                IssueCode.PROVISIONAL_CORE_RELATION,
-                f"relation noyau provisoire « {relation} » (lacune L1 : nom et forme du lien double face à trancher)",
-                "R-MET-04", severity=Severity.WARNING))
+        if relation in COMPUTED_CORE_RELATIONS and adding:
+            return [_invalid(f"{relation} se calcule à partir du rattachement de la fiche "
+                             "(sheet: {of, system, category}) : elle ne s'écrit pas", "R-MET-01")]
         issues.extend(_unknown(e) for e in (source, target) if e not in ctx.entities)
+        if relation == COUNTERPART and not issues:
+            src, dst = ctx.entities[source], ctx.entities[target]
+            if src.scope != WORLD_SCOPE or src.sheet is not None:
+                issues.append(_invalid(f"counterpart_of.from : « {source} » doit être un élément du monde", "R-MET-04"))
+            if dst.scope == WORLD_SCOPE or dst.sheet is not None:
+                issues.append(_invalid(f"counterpart_of.to : « {target} » doit être un élément d'un système",
+                                       "R-MET-04"))
         return issues
     if kind is not None:
         issues.append(_invalid("« kind » ne qualifie que same_as", "R-IDT-02"))

@@ -259,7 +259,8 @@ class View:
 
         sheets = []
         for sid, srec in sorted(s.entities.items()):
-            if srec.sheet is not None and srec.sheet.of in members and entity_visible(s, sid, flt):
+            if srec.sheet is not None and not srec.closed and srec.sheet.of in members \
+                    and entity_visible(s, sid, flt):
                 lines = [AttributeLine(sid, f.name, f.value, f.visibility, f.established_by, f.id)
                          for f in s.facts_of(sid) if f.kind != "rel" and fact_visible(f, s, flt)]
                 sheets.append(SheetSummary(sid, srec.sheet.system, srec.sheet.category, lines))

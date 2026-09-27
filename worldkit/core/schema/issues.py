@@ -31,7 +31,6 @@ class IssueCode(StrEnum):
     INVALID_VALUE = "invalid_value"
     MISSING_REQUIRED = "missing_required"
     UNKNOWN_ENTITY = "unknown_entity"
-    PROVISIONAL_CORE_RELATION = "provisional_core_relation"
     # Conformité d'un état
     NON_CONFORMING = "non_conforming"
     MISSING_SHEET = "missing_sheet"
