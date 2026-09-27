@@ -64,8 +64,39 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **J4 — outillage fait** (branche `j4-extraction`) : adaptateurs LLM (`claude-code` avec l'abonnement, `anthropic-api`, `ollama`), profils routés par tâche (`worldkit-llm.yaml`), extracteur LLM, mesure T2 (`worldkit eval extraction`). Le choix du modèle attend le second jet du corpus, écrit par l'auteur (T-TST-01).
 - **J5 — fait** (branche `j5-branches`) : branches, redéfinition ponctuelle et R-VUE-03, transposition d'éditions (indépendante, dépendante, contradictoire), déplacement de propositions. La transposition de scénario (fin de W13) arrive avec J6.
 - **J6 — fait** (branche `j6-scenarios`) : scénarios versionnés, pistes d'auteur, déroulés, transposition de scénario, pistes ouvertes sur les pages (`worldkit/core/workflows/`).
-- Ensuite : J7 (redéfinition rétroactive, rejeu), J8 (méta), second jet du corpus… (cadre technique §7).
+- **Prochain : J7** (redéfinition rétroactive, rejeu). Fiche de démarrage : `docs/j7-brief.md`.
+- Ensuite : J8 (méta), second jet du corpus écrit par l'auteur (choix du LLM, T-TST-01)… (cadre technique §7).
 - Points ouverts à trancher avant J8 : lacunes L1, L2, L6 du corpus (`corpus/valmont-v1/README.md` §5).
+
+## Carte du code
+
+| Module | Chemin | Rôle |
+|---|---|---|
+| M1 schéma | `worldkit/core/schema/` | méta-schéma, validateur, changements (catalogue), clés de fait, vérification, conformité |
+| M2 journal | `worldkit/core/journal/` | éditions (`models.py`), stockage SQLite en ajout seul (`store.py`), lignée des branches |
+| M3 projection | `worldkit/core/projection/` | état (`state.py`), application d'un changement, forme canonique (`serialize.py`) |
+| M4 conflits | `worldkit/core/conflicts/` | collisions, lectures/écritures (`application.py`), transposition (`transposition.py`) |
+| M5 workflows | `worldkit/core/workflows/` | scénarios, pistes d'auteur, déroulés |
+| M10–M11 vues | `worldkit/core/views/` | notoriété effective, pages, rendu Markdown, export JSON, signalements |
+| Façade | `worldkit/core/world.py` | `World` : créer, appliquer, soumettre, confirmer, rebaser, branches, transposer |
+| M6–M9 ingestion | `worldkit/ingest/` | déclaration et passages, lots, propositions, file de revue vivante, décisions |
+| Périphérie | `worldkit/periphery/` | extracteur oracle, adaptateurs LLM et profils (`llm/`), extracteur LLM, mesure T2 |
+| CLI | `worldkit/cli.py` | `worldkit --db monde.db <commande>` ; `worldkit --help` |
+
+Tests : `tests/` ; aides dans `tests/support.py` (`base_world`, `edit`, `rel`…) et `tests/test_w10_w11.py` (`after_w05` : état après la revue de W05).
+
+## Commandes et environnement
+
+- Environnement : `.venv` (Python 3.12). Tests : `.venv\Scripts\python -m pytest -q` (tous doivent passer ; aucun n'appelle un vrai modèle). Corpus : `cd corpus/valmont-v1; ..\..\.venv\Scripts\python tools/check_corpus.py`.
+- Windows, PowerShell 5.1 : `@base` doit s'écrire `'@base'` ou `base` (le `@` est facultatif) ; `0,1` devient deux arguments (les options d'indices l'acceptent) ; les guillemets d'un argument JSON passé à un exécutable natif sont mangés (passer par Python).
+- LLM : l'adaptateur `claude-code` appelle `claude -p` avec l'abonnement de l'auteur (usage personnel), binaire trouvé dans l'extension VS Code. Une mesure `worldkit eval extraction` consomme le quota : demander avant d'en lancer une complète.
+- Pour modifier un fichier par script, écrire le script dans le dossier temporaire de session puis l'exécuter : les apostrophes françaises cassent les here-docs de bash.
+
+## Façon de travailler (établie)
+
+- Chaque jalon : lire la fiche et le cadre, proposer un plan, poser les questions **une par une** avec options A/B et recommandation, coder par étapes testées et commitées, puis mettre à jour les documents (cadre, analyse 00.xx et question numérotée, CLAUDE.md) et lister dans la réponse les choix faits sans validation.
+- Adapter le corpus plutôt que contourner une règle (ex. retrait explicite exigé par R-FAI-05 : e201, x-d3), et le dire.
+- Les guides pas à pas donnés à l'auteur sont d'abord exécutés sous PowerShell pour vérifier chaque résultat annoncé.
 
 ## Git
 
