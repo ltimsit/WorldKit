@@ -1,7 +1,7 @@
 # Cadre technique de la fondation
 
 **Objet :** décisions techniques de la fondation : éléments structurants, découpage en modules, architecture, articulation entre le noyau et l'ingestion, stratégie de test et étapes de construction.
-**Version :** 2.14 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.20, qu'il cite sans le dupliquer.
+**Version :** 2.15 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21, qu'il cite sans le dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (argumenté, en attente de validation). En cas de divergence, *cadre-fondation.md* prévaut.
 
 **Conventions**
@@ -299,6 +299,14 @@ L'extracteur produit une liste de brouillons de changements (`ChangeDraft`) vali
 Deux propositions en attente issues de lots différents qui écrivent la même clé avec des valeurs différentes ne sont pas en contradiction avec l'état (aucune n'est appliquée). M4 les détecte par collision de clés entre éditions en attente et les marque **concurrentes** ; M9 les présente ensemble, avec la priorité suggérée au lot le plus ancien. Après confirmation de l'une, les autres passent à revérifier (T-ING-06).
 Exemple : lundi, les notes sur le baron proposent « le conseil des marchands gouverne Brume » ; mardi, avant validation, la Chronique de la Chute propose « le roi gouverne Brume ». Avec `rules` en `one_to_many`, les deux visent `(rules, Brume)` : elles sont présentées ensemble, la proposition du lundi est suggérée en premier.
 
+**T-ING-20 — Méta à l'ingestion.** *(validé ; R-DEC-01 à R-DEC-05, R-MET-01 à R-MET-06, R-SCH-02, T-ARC-01)*
+- **Destination d'un changement** : méta s'il est de portée système, s'il vise une fiche ou un élément de système, ou s'il a une forme réduite ; un changement du schéma de monde reste diégétique. La nature déclarée du passage (R-DEC-04) filtre : un changement contraire est écarté et le passage signalé (`meta_in_diegetic`, `diegetic_in_meta`, R-DEC-05).
+- **Question de nature** : dans un passage à déterminer, un changement méta marque le passage `nature_detected`. Ses propositions méta sont enregistrées **bloquées**, ni présentées ni acceptables (comme celles d'un document obsolète), et le passage ne soutient rien (T-ING-11). `worldkit review nature <document> <passage> accept|refuse` trace la décision par l'empreinte du passage (`nature:<empreinte>`) : accepter débloque, refuser clôt (« nature refusée »).
+- **Changements de schéma qualifiés comme des faits** (T-FAI-01) : identique au schéma de la base → support (une règle corroborée par un passage) ; définition nouvelle → enrichissement ; définition modifiée ou retirée → anomalie ou intention. La qualification voit aussi les entités que le lot crée sous un identifiant explicite (une fiche `entité@système`).
+- **Formes réduites de l'extracteur LLM** : `sheet_values` (entité, système, valeurs) et `schema_constraint` (système, catégorie, attribut, bornes). M9 traduit `sheet_values` contre l'état : catégorie lue dans les fiches exigées du monde (R-MET-06, sous-types compris), identifiant `entité@système`, fiche créée seulement si elle manque ; sans catégorie, la sortie est inexploitable (T-ING-17). Le prompt décrit les systèmes et nomme le document, sujet par défaut d'un passage qui ne le nomme pas ; les éléments de système figurent parmi les entités connues.
+- **Mesure T2** : les passages méta sont mesurés après traduction des formes réduites, comme le fait le lot.
+Exemple (W08) : « Système B : niveau 7, menace 8. », sans marqueur dans le bestiaire (`mixed`), pose une question de nature ; acceptée, la fiche B du Loup (`Monster`) se propose puis se crée, et le signalement de fiche manquante disparaît. « Dans le système A, toute créature a entre 1 et 10 PV » est un support de la règle, sans édition.
+
 **T-ING-19 — Extracteur oracle.** *(validé)*
 Une implémentation de l'extracteur lit les annotations de `valmont/gold/` au lieu d'appeler un LLM. Elle permet de tester **exactement** toute la chaîne d'ingestion (passages, lots, propositions, collisions, dépendances, décisions, ré-ingestion) dès J3, sans LLM. À J4, le LLM remplace l'oracle derrière la même interface, et l'écart entre les deux devient la métrique d'extraction.
 
@@ -306,7 +314,7 @@ Une implémentation de l'extracteur lit les annotations de `valmont/gold/` au li
 - Une entité nouvelle reçoit comme identifiant l'étiquette de l'extracteur (`conseil-marchands`), suffixée si elle est prise ; une création déjà proposée par un lot en attente est reprise par son étiquette ou par son empreinte `(type, nom normalisé)` (T-ING-07).
 - Un changement peut porter plusieurs qualifications (« anomalie + contradiction interne », « enrichissement + conflit dans le lot »).
 - La notoriété de l'en-tête s'applique aux changements extraits qui n'en déclarent pas (niveau 1, R-DEC-01).
-- Avant J8, un passage de nature méta est conservé sans proposition ; une sortie d'extracteur inexploitable marque le passage `extraction_error` (T-ING-17).
+- Une sortie d'extracteur inexploitable marque le passage `extraction_error` (T-ING-17). Le méta est ingéré depuis J8 (T-ING-20).
 - Une entité créée sans ses attributs requis porte le signalement `missing_required` (R-SCH-06).
 - La requalification contre la tête a lieu à chaque lecture de la revue et avant chaque décision : son résultat ne dépend pas de ce qui a fait avancer la branche (T-ING-06).
 
@@ -364,7 +372,7 @@ Ordre validé : **l'ingestion avant le noyau dynamique complet**. L'analyse du �
 | **J7** | Redéfinition rétroactive (rejeu) | Rejeu, pistes et propositions à revérifier | Retcon de la mort d'Aldren |
 | **J8** | Méta : systèmes et fiches ; ingestion de nature `meta_system` et `meta_sheet` | Conformité des fiches | Loup de cendre sous deux systèmes |
 
-Avant J8, les passages de nature méta sont découpés et conservés, mais ne produisent pas de propositions. J8 coûte peu grâce au validateur unique (R-SCH-02) et peut être avancé si le besoin apparaît.
+J8 a coûté peu grâce au validateur unique (R-SCH-02) : l'essentiel porte sur l'ingestion (T-ING-20).
 
 ```mermaid
 flowchart LR
@@ -436,6 +444,8 @@ Complète le glossaire de *cadre-fondation.md* §3.
 | Point nommé | `named_point` | Nom donné à un rang du journal d'une branche (`@base`) ; le `@` est facultatif à la saisie. |
 | Édition de schéma initiale | `e000` | Édition générée par le chargeur de monde, qui construit le schéma de monde et les systèmes (R-SCH-03). |
 | Rattachement d'une fiche | `sheet` | `(of, system, category)` porté par la création d'une fiche, immuable ; fonde `has_sheet` et `conforms_to`, calculées (R-MET-02). Exporté dans `sheets`. |
+| Forme réduite | `sheet_values`, `schema_constraint` | Sortie méta de l'extracteur LLM, traduite en changements de façon déterministe par M9 (T-ING-20). |
+| Nature détectée | `nature_detected` | Drapeau d'un passage dont la nature méta est proposée ; ses propositions méta restent bloquées jusqu'à la décision (T-ING-20). |
 | Tête | `head` | Dernier état d'une branche, matérialisé. |
 | État de base | `base` | État contre lequel une édition en attente a été écrite : `(branch_id, seq, schema_rev)`. |
 | Révision de schéma | `schema_rev` | Position de la dernière édition de schéma dans la branche. |

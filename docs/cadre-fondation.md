@@ -1,7 +1,7 @@
 # Cadre conceptuel de la fondation
 
 **Objet :** base de vérité du modèle conceptuel de la fondation. Sert d'entrée à la conception technique.
-**Version :** 1.20 — 27 septembre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v25, section 00).
+**Version :** 1.21 — 27 septembre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v25, section 00).
 **Statut :** de référence. En cas de divergence avec l'analyse ou avec le cadre technique, ce document prévaut.
 
 **Conventions**
@@ -129,6 +129,7 @@ flowchart TB
 | Levée de propagation | `propagation_lifted` | Indicateur explicite qui rend un fait visible en vue publique sans révéler l'entité non publique qu'il mentionne (R-NOT-04). |
 | Mode d'ingestion | `mode` | `source` / `edit`. |
 | Nature | `nature` | `diegetic` / `meta_system` / `meta_sheet` / `mixed`. |
+| Question de nature | `nature_question` | Nature méta détectée dans un passage non marqué, soumise à l'humain avant toute proposition (R-DEC-04). |
 | Énonciation | `voice` | `author` / `in_world` ; l'énonciateur est `speaker`. |
 | Autorité | `authority` | Champ préparé sur les documents. |
 | Fenêtre diégétique | `diegetic_window` | Champ préparé sur les faits. |
@@ -389,6 +390,8 @@ visibility: public
 | R-DEC-01 | Un niveau supérieur l'emporte sur un niveau inférieur. |
 | R-DEC-02 | La détection **ne décide jamais** : elle propose. |
 | R-DEC-03 | Des guillemets signalent une **attribution**, pas une fausseté. |
+| R-DEC-04 | Nature d'un passage : un en-tête `diegetic`, `meta_system` ou `meta_sheet` décide pour tout le document ; dans un document `mixed`, un marqueur `[meta]` déclare le méta, et un passage sans marqueur est diégétique par défaut. Le marqueur dit seulement « méta » : la destination, système ou fiche, se lit dans chaque changement. Une nature méta **détectée** dans un passage sans marqueur fait l'objet d'une **question de nature**, tranchée par l'humain avant toute proposition du passage, et jamais reposée pour le même texte (R-DEC-02, R-PRI-04). |
+| R-DEC-05 | Un changement qui contredit la nature déclarée de son passage (un fait du monde dans un segment `[meta]`, une valeur de fiche dans un passage déclaré diégétique) **n'est pas ingéré** ; le passage est signalé, et le correctif est dans le texte (R-DEC-01, R-MET-03). |
 
 ### 5.4 Priorité et lots
 
