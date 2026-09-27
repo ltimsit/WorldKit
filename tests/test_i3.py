@@ -220,3 +220,27 @@ def test_promote_page_rehearses_then_applies_on_confirmation(client):
     assert "cocher la confirmation" in c.post(f"/sandbox/{n}/promote", data={}).text
     assert snapshot(db) == before
     assert "Appliqué au monde de travail" in c.post(f"/sandbox/{n}/promote", data={"confirm_world": "1"}).text
+
+
+def test_aldren_retcon_in_a_sandbox_then_made_real_W15(tmp_path):
+    """Test humain d'I3, automatisé : retcon d'Aldren dans un bac, vérifié, puis rendu réel."""
+    from test_w15_replay import file_world
+    db = tmp_path / "valmont.db"
+    file_world(db).close()
+    with Session(db) as s:
+        n = s.call("sandbox.create").output["id"]
+        started = s.call("replay.start", REGISTRY["replay.start"].example, n)
+        assert started.status == "pending" and started.output["conflict"]["relation"] == "contradictory"
+        assert s.call("replay.status", {"id": "r1"}, n).output["current"] == started.output["current"]
+        done = s.call("replay.decide", {"id": "r1", "action": "keep"}, n)
+        assert done.output["replay"]["status"] == "finished"
+        before = snapshot(db)
+        assert s.call("sandbox.promote", {"id": n}).status == "pending" and snapshot(db) == before
+        assert s.call("sandbox.promote", {"id": n, "confirm": True}).status == "ok"
+    w = World.open(db)
+    try:
+        assert w.reference_branch == "reference-r1"
+        assert w.state().facts[("attr", "aldren-ii", "death_cause")].value == "fièvre"
+        assert w.store.branch_status("reference") == "archived"
+    finally:
+        w.close()

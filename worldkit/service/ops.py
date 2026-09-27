@@ -705,3 +705,92 @@ def _add_examples() -> None:
 
 
 _add_examples()
+
+
+# ---------------------------------------------------------------------------
+# Redéfinition rétroactive et rejeu (§6.4, T-RED-01) : écritures rejouables, donc promouvables (I3)
+# ---------------------------------------------------------------------------
+
+def _replay_report(report: Any) -> Output:
+    r = report.replay
+    value = {"replay": r, "replayed": report.replayed, "current": report.current, "carried": report.carried,
+             "conflict": None if report.conflict is None else {
+                 "edit": report.conflict.edit_id, "relation": report.conflict.relation,
+                 "divergences": [{"key": d.key, "kind": d.kind, "written": d.written, "text": d.describe()}
+                                 for d in report.conflict.divergences]}}
+    status = None
+    if r is not None and r.status == "open" and report.conflict is not None and not report.issues:
+        status = "pending"  # suspendu sur un conflit : décision humaine attendue (R-RED-02)
+    return Output(value, report.issues, {"replayed": len(report.replayed), "carried": len(report.carried)}, status)
+
+
+class ReplayStart(Params):
+    changes: list[dict[str, Any]]
+    anchor: str | int = Field(description="édition (e003), rang ou point nommé")
+    source: str | None = None
+    branch: str | None = Field(None, description="nom de la nouvelle branche (défaut : <source>-<rejeu>)")
+    id: str | None = Field(None, description="identifiant du rejeu (défaut : r1, r2…)")
+    title: str | None = None
+    limit: int | None = Field(None, description="suspendre après N éditions rejouées")
+
+
+@operation("replay.start", "write", ReplayStart,
+           "redéfinition rétroactive : nouvelle branche, redéfinition, rejeu ordonné", ("R-RED-01", "R-RED-02"),
+           example={"anchor": "e003", "changes": [
+               {"op": "set_attribute", "entity": "aldren-ii", "attribute": "death_cause", "value": "fièvre",
+                "visibility": "secret"},
+               {"op": "remove_relation", "from": "mervin", "relation": "killed", "to": "aldren-ii"}]})
+def replay_start(ctx: Context, p: ReplayStart) -> Output:
+    from worldkit.core.schema import parse_change
+    from worldkit.core.workflows import replay as R
+    assert ctx.world is not None
+    return _replay_report(R.start(ctx.world, [parse_change(c) for c in p.changes], p.anchor, source=p.source,
+                                  branch=p.branch, replay_id=p.id, title=p.title, limit=p.limit))
+
+
+class ReplayDecide(Params):
+    id: str
+    action: Literal["keep", "adapt", "discard"]
+    changes: list[dict[str, Any]] | None = None
+    reason: str | None = None
+    limit: int | None = None
+
+
+@operation("replay.decide", "write", ReplayDecide, "décision sur l'édition en conflit, puis reprise du rejeu",
+           ("R-RED-02", "R-HIS-05"), example={"id": "r1", "action": "keep"})
+def replay_decide(ctx: Context, p: ReplayDecide) -> Output:
+    from worldkit.core.schema import parse_change
+    from worldkit.core.workflows import replay as R
+    assert ctx.world is not None
+    changes = [parse_change(c) for c in p.changes] if p.changes is not None else None
+    return _replay_report(R.decide(ctx.world, p.id, p.action, changes, p.reason, p.limit))
+
+
+class ReplayId(Params):
+    id: str
+    limit: int | None = None
+
+
+@operation("replay.resume", "write", ReplayId, "reprendre un rejeu suspendu", ("R-RED-02",), example={"id": "r1"})
+def replay_resume(ctx: Context, p: ReplayId) -> Output:
+    from worldkit.core.workflows import replay as R
+    assert ctx.world is not None
+    return _replay_report(R.advance(ctx.world, p.id, p.limit))
+
+
+@operation("replay.abandon", "write", ReplayId, "abandonner un rejeu (tout reste tracé)", ("R-RED-02", "R-HIS-01"),
+           example={"id": "r1"})
+def replay_abandon(ctx: Context, p: ReplayId) -> Output:
+    from worldkit.core.workflows import replay as R
+    assert ctx.world is not None
+    return _replay_report(R.abandon(ctx.world, p.id))
+
+
+@operation("replay.status", "read", ReplayId, "où en est un rejeu : édition suivante, conflit, pas faits",
+           ("R-RED-02",), example={"id": "r1"})
+def replay_status(ctx: Context, p: ReplayId) -> Output:
+    from worldkit.core.workflows import replay as R
+    assert ctx.world is not None
+    out = _replay_report(R.pending_conflict(ctx.world, p.id))
+    out.value["steps"] = R.steps(ctx.world, p.id)
+    return out
