@@ -20,7 +20,8 @@ from worldkit.core.schema.keys import UnknownRelation
 from worldkit.core.world import World
 
 from .queue import (
-    StoredChange, StoredProposal, blocked, close, load, load_one, passage_fp, record_support, refresh, save_change,
+    StoredChange, StoredProposal, blocked, branch_of, close, load, load_one, passage_fp, record_support, refresh,
+    save_change,
 )
 from .store import dumps, ensure_tables
 
@@ -44,13 +45,15 @@ def _fail(pid: str, action: str, msg: str, rule: str) -> Decided:
 
 def _pending(world: World, pid: str, action: str) -> StoredProposal | Decided:
     ensure_tables(world.store.conn)
-    refresh(world)
     p = load_one(world, pid)
     if p is None:
         return _fail(pid, action, f"proposition inconnue : {pid}", "R-CYC-04")
+    refresh(world, branch_of(world, p))
+    p = load_one(world, pid)
+    assert p is not None
     if p.status is not EditStatus.PENDING:
         return _fail(pid, action, f"proposition close ({p.status}, {p.closed_reason})", "R-EDI-08")
-    if action not in ("refuse", "abandon") and blocked(world.state(), p.doc):
+    if action not in ("refuse", "abandon") and blocked(world.state(branch_of(world, p)), p.doc):
         return Decided(pid, action, issues=[Issue(
             IssueCode.DOCUMENT_OBSOLETE, f"le document {p.doc} est obsolète : proposition bloquée, "
             "réactivée si le statut est levé (set_document_obsolete false)", "R-DOC-05")])
@@ -75,9 +78,9 @@ def origin_for(changes: list[StoredChange]) -> tuple[Origin, RedefinitionKind | 
     return Origin.ENRICHMENT, None
 
 
-def _with_removals(world: World, kept: list[StoredChange]) -> tuple[list[Change], list[Change]]:
+def _with_removals(world: World, kept: list[StoredChange], branch: str) -> tuple[list[Change], list[Change]]:
     """Changements à appliquer, précédés du retrait des faits qui occupent les clés visées."""
-    head = world.state()
+    head = world.state(branch)
     ctx = head.context()
     removals: list[Change] = []
     for c in kept:
@@ -103,7 +106,7 @@ def _apply(world: World, p: StoredProposal, kept: list[StoredChange], before: li
            refused: list[StoredChange], reason: str | None, after: list[Change] | None = None,
            origin: tuple[Origin, RedefinitionKind | None] | None = None) -> Decided:
     after = after or []
-    removals, changes = _with_removals(world, kept)
+    removals, changes = _with_removals(world, kept, branch_of(world, p))
     changes = before + removals + changes + after
     origin, redefinition = origin or origin_for(kept)
     whole = not before and not after and not removals and len(kept) == len(p.changes)
@@ -140,7 +143,7 @@ def _apply(world: World, p: StoredProposal, kept: list[StoredChange], before: li
             close(world, p, EditStatus.APPLIED, f"derived:{edit_id}")
         else:
             conn.execute("UPDATE proposals SET closed_reason = 'accepted' WHERE edit_id = ?", (p.id,))
-    refresh(world)
+    refresh(world, branch_of(world, p))
     return Decided(p.id, action, edit_id, outcome.seq, outcome.issues)
 
 
@@ -208,7 +211,7 @@ def choose(world: World, pid: str, reason: str | None = None) -> list[Decided]:
         return [first]
     out = [first]
     keys = {k for k, _ in chosen}
-    for other in load(world):
+    for other in load(world, branch_of(world, p)):
         losing = [c.index for c in other.open_changes()
                   if any(dumps(k) in keys and (dumps(k), c.value) not in chosen for k in c.keys)]
         if losing:
@@ -231,10 +234,12 @@ def qualify(world: World, target: str, value: str, visibility: str | None = None
     """
     change = QualifyClaim(op="qualify_claim", claim="", value=value, visibility=visibility)
     ensure_tables(world.store.conn)
-    refresh(world)
     p = load_one(world, target)
+    if p is not None:
+        refresh(world, branch_of(world, p))
+        p = load_one(world, target)
     if p is not None and p.status is EditStatus.PENDING:
-        if blocked(world.state(), p.doc):
+        if blocked(world.state(branch_of(world, p)), p.doc):
             return Decided(target, "qualify", issues=[Issue(
                 IssueCode.DOCUMENT_OBSOLETE, f"le document {p.doc} est obsolète : proposition bloquée", "R-DOC-05")])
         claim = _claim(p)
@@ -269,6 +274,42 @@ def promote(world: World, pid: str, visibility: str | None = None, reason: str |
     suggested = p.changes[0].detail.get("suggested")
     origin = (Origin.REDEFINITION, RedefinitionKind.POINT) if suggested == "false" else (Origin.ENRICHMENT, None)
     return _apply(world, p, p.open_changes(), [], "promote", [], reason, after=[qualification, fact], origin=origin)
+
+
+def move(world: World, pid: str, target: str, reason: str | None = None) -> Decided:
+    """Déplacer une proposition en attente vers une autre branche (T-ING-16) : c'est une transposition
+    d'édition en attente. La copie est requalifiée contre la tête de la cible ; l'originale est close."""
+    from worldkit.core.journal.models import BaseState
+    p = _pending(world, pid, "move")
+    if isinstance(p, Decided):
+        return p
+    if target not in world.store.branches():
+        return _fail(pid, "move", f"branche inconnue : {target}", "T-BRA-01")
+    if target == branch_of(world, p):
+        return _fail(pid, "move", "la proposition est déjà sur cette branche", "T-ING-16")
+    head = world.state(target)
+    new_id = f"{pid}@{target}"
+    kept = p.open_changes()
+    conn = world.store.conn
+    with conn:
+        world.store.record_edit(Edit(id=new_id, branch=target, tags=["ingestion", p.batch, "moved"],
+                                     changes=[c.change for c in kept]), EditStatus.PENDING,
+                                BaseState(branch=target, seq=head.seq, schema_rev=head.schema_rev), p.reads, p.writes)
+        world.store.update_pending(new_id, needs_recheck=True)  # requalifiée contre la cible
+        conn.execute("INSERT INTO proposals (edit_id, batch_id, doc_id, version_fp, passage_idx, subject, kind, issues)"
+                     " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                     (new_id, p.batch, p.doc, p.version_fp, p.passage, p.subject, p.kind, dumps(p.issues)))
+        for i, c in enumerate(kept):
+            conn.execute("INSERT INTO proposal_changes (edit_id, idx, fingerprint, tags, detail, state)"
+                         " VALUES (?, ?, ?, ?, ?, 'open')", (new_id, i, c.fingerprint, dumps(sorted(c.tags)),
+                                                             dumps({**c.detail, "moved_from": pid})))
+            for k in c.keys:
+                conn.execute("INSERT OR IGNORE INTO proposal_keys VALUES (?, ?, ?, ?)", (new_id, i, dumps(k), c.value))
+        for c in kept:
+            _trace(world, p, c, "move", new_id, reason)
+        close(world, p, EditStatus.ABANDONED, f"moved:{new_id}")
+    refresh(world, target)
+    return Decided(pid, "move", new_id)
 
 
 def dismiss(world: World, doc: str, passage: int, reason: str | None = None) -> None:

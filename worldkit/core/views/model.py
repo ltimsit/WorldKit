@@ -121,6 +121,7 @@ class AttributeLine:
     visibility: Visibility  # effective
     provenance: str
     fact: tuple = ()        # identifiant du fait affiché
+    redefined_later: bool = False  # R-VUE-03
 
 
 @dataclass(frozen=True)
@@ -132,6 +133,7 @@ class RelationLine:
     visibility: Visibility
     provenance: str
     fact: tuple = ()
+    redefined_later: bool = False  # R-VUE-03
 
 
 @dataclass(frozen=True)
@@ -184,6 +186,11 @@ class View:
     # Documents sources par entité, avec leur notoriété (R-VUE-02, R-NOT-02) : fournis par l'ingestion,
     # que le noyau ne connaît pas.
     sources: Mapping[str, list[tuple[str, Visibility]]] = field(default_factory=dict)
+    # Clés réécrites par une redéfinition après le point de la vue (R-VUE-03) : fournies par le monde.
+    redefined: frozenset = frozenset()
+
+    def _redefined(self, fid: tuple) -> bool:
+        return bool(self.redefined) and any(v == fid and k in self.redefined for k, v in self.state.occupancy.items())
 
     def _duplicates(self) -> dict[str, list[str]]:
         return _groups(self.state, {"duplicate"}, self.filter)
@@ -233,7 +240,8 @@ class View:
             vis = effective_visibility(f, s) if flt is Filter.PLAYER else f.visibility
             if f.kind in ("attr", "value"):
                 if f.subject in members:
-                    attributes.append(AttributeLine(f.subject, f.name, f.value, vis, f.established_by, f.id))
+                    attributes.append(AttributeLine(f.subject, f.name, f.value, vis, f.established_by, f.id,
+                                                    self._redefined(f.id)))
             elif f.name == "same_as":
                 ends = [f.subject, f.target or ""]
                 peer = next((e for e in ends if e != entity), ends[0])
@@ -242,10 +250,10 @@ class View:
                 if f.subject in members:
                     other = f.target or ""
                     relations.append(RelationLine("out", f.name, f.subject, self.display(other), vis,
-                                                  f.established_by, f.id))
+                                                  f.established_by, f.id, self._redefined(f.id)))
                 if f.target in members:
                     relations.append(RelationLine("in", f.name, f.target or "", self.display(f.subject), vis,
-                                                  f.established_by, f.id))
+                                                  f.established_by, f.id, self._redefined(f.id)))
 
         sheets = []
         for sid, srec in sorted(s.entities.items()):

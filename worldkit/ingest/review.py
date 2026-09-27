@@ -93,14 +93,14 @@ class ProposalView:
 
 
 def proposals(world: World, batch: str | None = None,
-              status: EditStatus | None = EditStatus.PENDING) -> list[ProposalView]:
-    """Propositions, requalifiées contre la tête au préalable (T-ING-06)."""
-    refresh(world)
-    head = world.state()
+              status: EditStatus | None = EditStatus.PENDING, branch: str | None = None) -> list[ProposalView]:
+    """Propositions d'une branche, requalifiées contre sa tête au préalable (T-ING-06)."""
+    refresh(world, branch)
+    head = world.state(branch)
     return [ProposalView(p.id, p.status, p.needs_recheck, p.batch, p.doc, p.passage, p.subject, p.kind, p.base,
                          [ChangeView(c.change, sort_tags(sorted(c.tags)), c.detail, c.fingerprint, c.state)
                           for c in p.changes], p.depends_on, p.issues, p.closed_reason, blocked(head, p.doc))
-            for p in load(world, None, None, status) if batch is None or p.batch == batch]
+            for p in load(world, branch, None, status) if batch is None or p.batch == batch]
 
 
 @dataclass(frozen=True)
