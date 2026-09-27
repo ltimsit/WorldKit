@@ -1,7 +1,7 @@
 # Cadre de l'interface
 
 **Objet :** vision, principes, découpage et points à trancher de l'interface de `worldkit`, conçue d'abord comme un **banc d'essai** : tester, suivre l'efficacité, contrôler, et obtenir des retours complets et explicites.
-**Version :** 0.7 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
+**Version :** 1.0 — 27 septembre 2026. Tous les jalons d'interface (I0 à I6) sont faits ; les tests humains se font à l'écran. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (en attente). En cas de divergence, le cadre de la fondation puis le cadre technique prévalent.
 
 **Conventions**
@@ -230,6 +230,13 @@ Opérations d'I1 (`worldkit ops`) : consultations `world.summary`, `branch.list`
 | I-ACC-03 | Ampleur en I5 | W15 et W08 complets (attendus structurés et verts) ; leurs chaînes exécutables. Toutes les étapes des 18 parcours s'exécutent désormais ; les autres attendus restent à structurer, au fil des jalons qui touchent leur domaine. Les tests écrits à la main restent tant qu'un parcours n'est pas entièrement structuré. | Tous les parcours d'un coup (jalon trop long) ; W15 et W08 sans chaînes (exécuteur non éprouvé). | validé |
 | I-REV-02 | Écran de revue | File filtrable (lot, étiquette, document) ; questions de nature ; passages signalés (écarter une attribution) ; rejeux ouverts (garder, écarter) ; par proposition : changements à cocher (acceptation partielle), étiquettes, occupant de la clé, concurrence, conflits, suggestion, dépendances ; accepter, refuser, choisir, qualifier, promouvoir, abandonner, adapter. | — | proposé |
 
+### 8.6 Graphe et mesures (I6)
+
+| ID | Sujet | Décision | Alternatives écartées | Statut |
+|---|---|---|---|---|
+| I-GRA-02 | Ce qu'est un nœud | Les **entités** sont des nœuds, les **relations** des arêtes ; attributs, fiches et affirmations d'un nœud vont dans un **panneau de détail** au clic. Couches : `world`, `system`, `sheet` (fiches, `has_sheet` et `conforms_to` calculées, catégories), `identity`, `claim` (affirmations et énonciateur), `document` (documents sources). Marques calculées par le service : notoriété (bordure), arête secrète (pointillé), masqué (R-NOT-07), redéfini plus tard (R-VUE-03), orphelin (R-FAI-06), entité close. `graph.view` (voisinage à profondeur N ou complet, filtre auteur ou joueur, branche, point) ; `graph.compare` (deux états, nœuds et arêtes ajoutés, retirés, changés, attributs changés avant et après). Disposition par Cytoscape.js (`cose`). | Attributs en nœuds satellites (nombre de nœuds triplé, voisinage illisible). | validé |
+| I-MES-01 | Écran Mesures | **Tableaux denses** et barres dessinées côté serveur, sans bibliothèque de graphiques ; historique (`eval.history`), détail d'une mesure par opération et par passage (manqués, en trop, pièges), **comparaison de deux mesures quelconques** jusqu'au passage (`eval.compare`). `eval.run` : estimation exacte (passages hors cache et répétitions de stabilité), confirmation, **refus** au-delà du plafond plutôt qu'une mesure partielle, tâche de fond. | Courbes d'évolution (dépendance de plus, utile seulement avec un long historique) ; tableaux sans comparaison (le pourquoi reste à reconstituer). | validé |
+
 ## 9. Périmètre
 
 | Dans le périmètre | Préparé (possible plus tard) | Hors périmètre |
@@ -246,7 +253,7 @@ Opérations d'I1 (`worldkit ops`) : consultations `world.summary`, `branch.list`
 | I3 — **fait** | Saisie YAML vérifiée en direct ; banc de mécanismes ; rendre réel un essai de bac ; rejeu exposé par le service (I-ACT-01 à I-ACT-04) | refaire le retcon d'Aldren dans un bac à sable, puis le rendre réel (automatisé dans `tests/test_i3.py`, guide vérifié) |
 | I4 — **fait** | Découpage du pipeline (E1 à E12 et E9+), banc de pipeline de x à y en tâche de fond, contrôle du coût, comparaison d'exécutions (I-PPL-01 à I-PPL-04) | Loup sous deux systèmes (J8), de E1 à E12 et par morceaux (guide vérifié ; comparaison de deux modèles réels en attente de l'accord de l'auteur) |
 | I5 — **fait** | Revue complète (`/review`, session du monde de travail) ; parcours exécutables (`walkthrough.run`, `/acceptance`, `worldkit walkthrough run`), W15 et W08 structurés, les 18 parcours exécutables (I-REV-01, I-REV-02, I-ACC-02, I-ACC-03) | sessions de curation chronométrées (à faire à l'écran) |
-| I6 | Graphe (I-GRA-01), mesures T2 et leur historique, comparaison d'exécutions | choix du modèle sur le second jet du corpus |
+| I6 — **fait** | Graphe (`/graph`, `graph.view`, `graph.compare`), mesures T2 (`/measures`, `eval.run`, `eval.history`, `eval.compare`) (I-GRA-02, I-MES-01) | choix du modèle sur le second jet du corpus (à venir) |
 
 ## 11. Questions
 
