@@ -997,3 +997,17 @@ def scenario_play(ctx: Context, p: PlayParams) -> Output:
                    "version": report.version, "items": items}, report.warnings + [x for i in report.items for x in i.issues],
                   {"applied": sum(1 for i in report.items if i.outcome == "applied"),
                    "conflicts": sum(1 for i in report.items if i.outcome == "conflict")})
+
+
+@operation("replay.list", "read", NoParams, "rejeux rétroactifs du monde : statut, source, nouvelle branche, conflit en cours",
+           ("R-RED-02",))
+def replay_list(ctx: Context, p: NoParams) -> Output:
+    from worldkit.core.workflows import replay as R
+    assert ctx.world is not None
+    rows = []
+    for r in R.replays(ctx.world):
+        current = R.pending_conflict(ctx.world, r.id) if r.status == R.OPEN else None
+        rows.append({"id": r.id, "source": r.source, "branch": r.branch, "anchor_seq": r.anchor_seq, "status": r.status,
+                     "current": current.current if current else None,
+                     "conflict": [d.describe() for d in current.conflict.divergences] if current and current.conflict else []})
+    return Output(rows, [], {"replays": len(rows), "open": sum(1 for r in rows if r["status"] == R.OPEN)})
