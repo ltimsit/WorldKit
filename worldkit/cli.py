@@ -128,7 +128,7 @@ def _run_ingest(world: Any, args: argparse.Namespace) -> int:
     if report.new_entities:
         print("  entités nouvelles : " + ", ".join(f"{e.id} ({e.type})" for e in report.new_entities))
     for where, flags in report.flagged.items():
-        print(f"  {where} : {', '.join(flags)}")
+        print(f"  {where} : {', '.join(FLAG_FR.get(f, f) for f in flags)}")
     if report.unchanged or report.removed or report.remembered:
         print(f"  passages inchangés {report.unchanged}, retirés {report.removed} ;"
               f" décisions reprises sans question {report.remembered}")
