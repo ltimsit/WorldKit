@@ -68,7 +68,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **J7 — fait** (branche `j7-replay`) : redéfinition rétroactive (T-RED-01) — aperçu d'impact, session de rejeu suspendable, reprenable et abandonnable, bascule de la référence (historique en ajout seul), ancienne branche archivée, report des points, pistes, propositions et déroulés, variantes signalées (`worldkit/core/workflows/replay.py`, `worldkit/ingest/carry.py`).
 - **J8 — fait** (branche `j8-meta`) : méta à l'ingestion (T-ING-20) — nature des passages, garde de classement, questions de nature (`worldkit review nature`), formes réduites LLM `sheet_values` / `schema_constraint`, T2 étendu au méta (`worldkit/ingest/meta.py`). Fiche : `docs/j8-brief.md`. La mesure T2 réelle du méta attend l'accord de l'auteur (quota).
 - **I0 — fait** : cadre d'interface validé (`docs/cadre-interface.md` v0.2, décisions I-TEC-01 à I-LLM-01).
-- **Prochain : I1** (couche de service, forme commune d'un résultat, exécutions `monde.runs.db`, bacs à sable), puis I2 (FastAPI, lecture). En parallèle, côté auteur : second jet du corpus (choix du LLM, T-TST-01).
+- **I1 — fait** (branche `i1-service`) : couche de service (`worldkit/service/`), registre d'opérations, résultat de forme commune, exécutions `monde.runs.db`, bacs à sable ; commandes `ops`, `call`, `sandbox`, `runs` (I-SVC-01 à I-SVC-04). Fiche : `docs/i1-brief.md`.
+- **Prochain : I2** (application FastAPI, tableau de bord, wiki, branches en lecture). En parallèle, côté auteur : second jet du corpus (choix du LLM, T-TST-01).
 - Lacunes L1, L2, L6 du corpus tranchées avant J8 (cadre R-MET-02, R-MET-04, T-FAI-01 ; analyse 00.50) : toutes les lacunes du corpus v1 sont closes.
 
 ## Carte du code
@@ -84,7 +85,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 | Façade | `worldkit/core/world.py` | `World` : créer, appliquer, soumettre, confirmer, rebaser, branches, transposer |
 | M6–M9 ingestion | `worldkit/ingest/` | déclaration et passages, lots, propositions, file de revue vivante, décisions ; méta : nature, questions de nature, `sheet_values` (`meta.py`) ; report des propositions en fin de rejeu (`carry.py`) |
 | Périphérie | `worldkit/periphery/` | extracteur oracle, adaptateurs LLM et profils (`llm/`), extracteur LLM, mesure T2 |
-| CLI | `worldkit/cli.py` | `worldkit --db monde.db <commande>` ; `worldkit --help` |
+| Service | `worldkit/service/` | registre d'opérations (`registry.py`, `ops.py`), `Session.call` (`session.py`), `Result` (`result.py`), exécutions et bacs (`runs.py`), commandes `ops`/`call`/`sandbox`/`runs` (`cli.py`) |
+| CLI | `worldkit/cli.py` | `worldkit --db monde.db <commande>` ; `worldkit --help` ; `worldkit ops` |
 
 Tests : `tests/` ; aides dans `tests/support.py` (`base_world`, `edit`, `rel`…), `tests/test_w10_w11.py` (`after_w05` : état après la revue de W05) et `tests/test_w15_replay.py` (`setup_w15`, `file_world` : état de départ de W15, en mémoire ou sur fichier).
 
