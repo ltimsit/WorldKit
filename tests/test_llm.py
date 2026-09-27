@@ -255,3 +255,68 @@ def test_irrelevant_fields_filled_by_the_model_are_dropped():
                                          value="régent", relation="rules")], "claims": [], "attribution": False}}
     ex = LLMExtractor(FakeAdapter(noisy), PROFILE).extract("x", "Odon …", extraction_context(world, world.state()))
     assert ex.drafts == ({"op": "set_attribute", "entity": "odon", "attribute": "title", "value": "régent"},)
+
+
+# --- Méta (J8) : systèmes dans le prompt, formes réduites, mesure T2 ---
+
+B4 = batch_documents(VALMONT / "docs" / "batches.yaml", "b4")
+
+
+def meta_change(op, **fields):
+    return {**change(op, **{k: v for k, v in fields.items() if k not in ("system", "min", "max", "values")}),
+            "system": fields.get("system"), "min": fields.get("min"), "max": fields.get("max"),
+            "values": fields.get("values")}
+
+
+BESTIAIRE = {
+    "[meta]Loup de cendre (système A)": {"changes": [meta_change(
+        "sheet_values", entity="loup-de-cendre", system="system-a",
+        values=[{"attribute": "hp", "value": "5"}, {"attribute": "strength", "value": "12"},
+                {"attribute": "abilities", "value": "system-a:bite"}])], "claims": [], "attribution": False},
+    "[meta]Dans le système A": {"changes": [meta_change(
+        "schema_constraint", system="system-a", type="Creature", attribute="hp", min="1", max="10")],
+        "claims": [], "attribution": False},
+    "Système B : niveau 7": {"changes": [meta_change(
+        "sheet_values", entity="loup-de-cendre", system="system-b",
+        values=[{"attribute": "level", "value": "7"}, {"attribute": "threat", "value": "8"}])],
+        "claims": [], "attribution": False},
+}
+
+
+def test_prompt_describes_the_systems_and_names_the_document_J8():
+    world = base_world()
+    adapter = FakeAdapter(BESTIAIRE)
+    ingest(world, "b4", B4, LLMExtractor(adapter, PROFILE))
+    system, user = next(c for c in adapter.calls if "Système B : niveau 7" in c[1])
+    assert "Système de règles « system-b »" in system and "Monster" in system and "level" in system
+    assert "Document : Le Loup de cendre" in user
+    assert "system-a:bite" in user  # les éléments de système sont des entités connues
+
+
+def test_reduced_meta_forms_become_the_same_proposals_as_the_oracle_J8():
+    from worldkit.ingest.meta import open_questions
+    from worldkit.ingest.review import supports
+    world = base_world()
+    ingest(world, "b4", B4, LLMExtractor(FakeAdapter(BESTIAIRE), PROFILE))
+    keys = {s.key for s in supports(world)}
+    assert ("attr", "loup-de-cendre@system-a", "hp") in keys and ("schema", "system-a", "type", "Creature", "hp") in keys
+    assert ("value", "loup-de-cendre@system-a", "abilities", "system-a:bite") in keys
+    assert [q[:2] for q in open_questions(world)] == [("bestiaire-loup-de-cendre", 6)]
+    p6 = next(p for p in load(world) if p.passage == 6)
+    created = p6.changes[0].change
+    assert (created.op, created.entity, created.sheet.category) == ("create_entity", "loup-de-cendre@system-b", "Monster")
+    assert [(c.change.attribute, c.change.value) for c in p6.changes[1:]] == [("level", 7), ("threat", 8)]
+
+
+def test_meta_passages_are_measured_after_translation_J8():
+    world = base_world()
+    oracle = OracleExtractor(VALMONT / "gold")
+    ctx = extraction_context(world, world.state())
+    perfect = evaluate(oracle, oracle, VALMONT / "gold", B4, ctx, state=world.state())
+    assert {3, 4, 6} <= {r.index for r in perfect.passages}
+    assert (perfect.summary()["precision"], perfect.summary()["recall"]) == (1.0, 1.0)
+    llm = evaluate(LLMExtractor(FakeAdapter(BESTIAIRE), PROFILE), oracle, VALMONT / "gold", B4, ctx, state=world.state())
+    p6 = next(r for r in llm.passages if r.index == 6)
+    assert p6.found == p6.expected  # sheet_values traduit = création de la fiche B, niveau, menace
+    p4 = next(r for r in llm.passages if r.index == 4)
+    assert p4.found == p4.expected and p4.found <= p4.supports

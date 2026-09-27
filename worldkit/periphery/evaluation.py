@@ -5,7 +5,8 @@ normalisation : une entité nouvelle est désignée par son nom normalisé (les 
 modèle et du gold diffèrent), les chaînes sont comparées sans casse ni espaces superflus.
 
 Les lots sont mesurés dans l'ordre : chaque lot voit, comme entités en attente, les créations
-proposées par les lots précédents (T-ING-07). Les passages de nature méta relèvent de J8 : exclus.
+proposées par les lots précédents (T-ING-07). Les passages méta sont mesurés depuis J8, après traduction
+des formes réduites (`sheet_values`) contre l'état de base, comme le fait le lot.
 
 Indicateurs : précision et rappel, globaux et sur les seuls changements qui posent une question
 (les supports, qui répètent l'état, n'en posent aucune) ; par opération ; pièges (`must_not`) ;
@@ -29,7 +30,8 @@ from worldkit.ingest.declaration import name_key, normalize, read_document
 from .extraction import Extraction, ExtractionContext, Extractor, KnownEntity
 
 NEW_PREFIXES = ("new:", "pending:")
-_KEY_FIELDS = ("op", "entity", "type", "attribute", "value", "from", "relation", "to", "target")
+_KEY_FIELDS = ("op", "scope", "entity", "type", "attribute", "value", "from", "relation", "to", "target",
+               "constraint")
 
 
 def _names(drafts: list[dict[str, Any]]) -> dict[str, str]:
@@ -44,6 +46,8 @@ def _names(drafts: list[dict[str, Any]]) -> dict[str, str]:
 
 
 def _norm(v: Any, names: dict[str, str]) -> Any:
+    if isinstance(v, dict):  # contraintes d'un attribut de système
+        return tuple(sorted((k, _norm(x, names)) for k, x in v.items()))
     if isinstance(v, str):
         label = v.split(":", 1)[1] if v.startswith(NEW_PREFIXES) else v
         if v.startswith(NEW_PREFIXES) or label in names:  # une entité en attente, citée par son identifiant
@@ -56,6 +60,8 @@ def _norm(v: Any, names: dict[str, str]) -> Any:
 
 def key(draft: dict[str, Any], names: dict[str, str]) -> tuple[Any, ...]:
     d = dict(draft)
+    if d.get("scope") == "world":
+        del d["scope"]
     if d.get("op") == "set_visibility":
         d = {"op": "set_visibility", "target": d.get("target"), "value": d.get("value")}
     if d.get("attribute") == "name" and isinstance(d.get("value"), str):
@@ -81,6 +87,11 @@ def is_support(draft_key: tuple[Any, ...], state: Any) -> bool:
     if op == "add_value":
         return any(k[0] == "value" and k[1] == f.get("entity") and k[2] == f.get("attribute")
                    and _norm(k[3], {}) == f.get("value") for k in state.occupancy)
+    if op == "schema_set_type" and f.get("scope") in state.systems:
+        types = {name.casefold(): t for name, t in state.systems[f["scope"]].types.items()}  # clés normalisées
+        t = types.get(str(f.get("type")))
+        a = t.attributes.get(f.get("attribute")) if t is not None else None
+        return a is not None and all(getattr(a, k) == v for k, v in dict(f.get("constraint") or ()).items())
     if op == "add_relation":
         return any(fact.kind == "rel" and fact.name == f.get("relation")
                    and {fact.subject, fact.target} == {f.get("from"), f.get("to")} for fact in state.facts.values())
@@ -180,8 +191,6 @@ def _prepare(oracle: Extractor, gold: dict[str, list[dict[str, Any]]], documents
             if not candidates:
                 continue
             g = max(candidates, key=lambda g: len(g["starts_with"]))
-            if str(g.get("nature", "")).startswith("meta"):
-                continue  # méta : J8
             items.append((doc, p, g, oracle.extract(doc.doc_id, p.text, context)))
     return _Batch(items)
 
@@ -212,6 +221,20 @@ def evaluate(extractor: Extractor, oracle: Extractor, gold_dir: Path, documents:
     return Report(getattr(extractor, "version", type(extractor).__name__), results)
 
 
+def _expand(drafts: tuple[dict[str, Any], ...], state: Any, sheets: dict[tuple[str, str], str]) -> list[dict[str, Any]]:
+    """Formes réduites `sheet_values` traduites comme le fait le lot (sans état, laissées telles quelles)."""
+    if state is None:
+        return list(drafts)
+    from worldkit.ingest.meta import expand_sheet_values
+    out: list[dict[str, Any]] = []
+    for d in drafts:
+        if d.get("op") == "sheet_values":
+            out += expand_sheet_values(d, state, sheets) or [d]
+        else:
+            out.append(d)
+    return out
+
+
 def _measure(extractor: Extractor, batch: _Batch, context: ExtractionContext, repeat: int, state: Any,
              gold_names: dict[str, str]) -> list[PassageResult]:
     def one(item: tuple[Any, Any, dict[str, Any], Extraction]) -> tuple[list[Extraction], str | None, float]:
@@ -236,10 +259,11 @@ def _measure(extractor: Extractor, batch: _Batch, context: ExtractionContext, re
     names = {**gold_names, **_names([d for runs, _, _ in measured for run in runs[:1] for d in run.drafts])}
     results = []
     created: set[tuple[Any, ...]] = set()  # création ou nom déjà proposés plus haut : regroupés par le lot (T-ING-07)
+    sheets: dict[tuple[str, str], str] = {}
     for (doc, p, g, expected), (runs, error, seconds) in zip(batch.items, measured):
         first = runs[0] if runs else Extraction()
         found = set()
-        for d in first.drafts:
+        for d in _expand(first.drafts, state, sheets):
             k = key(d, names)
             fields = dict(k)
             repeated = str(fields.get("entity", "")).startswith("new:") and (

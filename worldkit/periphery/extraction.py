@@ -47,6 +47,8 @@ class ExtractionContext:
     entities: tuple[KnownEntity, ...] = ()
     voice: str = "author"
     speaker: str | None = None
+    systems: dict[str, Any] = field(default_factory=dict)  # systèmes de règles (J8)
+    document: str | None = None                             # titre du document : sujet par défaut (J8)
 
 
 class Extractor(Protocol):

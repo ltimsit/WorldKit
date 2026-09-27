@@ -80,21 +80,21 @@ def extraction_context(world: World, head: Any) -> ExtractionContext:
     """Entités du monde connues de l'état de base, et créations proposées par les lots en attente (T-ING-07)."""
     entities = []
     for eid, rec in sorted(head.entities.items()):
-        if rec.scope != "world" or rec.sheet is not None:
-            continue
+        if rec.sheet is not None:
+            continue  # une fiche se désigne par son entité et son système (sheet_values, J8)
         name = head.facts.get(("attr", eid, "name"))
         aliases = sorted(str(f.value) for f in head.facts.values()
                          if f.kind == "value" and f.subject == eid and f.name == "aliases")
         entities.append(KnownEntity(eid, rec.type, tuple([str(name.value)] if name else []) + tuple(aliases)))
     for e in pending_new_entities(world, head).values():
         entities.append(KnownEntity(e.id, e.type, (e.name,) if e.name else ()))
-    return ExtractionContext(head.world, tuple(entities))
+    return ExtractionContext(head.world, tuple(entities), systems=dict(head.systems))
 
 
 def passage_context(context: ExtractionContext, doc: DocumentVersion, passage: Any) -> ExtractionContext:
     speakers = passage.speakers()
     return replace(context, voice="in_world" if speakers or doc.axes.voice == "in_world" else "author",
-                   speaker=speakers[0] if speakers else doc.axes.speaker)
+                   speaker=speakers[0] if speakers else doc.axes.speaker, document=doc.title)
 
 
 def _parallel(extractor: Extractor, doc: DocumentVersion, passages: list[Any], context: ExtractionContext,
