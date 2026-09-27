@@ -13,7 +13,7 @@
 <p>{% for k, v in summary.indicators.facts_by_visibility.items() %}{{ m.vis(k) }} {{ v }} &nbsp; {% endfor %}</p>
 <h2>Branches</h2>
 <table><tr><th>branche</th><th>statut</th><th>tête</th><th></th></tr>
-{% for b in s.branches %}<tr><td>{{ b.id }}{% if b.id == s.reference_branch %} ★{% endif %}</td><td>{{ b.status }}</td><td>{{ b.head }}</td>
+{% for b in s.branches %}<tr><td>{{ b.id }}{% if b.id == s.reference_branch %} ★{% endif %}</td><td>{{ explain(b.status) }}</td><td>{{ b.head }}</td>
 <td><a href="/journal?{{ qs(ctx, branch=b.id) }}">journal</a> · <a href="/wiki?{{ qs(ctx, branch=b.id) }}">wiki</a></td></tr>{% endfor %}
 </table>
 {% endif %}
@@ -26,7 +26,7 @@
 {% else %}<p class="muted">aucun bac à sable (<code>worldkit sandbox create</code>)</p>{% endif %}
 <h2>Dernières exécutions</h2>
 <table><tr><th>#</th><th>quand</th><th>opération</th><th>sorte</th><th>cible</th><th>statut</th></tr>
-{% for r in runs.output or [] %}<tr><td><a href="/runs/{{ r.id }}">{{ r.id }}</a></td><td class="small">{{ r.created }}</td><td class="mono">{{ r.operation }}</td>
-<td>{{ r.kind }}</td><td>{{ r.target }}</td><td class="s-{{ r.status }}">{{ r.status }}</td></tr>{% endfor %}
+{% for r in runs.output or [] %}<tr><td><a href="/runs/{{ r.id }}">{{ r.id }}</a></td><td class="small">{{ r.created }}</td><td class="mono">{{ explain(r.operation) }}</td>
+<td>{{ explain(r.kind) }}</td><td>{{ r.target }}</td><td class="s-{{ r.status }}">{{ explain(r.status) }}</td></tr>{% endfor %}
 </table>
 {% endblock %}

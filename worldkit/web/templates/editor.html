@@ -2,7 +2,7 @@
 {% block title %}Saisie{% endblock %}
 {% block content %}
 <h1>Saisie d'une édition</h1>
-<p class="small muted">Le brouillon est vérifié par le service à chaque pause de frappe, sans rien écrire (I-SAI-01). Destination par défaut : un bac à sable (I-PRI-04).</p>
+<p class="small muted">{% filter linkify %}Chaque pause de frappe lance <code>edit.check</code>, qui n'écrit rien : clés de fait lues et écrites, collisions, signalements rattachés à la ligne du changement, état après. « Appliquer » inscrit l'édition au journal ; « Soumettre » la laisse <code>pending</code>, à confirmer en revue. Destination par défaut : un bac à sable (I-SAI-01, I-PRI-04).{% endfilter %}</p>
 <div class="cols" style="grid-template-columns: 3fr 1fr">
 <div>
 <form id="edform" method="post" action="/editor" hx-boost="false">

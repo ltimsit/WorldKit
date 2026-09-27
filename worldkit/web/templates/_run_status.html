@@ -1,6 +1,6 @@
 {% import "_macros.html" as m %}
 <div id="run-status" {% if run.status == "running" %}hx-get="/fragments/run/{{ run.id }}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
-<p>Statut : <b class="s-{{ run.status }}">{{ run.status }}</b>
+<p>Statut : <b class="s-{{ run.status }}">{{ explain(run.status) }}</b>
 {% if run.status == "running" %} — étape <b>{{ run.progress.stage or "…" }}</b>
   {% if run.progress.total %} · passages {{ run.progress.done }}/{{ run.progress.total }}{% endif %}
   {% if run.progress.calls is defined %} · appels au modèle {{ run.progress.calls }}{% endif %}{% endif %}

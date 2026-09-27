@@ -20,7 +20,7 @@
 <span class="badge" style="background:var(--del)">−{{ result.indicators.removed }} retirés</span>
 <span class="badge" style="background:var(--chg)">~{{ result.indicators.changed }} changés</span>
 <span class="small muted">gauche : {{ result.output.left.branch }} rang {{ result.output.left.seq }} · droite : {{ result.output.right.branch }} rang {{ result.output.right.seq }}</span></p>{% endif %}
-<p class="small muted">Bordure : notoriété (violet secret, vert public, gris non qualifié) · arête pointillée : secrète · orange : masqué (R-NOT-07) · double : redéfini plus tard · rouge pointillé : orphelin · nœud pâle : entité close · étoile : entité centrale.</p>
+<p class="small muted">{% filter linkify %}Bordure : notoriété (violet <code>secret</code>, vert <code>public</code>, gris <code>unqualified</code>) · arête pointillée : secrète · orange : <code>masked</code> (R-NOT-07) · double : <code>redefined_later</code> (R-VUE-03) · rouge pointillé : <code>orphan</code> (R-FAI-06) · nœud pâle : entité close · étoile : entité centrale. Couches : <code>layer</code>.{% endfilter %}</p>
 <div class="cols" style="grid-template-columns: 3fr 1fr">
   <div id="cy" style="height:560px;border:1px solid var(--line);background:#fff"></div>
   <div id="detail"><p class="muted small">Cliquer sur un nœud ou une arête pour son détail.</p></div>

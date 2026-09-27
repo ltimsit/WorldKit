@@ -33,7 +33,7 @@
 </div>
 <h2>Différences ({{ o.diff|length }})</h2>
 <table><tr><th>section</th><th>état</th><th>gauche</th><th>droite</th></tr>
-{% for d in o.diff %}<tr class="{{ d.status }}"><td>{{ d.section }}</td><td>{{ d.status }}</td>
+{% for d in o.diff %}<tr class="{{ d.status }}"><td>{{ d.section }}</td><td>{{ explain(d.status) }}</td>
 <td class="mono small">{{ line_text(d.left) }}</td><td class="mono small">{{ line_text(d.right) }}</td></tr>
 {% endfor %}</table>
 {% endif %}

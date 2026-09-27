@@ -2,7 +2,7 @@
 {% block title %}Banc de mécanismes{% endblock %}
 {% block content %}
 <h1>Banc de mécanismes</h1>
-<p class="small muted">Toute opération du service, sur une entrée donnée (I-OBJ-02). Les calculs et écritures sont enregistrés ; « rejouer » vérifie le déterminisme (I-PRI-05). Une écriture va par défaut dans un bac à sable.</p>
+<p class="small muted">{% filter linkify %}Choisir une opération, remplir ses paramètres (un exemple sur Valmont est proposé), exécuter. Les opérations <code>compute</code> et <code>write</code> sont enregistrées dans les exécutions ; « Rejouer » relance la même entrée et signale toute différence : le noyau doit être déterministe (I-PRI-05). Une écriture va dans un bac à sable, sauf confirmation (I-PRI-04).{% endfilter %}</p>
 <form method="get" action="/bench" onchange="this.requestSubmit()">
   <label>opération
     <select name="op">
@@ -11,7 +11,7 @@
       </optgroup>{% endfor %}
     </select></label>
 </form>
-<p><b class="mono">{{ op.name }}</b> [{{ op.kind }}] — {{ op.summary }} {% if op.rules %}<span class="small">({{ op.rules|join(", ") }})</span>{% endif %}</p>
+<p><b class="mono">{{ explain(op.name) }}</b> [{{ explain(op.kind) }}] — {{ op.summary }} {% if op.rules %}<span class="small">({{ op.rules|join(", ")|linkify }})</span>{% endif %}</p>
 <table class="small"><tr><th>paramètre</th><th>requis</th><th>défaut</th><th>description</th></tr>
 {% for k, v in op.params.items() %}<tr><td class="mono">{{ k }}</td><td>{{ "oui" if v.required else "" }}</td><td class="mono">{{ v.default if v.default is not none else "" }}</td><td>{{ v.description }}</td></tr>{% endfor %}</table>
 <form method="post" action="/bench" hx-boost="false">

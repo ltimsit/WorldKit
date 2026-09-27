@@ -1,0 +1,64 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Aide{% endblock %}
+{% block context %}{% endblock %}
+{% block content %}
+<h1>Aide</h1>
+<p class="small muted">Ce que désigne un code, une notion, une étape, une opération ou un outil. Les définitions sont lues dans les documents
+(<code>docs/cadre-*.md</code>, <code>docs/aide/</code>) et le registre des opérations : corriger un document corrige l'aide. En ligne de commande : <code>worldkit explain &lt;code ou mot&gt;</code>.</p>
+<form method="get" action="/aide" class="context">
+  <input name="q" value="{{ q }}" placeholder="R-NOT-07, E5, edit.apply, pending, notoriété…" size="40" autofocus>
+  <button>chercher</button>
+  {% for k, label in kind_labels.items() %}<a href="/aide?kind={{ k }}" class="small">{{ label }}</a> · {% endfor %}<a href="/aide" class="small">tout</a>
+</form>
+
+{% macro card(e) %}
+<div class="card">
+  <h2 id="{{ e.key }}"><code>{{ e.key }}</code>{% if e.title and e.title != e.key %} — {{ e.title }}{% endif %} <span class="small muted">{{ kind_labels.get(e.kind, e.kind) }}</span></h2>
+  {% if e.text %}<p>{{ e.text|md }}</p>{% endif %}
+  {% if e.fields %}<table>{% for k, v in e.fields.items() if v %}<tr><th>{{ k }}</th><td>{{ v|md }}</td></tr>{% endfor %}</table>{% endif %}
+  {% if e.kind == "tool" %}<p><a href="{{ e.key if '{' not in e.key else '#' }}">ouvrir l'écran</a></p>{% endif %}
+  {% if e.aliases %}<p class="small muted">aussi : {{ e.aliases|join(", ") }}</p>{% endif %}
+  {% if e.cited_by %}<p class="small">cité par : {% for c in e.cited_by %}{{ explain(c) }}{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
+  <p class="small muted">source : {{ e.source }}</p>
+</div>
+{% endmacro %}
+
+{% if found %}
+  {% set r = found %}
+  {% if not r.output %}<p class="sev-warning">Rien trouvé pour « {{ q }} ».</p>
+  {% elif r.indicators.exact %}{{ card(r.output[0]) }}
+  {% else %}<h2>{{ r.output|length }} résultat(s) pour « {{ q }} »</h2>
+    <table><tr><th>code</th><th>sorte</th><th>titre ou définition</th></tr>
+    {% for e in r.output %}<tr><td class="mono">{{ explain(e.key) }}</td><td class="small">{{ kind_labels.get(e.kind, e.kind) }}</td>
+      <td class="small">{{ e.title if e.title and e.title != e.key else "" }}{{ " — " if e.title and e.title != e.key and e.text }}{{ e.text|md }}</td></tr>{% endfor %}</table>
+  {% endif %}
+{% else %}
+  <p><input id="help-filter" placeholder="filtrer les tableaux…" size="40" oninput="wkFilter(this.value)"></p>
+  {% for k, label in kind_labels.items() if groups.get(k) %}
+  <details {{ 'open' if k in ('tool', 'stage') or kind }}>
+    <summary><b>{{ label }}</b> ({{ groups[k]|length }})</summary>
+    <table class="help-table">
+    {% if k == "tool" %}<tr><th>outil</th><th>adresse</th><th>sert à</th><th>quand s'en servir</th><th>écrit</th></tr>
+      {% for e in groups[k] %}<tr><td><a href="{{ help_href(e.key) }}">{{ e.title }}</a></td><td class="mono small">{{ e.key }}</td><td class="small">{{ e.text|md }}</td>
+        <td class="small">{{ (e.fields.get("Quand s'en servir") or "")|md }}</td><td class="small">{{ (e.fields.get("Écrit") or "")|md }}</td></tr>{% endfor %}
+    {% else %}<tr><th>code</th><th>titre</th><th>définition</th></tr>
+      {% for e in groups[k] %}<tr><td class="mono small"><a href="{{ help_href(e.key) }}">{{ e.key }}</a></td><td class="small">{{ e.title if e.title != e.key }}</td>
+        <td class="small">{{ e.text|md }}</td></tr>{% endfor %}
+    {% endif %}
+    </table>
+  </details>
+  {% endfor %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  function wkFilter(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll(".help-table tr").forEach((tr) => {
+      if (tr.querySelector("th")) return;
+      tr.hidden = q && !tr.textContent.toLowerCase().includes(q);
+    });
+    if (q) document.querySelectorAll("details").forEach((d) => d.open = true);
+  }
+</script>
+{% endblock %}

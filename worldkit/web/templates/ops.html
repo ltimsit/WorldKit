@@ -2,9 +2,9 @@
 {% block title %}Opérations{% endblock %}
 {% block content %}
 <h1>Opérations du service ({{ result.indicators.operations }})</h1>
-<p class="small muted">Toutes accessibles en ligne de commande : <code>worldkit call &lt;opération&gt; --param clé=valeur</code> (I-CLI-01). Consultations aussi par <code>/api/call/&lt;opération&gt;?…</code>.</p>
+<p class="small muted">{% filter linkify %}Chaque nom mène à la définition de l'opération, avec ses paramètres. En ligne de commande : <code>worldkit call &lt;opération&gt; --param clé=valeur</code> (I-CLI-01) ; les consultations (<code>read</code>) aussi par <code>/api/call/&lt;opération&gt;?…</code>.{% endfilter %}</p>
 <table><tr><th>opération</th><th>sorte</th><th>résumé</th><th>paramètres</th><th>règles</th></tr>
-{% for op in result.output %}<tr><td class="mono">{{ op.name }}</td><td>{{ op.kind }}</td><td>{{ op.summary }}</td>
-<td class="small mono">{% for k, v in op.params.items() %}{{ k }}{% if not v.required %}?{% endif %} {% endfor %}</td><td class="small">{{ op.rules|join(", ") }}</td></tr>{% endfor %}
+{% for op in result.output %}<tr><td class="mono">{{ explain(op.name) }}</td><td>{{ explain(op.kind) }}</td><td>{{ op.summary }}</td>
+<td class="small mono">{% for k, v in op.params.items() %}{{ k }}{% if not v.required %}?{% endif %} {% endfor %}</td><td class="small">{{ op.rules|join(", ")|linkify }}</td></tr>{% endfor %}
 </table>
 {% endblock %}

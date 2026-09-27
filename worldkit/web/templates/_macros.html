@@ -1,19 +1,19 @@
-{% macro vis(v) %}{% if v %}<span class="badge v-{{ v }}">{{ v }}</span>{% endif %}{% endmacro %}
+{% macro vis(v) %}{% if v %}<span class="badge v-{{ v }}" title="{{ title_of(v) }}">{{ v }}</span>{% endif %}{% endmacro %}
 
 {% macro issues(list) %}
 {% if list %}
 <ul class="issues">
 {% for i in list %}
-  <li class="sev-{{ i.severity }}">{{ i.severity }} {% if i.rule %}<b>[{{ i.rule }}]</b> {% endif %}<code>{{ i.code }}</code>{% if i.path %} <code>{{ i.path }}</code>{% endif %} : {{ i.message }}</li>
+  <li class="sev-{{ i.severity }}">{{ explain(i.severity) }} {% if i.rule %}<b>[{{ i.rule|linkify }}]</b> {% endif %}<code>{{ explain(i.code) }}</code>{% if i.path %} <code>{{ i.path }}</code>{% endif %} : {{ i.message|e|linkify }}</li>
 {% endfor %}
 </ul>
 {% endif %}
 {% endmacro %}
 
-{% macro status(r) %}<b class="s-{{ r.status }}">{{ r.status }}</b>{% endmacro %}
+{% macro status(r) %}<b class="s-{{ r.status }}">{{ explain(r.status) }}</b>{% endmacro %}
 
 {% macro result_head(r) %}
-<p class="small muted">{{ r.operation }} [{{ r.kind }}] → {{ r.target }} : {{ status(r) }} · {{ r.trace.duration_ms }} ms
+<p class="small muted">{{ explain(r.operation) }} [{{ explain(r.kind) }}] → {{ r.target }} : {{ status(r) }} · {{ r.trace.duration_ms }} ms
 {% if r.trace.run_id %}· <a href="/runs/{{ r.trace.run_id }}">exécution #{{ r.trace.run_id }}</a>{% endif %}
 · <a href="{{ raw_link(r) }}">JSON brut</a></p>
 {{ issues(r.issues) }}

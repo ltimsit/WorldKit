@@ -5,7 +5,7 @@
 <h1>Édition {{ o.edit.id if o else "" }}</h1>
 {{ m.result_head(result) }}
 {% if o %}
-<p>Statut <b>{{ o.status }}</b>{% if o.located %} · branche {{ o.located[0] }}, rang {{ o.located[1] }}{% endif %}{% if o.needs_recheck %} · <b class="s-pending">à revérifier</b>{% endif %}
+<p>Statut <b>{{ explain(o.status) }}</b>{% if o.located %} · branche {{ o.located[0] }}, rang {{ o.located[1] }}{% endif %}{% if o.needs_recheck %} · <b class="s-pending">à revérifier</b>{% endif %}
 {% if o.base %} · base {{ o.base.branch }} rang {{ o.base.seq }}{% endif %}</p>
 <pre>{{ o.edit|yaml }}</pre>
 <div class="cols"><div><h2>Lectures ({{ o.reads|length }})</h2><ul class="mono small">{% for k in o.reads %}<li>{{ k|tojson }}</li>{% endfor %}</ul></div>

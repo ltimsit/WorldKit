@@ -39,3 +39,9 @@ pre { background: var(--panel); border: 1px solid var(--line); padding: 6px; ove
 section.calls { margin-top: 24px; border-top: 2px solid var(--line); padding-top: 6px; }
 .issues li { margin: 2px 0; }
 .error-banner { background: var(--del); color: var(--err); border-bottom: 2px solid var(--err); padding: 6px 14px; font-weight: 600; }
+
+/* Aide (I7) : un code lié est souligné en pointillé ; le survol montre sa définition. */
+a.term { color: inherit; text-decoration: underline dotted #6a5acd; text-underline-offset: 2px; }
+a.term:hover { color: #6a5acd; }
+.card { border: 1px solid #ddd; border-radius: 4px; padding: 6px 12px; margin: 8px 0; }
+.help-link { font-weight: bold; padding: 0 6px; border: 1px solid #bbb; border-radius: 50%; text-decoration: none; }

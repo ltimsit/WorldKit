@@ -4,7 +4,7 @@
 <h1>Exécutions enregistrées</h1>
 {{ m.result_head(result) }}
 <table><tr><th>#</th><th>quand</th><th>opération</th><th>sorte</th><th>cible</th><th>statut</th><th>paramètres</th></tr>
-{% for r in result.output or [] %}<tr><td><a href="/runs/{{ r.id }}">{{ r.id }}</a></td><td class="small">{{ r.created }}</td><td class="mono">{{ r.operation }}</td>
-<td>{{ r.kind }}</td><td>{{ r.target }}</td><td class="s-{{ r.status }}">{{ r.status }}</td><td class="mono small">{{ r.params|tojson|truncate(120) }}</td></tr>{% endfor %}
+{% for r in result.output or [] %}<tr><td><a href="/runs/{{ r.id }}">{{ r.id }}</a></td><td class="small">{{ r.created }}</td><td class="mono">{{ explain(r.operation) }}</td>
+<td>{{ explain(r.kind) }}</td><td>{{ r.target }}</td><td class="s-{{ r.status }}">{{ explain(r.status) }}</td><td class="mono small">{{ r.params|tojson|truncate(120) }}</td></tr>{% endfor %}
 </table>
 {% endblock %}

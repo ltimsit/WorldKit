@@ -2,7 +2,7 @@
 {% block title %}Banc de pipeline{% endblock %}
 {% block content %}
 <h1>Banc de pipeline</h1>
-<p class="small muted">Étapes E1 à E9 de l'ingestion, de x à y, sans rien écrire (le cache d'extraction excepté) ; chaque étape garde son artefact, réinjectable. L'enregistrement du lot se fait ensuite, depuis l'exécution (E9+ à E12). Avec un modèle : estimation, confirmation, plafond (I-LLM-01).</p>
+<p class="small muted">{% filter linkify %}Étapes : E1 E2 E3 E4 E5 E6 E7 E8 E9 (survoler pour le détail). Rien n'est écrit, sauf le cache d'extraction ; chaque étape garde son artefact, qu'on peut modifier puis réinjecter à l'étape suivante. L'enregistrement du lot (E9+ puis E10 à E12) se fait ensuite, depuis la page de l'exécution. Avec un modèle : estimation, confirmation, plafond (I-LLM-01).{% endfilter %}</p>
 {% if error %}<div class="error-banner">{{ error }}</div>{% endif %}
 {% if estimate %}
 <div class="stat" style="border-color:var(--warn)">
@@ -45,6 +45,6 @@
 <form method="get" action="/runs-diff" style="margin-bottom:6px">comparer <input name="a" size="4" placeholder="#"> et <input name="b" size="4" placeholder="#"> <button>comparer</button></form>
 <table><tr><th>#</th><th>quand</th><th>cible</th><th>statut</th><th>paramètres</th></tr>
 {% for r in runs %}<tr><td><a href="/pipeline/{{ r.id }}">{{ r.id }}</a></td><td class="small">{{ r.created }}</td><td>{{ r.target }}</td>
-<td class="s-{{ r.status }}">{{ r.status }}</td><td class="mono small">{{ r.params|tojson|truncate(140) }}</td></tr>{% endfor %}
+<td class="s-{{ r.status }}">{{ explain(r.status) }}</td><td class="mono small">{{ r.params|tojson|truncate(140) }}</td></tr>{% endfor %}
 </table>
 {% endblock %}

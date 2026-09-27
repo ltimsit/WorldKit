@@ -2,7 +2,7 @@
 {% block title %}Mesures{% endblock %}
 {% block content %}
 <h1>Mesures T2</h1>
-<p class="small muted">Un extracteur contre le gold (T-ING-19) ; avec un modèle : estimation exacte, confirmation, plafond (I-LLM-01). Pour choisir un modèle ou régler un prompt : comparer deux mesures, jusqu'au passage (T-TST-01).</p>
+<p class="small muted">{% filter linkify %}Mesurer d'abord l'<code>oracle</code> : il doit donner 1,0 partout (contrôle de la mesure elle-même). Avec un modèle, l'<code>estimate</code> donne le nombre exact d'appels avant confirmation ; au-delà du <code>max_calls_per_run</code>, la mesure est refusée (I-MES-01). Les passages déjà en cache ne coûtent rien. Pour choisir, comparer deux mesures jusqu'au passage (T-TST-01).{% endfilter %}</p>
 {% if error %}<div class="error-banner">{{ error }}</div>{% endif %}
 {% if estimate %}<div class="stat" style="border-color:var(--warn)">{{ m.result_head(estimate) }}
   {% if estimate.output and estimate.output.estimate %}{{ estimate.output.estimate.calls }} appel(s) au modèle {{ estimate.output.estimate.model }} pour {{ estimate.output.estimate.passages }} passage(s) mesuré(s). Cocher « confirmer » puis relancer.{% endif %}</div>{% endif %}

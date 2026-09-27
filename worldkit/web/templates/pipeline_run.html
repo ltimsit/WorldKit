@@ -13,7 +13,7 @@
 {% endif %}
 {% if run.stages and run.stages[-1] in ["E4", "E5", "E6", "E7", "E8", "E9"] and run.status != "running" %}
 <h2>Enregistrer le lot (E9+ à E12)</h2>
-<p class="small muted">L'extraction de cette exécution est relue, jamais rappelée ; E3 et E5 à E8 sont refaits contre la cible. Par défaut dans un nouveau bac à sable (I-ACT-01).</p>
+<p class="small muted">{% filter linkify %}Enregistrer relit l'extraction (E4) de cette exécution sans rappeler le modèle, et refait E3 et E5 à E8 contre l'état actuel de la cible, qui a pu changer. Par défaut dans un nouveau bac à sable (I-ACT-01).{% endfilter %}</p>
 <form method="post" action="/pipeline/{{ run.id }}/save" hx-boost="false">
   <p><label>jusqu'à <select name="to">{% for s in ["E9+", "E10", "E11", "E12"] %}<option>{{ s }}</option>{% endfor %}</select></label>
   <label>destination <select name="destination"><option value="new">nouveau bac à sable</option>

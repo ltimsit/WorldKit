@@ -24,6 +24,8 @@ from .result import Result
 
 
 def add_parsers(commands: Any) -> None:
+    ex = commands.add_parser("explain", help="ce que désigne un code, une notion, une étape, une opération (I-AID-01)")
+    ex.add_argument("q", nargs="+", help="R-NOT-07, E5, edit.apply, pending, notoriété…")
     commands.add_parser("ops", help="opérations du service : sorte, résumé, paramètres (I-CLI-01)")
     call = commands.add_parser("call", help="appeler une opération du service")
     call.add_argument("operation")
@@ -118,6 +120,34 @@ def _promote(s: Any, sandbox_id: int, confirm: bool) -> int:
         if i.code in ("invalid_params", "service_error"):
             print(f"  - {i.severity} : {i.message}")
     return 0 if result.status in ("ok", "pending") else 1
+
+
+def explain(args: argparse.Namespace) -> int:
+    """Sans monde : le lexique ne lit que les documents et le registre (`lexicon.lookup`)."""
+    from .lexicon import LookupParams, lexicon_lookup
+    q = " ".join(args.q)
+    out = lexicon_lookup(None, LookupParams(q=q))
+    if not out.value:
+        print(f"rien trouvé pour « {q} »")
+        return 1
+    if not out.indicators["exact"]:
+        for e in out.value:
+            title = e["title"] if e["title"] and e["title"] != e["key"] else ""
+            print(f"{e['key']:<22} [{e['kind']}] {title}")
+        return 0
+    e = out.value[0]
+    title = f" — {e['title']}" if e["title"] and e["title"] != e["key"] else ""
+    print(f"{e['key']}{title}  [{e['kind']}]")
+    if e["text"]:
+        print(f"  {e['text']}")
+    for k, v in e["fields"].items():
+        print(f"  {k} : {v}")
+    if e["aliases"]:
+        print(f"  aussi : {', '.join(e['aliases'])}")
+    if e["cited_by"]:
+        print(f"  cité par : {', '.join(e['cited_by'])}")
+    print(f"  source : {e['source']}")
+    return 0
 
 
 def run(args: argparse.Namespace) -> int:
