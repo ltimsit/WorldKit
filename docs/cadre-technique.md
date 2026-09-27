@@ -1,7 +1,7 @@
 # Cadre technique de la fondation
 
 **Objet :** décisions techniques de la fondation : éléments structurants, découpage en modules, architecture, articulation entre le noyau et l'ingestion, stratégie de test et étapes de construction.
-**Version :** 2.17 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21, qu'il cite sans le dupliquer.
+**Version :** 2.18 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21, qu'il cite sans le dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (argumenté, en attente de validation). En cas de divergence, *cadre-fondation.md* prévaut.
 
 **Conventions**
@@ -376,7 +376,7 @@ Ordre validé : **l'ingestion avant le noyau dynamique complet**. L'analyse du �
 | **J7** | Redéfinition rétroactive (rejeu) | Rejeu, pistes et propositions à revérifier | Retcon de la mort d'Aldren |
 | **J8** | Méta : systèmes et fiches ; ingestion de nature `meta_system` et `meta_sheet` | Conformité des fiches | Loup de cendre sous deux systèmes |
 
-J8 a coûté peu grâce au validateur unique (R-SCH-02) : l'essentiel porte sur l'ingestion (T-ING-20).
+**Tous les jalons J0 à J8 sont faits.** Restent les tests humains et le second jet du corpus, qui décidera du choix du modèle (§8). J8 a coûté peu grâce au validateur unique (R-SCH-02) : l'essentiel porte sur l'ingestion (T-ING-20).
 
 ```mermaid
 flowchart LR

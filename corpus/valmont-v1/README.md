@@ -77,7 +77,7 @@ Ces formats sont des choix de fixture, faits pour écrire le corpus ; ils ne pr�
 | Contradictions | R-CON-01 à 04 | les trois familles : `history` (W02–W05, W13, W15), `conformity` (W08, W09), `identity` (W01, W16) |
 | Vues | R-VUE-01, 02, 03 ; R-LLM-01 | W01 ; W13 (redéfini plus tard) ; questions.yaml |
 
-**Non couvert dans ce jet :** R-RED-05 (redéfinition rétroactive d'un schéma ou d'un système) ; R-SCH-09 et R-VUE-04 (interface, sans objet avant J4) ; R-PRI-06 et le *rollback* ciblé (point ouvert §10.1).
+**Non couvert dans ce jet :** R-RED-05 (redéfinition rétroactive d'un schéma ou d'un système) ; R-SCH-09 (l'interface, faite en I0 à I6, affiche encore les identifiants techniques, pas les `labels` du schéma) et R-VUE-04 (sans outillage par construction) ; R-PRI-06 et le *rollback* ciblé (point ouvert §10.1).
 
 ## 5. Lacunes du cadre révélées par le corpus
 

@@ -1,7 +1,7 @@
 # Cadre de l'interface
 
 **Objet :** vision, principes, découpage et points à trancher de l'interface de `worldkit`, conçue d'abord comme un **banc d'essai** : tester, suivre l'efficacité, contrôler, et obtenir des retours complets et explicites.
-**Version :** 1.0 — 27 septembre 2026. Tous les jalons d'interface (I0 à I6) sont faits ; les tests humains se font à l'écran. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.17, qu'il cite sans les dupliquer.
+**Version :** 1.1 — 27 septembre 2026. Tous les jalons d'interface (I0 à I6) sont faits ; les tests humains se font à l'écran. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.18, qu'il cite sans les dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (en attente). En cas de divergence, le cadre de la fondation puis le cadre technique prévalent.
 
 **Conventions**
@@ -235,7 +235,7 @@ Opérations d'I1 (`worldkit ops`) : consultations `world.summary`, `branch.list`
 | ID | Sujet | Décision | Alternatives écartées | Statut |
 |---|---|---|---|---|
 | I-GRA-02 | Ce qu'est un nœud | Les **entités** sont des nœuds, les **relations** des arêtes ; attributs, fiches et affirmations d'un nœud vont dans un **panneau de détail** au clic. Couches : `world`, `system`, `sheet` (fiches, `has_sheet` et `conforms_to` calculées, catégories), `identity`, `claim` (affirmations et énonciateur), `document` (documents sources). Marques calculées par le service : notoriété (bordure), arête secrète (pointillé), masqué (R-NOT-07), redéfini plus tard (R-VUE-03), orphelin (R-FAI-06), entité close. `graph.view` (voisinage à profondeur N ou complet, filtre auteur ou joueur, branche, point) ; `graph.compare` (deux états, nœuds et arêtes ajoutés, retirés, changés, attributs changés avant et après). Disposition par Cytoscape.js (`cose`). | Attributs en nœuds satellites (nombre de nœuds triplé, voisinage illisible). | validé |
-| I-MES-01 | Écran Mesures | **Tableaux denses** et barres dessinées côté serveur, sans bibliothèque de graphiques ; historique (`eval.history`), détail d'une mesure par opération et par passage (manqués, en trop, pièges), **comparaison de deux mesures quelconques** jusqu'au passage (`eval.compare`). `eval.run` : estimation exacte (passages hors cache et répétitions de stabilité), confirmation, **refus** au-delà du plafond plutôt qu'une mesure partielle, tâche de fond. | Courbes d'évolution (dépendance de plus, utile seulement avec un long historique) ; tableaux sans comparaison (le pourquoi reste à reconstituer). | validé |
+| I-MES-01 | Écran Mesures | **Tableaux denses** et barres dessinées côté serveur, sans bibliothèque de graphiques ; historique (`eval.history`), détail d'une mesure par opération et par passage (manqués, en trop, pièges), **comparaison de deux mesures quelconques** jusqu'au passage (`eval.compare`). `eval.run` : estimation exacte (passages hors cache et répétitions de stabilité), confirmation, tâche de fond. *Proposé, non validé :* au-delà du plafond, la mesure est **refusée** avant tout appel, par exception à I-LLM-01 (qui arrête proprement un pipeline et reprend les passages restants à la relance), car une mesure partielle donnerait une précision et un rappel sur un sous-ensemble, trompeurs. | Courbes d'évolution (dépendance de plus, utile seulement avec un long historique) ; tableaux sans comparaison (le pourquoi reste à reconstituer). | validé, sauf le refus au plafond (proposé) |
 
 ## 9. Périmètre
 

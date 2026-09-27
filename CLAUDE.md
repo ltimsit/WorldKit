@@ -75,6 +75,7 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **I5 — fait** (branche `i5-revue`) : écran de revue `/review` (session du monde de travail), parcours exécutables (`worldkit/service/walkthroughs.py`, `walkthrough.run`, `/acceptance`, `worldkit walkthrough run W15`), format exécutable du corpus (identifiants réels, `requires`, vérifications typées), W15 et W08 structurés, 18 parcours exécutables (I-REV-01, I-REV-02, I-ACC-02, I-ACC-03). Fiche : `docs/i5-brief.md`.
 - **I6 — fait** (branche `i6-graphe`) : graphe `/graph` (`graph.view`, `graph.compare`, Cytoscape.js), mesures T2 `/measures` (`eval.run`, `eval.history`, `eval.compare`) (I-GRA-02, I-MES-01). Fiche : `docs/i6-brief.md`. **Interface complète (I0 à I6).**
 - **Prochain, côté auteur** : tests humains à l'écran (curation chronométrée de b1, retcon d'Aldren, Loup sous deux systèmes, comparaison réelle de deux modèles — consomme le quota) ; second jet du corpus (choix du LLM, T-TST-01). Côté code : structurer les attendus des parcours restants au fil des besoins (I-ACC-03).
+- Écart connu : R-SCH-09 (traduction des termes via les `labels` du schéma) n'est pas encore appliqué par l'interface.
 - Lacunes L1, L2, L6 du corpus tranchées avant J8 (cadre R-MET-02, R-MET-04, T-FAI-01 ; analyse 00.50) : toutes les lacunes du corpus v1 sont closes.
 
 ## Carte du code
@@ -102,7 +103,7 @@ La branche de référence n'est plus forcément `reference` : après un rejeu, c
 
 - Environnement : `.venv` (Python 3.12) ; interface : `pip install -e .[ui]` (FastAPI, Uvicorn, Jinja2), puis `worldkit --db monde.db serve`. Tests : `.venv\Scripts\python -m pytest -q` (tous doivent passer ; aucun n'appelle un vrai modèle). Corpus : `cd corpus/valmont-v1; ..\..\.venv\Scripts\python tools/check_corpus.py`.
 - Windows, PowerShell 5.1 : `@base` doit s'écrire `'@base'` ou `base` (le `@` est facultatif) ; `0,1` devient deux arguments (les options d'indices l'acceptent) ; les guillemets d'un argument JSON passé à un exécutable natif sont mangés (passer par Python).
-- LLM : l'adaptateur `claude-code` appelle `claude -p` avec l'abonnement de l'auteur (usage personnel), binaire trouvé dans l'extension VS Code. Une mesure `worldkit eval extraction` consomme le quota : demander avant d'en lancer une complète.
+- LLM : l'adaptateur `claude-code` appelle `claude -p` avec l'abonnement de l'auteur (usage personnel), binaire trouvé dans l'extension VS Code. L'auteur n'a **pas de clé d'API** (`anthropic-api` préparé, inutilisé) et sa machine ne fait pas tourner de modèle local (`ollama` préparé, inutilisé) ; utiliser le jeton de l'abonnement directement contre l'API est exclu. Profils : copier `worldkit-llm.example.yaml` en `worldkit-llm.yaml`. Une mesure `worldkit eval extraction` consomme le quota : demander avant d'en lancer une complète.
 - Pour modifier un fichier par script, écrire le script dans le dossier temporaire de session puis l'exécuter : les apostrophes françaises cassent les here-docs de bash.
 - Un script `.ps1` contenant des accents doit être enregistré en UTF-8 **avec BOM** : PowerShell 5.1 lit sinon le fichier en ANSI (« fièvre » devient « fiÃ¨vre »).
 
