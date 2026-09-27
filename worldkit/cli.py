@@ -20,6 +20,8 @@
     worldkit --db valmont.db review choose <proposition> | adapt <proposition> --prepend|--replace <changes.yaml>
     worldkit --db valmont.db review dismiss <document> <passage>
     worldkit --db valmont.db review nature <document> <passage> accept|refuse [--reason …]   (R-DEC-02)
+    worldkit --db valmont.db ops | call <opération> [params.yaml] [--param clé=valeur]… [--sandbox N] [--json]
+    worldkit --db valmont.db sandbox create|list|drop … | runs list|show|purge …   (couche de service, I1)
     worldkit --db valmont.db redefine <changes.yaml> --after e003 [--from BRANCHE]          (aperçu, R-RED-01)
     worldkit --db valmont.db redefine <changes.yaml> --after e003 --mode retroactive [--branch NOM] [--id r1]
     worldkit --db valmont.db redefine <changes.yaml> --mode point [--id ID]
@@ -819,6 +821,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     view_opts(commands.add_parser("export", help="graphe filtré en JSON, pour un LLM (R-LLM-01)"))
     view_opts(commands.add_parser("check", help="non-conformités, fiches manquantes, faits masqués"), False)
+    from worldkit.service.cli import add_parsers
+    add_parsers(commands)
     return parser
 
 
@@ -829,6 +833,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "schema":
         return _schema_validate(args.files)
     try:
+        if args.command in ("ops", "call", "sandbox", "runs"):
+            from worldkit.service.cli import run
+            return run(args)
         return _run_world(args)
     except (OSError, KeyError, ValueError, RuntimeError, ValidationError, yaml.YAMLError) as e:
         print(f"ERREUR : {e}")
