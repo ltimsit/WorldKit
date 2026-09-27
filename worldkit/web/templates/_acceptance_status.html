@@ -1,0 +1,24 @@
+{% import "_macros.html" as m %}
+<div id="acc-status" {% if run.status == "running" %}hx-get="/fragments/acceptance/{{ run.id }}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
+{% if run.status == "running" %}<p>En cours : <b>{{ run.progress.stage or "…" }}</b>{% if run.progress.total %} ({{ run.progress.done }}/{{ run.progress.total }} parcours){% endif %}</p>{% endif %}
+{% if run.result %}{% set r = run.result %}{% set o = r.output %}
+{{ m.result_head(r) }}
+<p>Parcours <b>{{ o.walkthrough }}</b> · chaîne {{ o.chain|join(" → ") }}
+{% if o.sandbox %} · monde d'acceptation : <a href="/?target={{ o.sandbox }}">bac {{ o.sandbox }}</a> (<a href="/wiki?target={{ o.sandbox }}">wiki</a>, <a href="/branches?target={{ o.sandbox }}">branches</a>){% endif %}</p>
+<p><span class="badge" style="background:var(--add)">{{ r.indicators.passed }} réussi(s)</span>
+<span class="badge" style="background:var(--del)">{{ r.indicators.failed }} échoué(s)</span>
+<span class="badge">{{ r.indicators.unstructured }} non structuré(s)</span>
+<span class="badge" style="background:var(--del)">{{ r.indicators.broken_steps }} étape(s) en échec</span></p>
+{% for res in o.results %}
+<details {{ 'open' if loop.last or not res.steps_ok }}><summary><b>{{ res.id }}</b> {{ res.title }} — étapes {{ "toutes réussies" if res.steps_ok else "EN ÉCHEC" }}{% if loop.last %} · {{ res.passed }} réussi(s), {{ res.failed }} échoué(s), {{ res.unstructured }} non structuré(s){% endif %}</summary>
+<table><tr><th>#</th><th>étape</th><th>état</th><th>appels</th></tr>
+{% for s in res.steps %}<tr class="{{ '' if s.ok else 'removed' }}"><td>{{ loop.index }}</td><td>{{ s.do }}</td><td>{{ "ok" if s.ok else "échec" }}</td>
+<td class="small">{% for c in s.calls %}<span class="mono">{{ c.op }}</span> → {{ c.status }}{% for i in c.issues if not c.ok %} [{{ i.rule }}] {{ i.message }}{% endfor %}<br>{% endfor %}</td></tr>{% endfor %}</table>
+{% if loop.last %}<table><tr><th>attendu</th><th>état</th><th>vérifications</th></tr>
+{% for e in res.expects %}<tr class="{{ {'passed': 'added', 'failed': 'removed'}.get(e.status, '') }}"><td>{{ e.text }}</td>
+<td>{{ {"passed": "réussi", "failed": "ÉCHOUÉ", "unstructured": "à lire"}[e.status] }}</td>
+<td class="small">{% for c in e.checks %}{{ "✔" if c.ok else "✘" }} <span class="mono">{{ c.check.check }}</span> : {{ c.detail }}<br>{% endfor %}</td></tr>{% endfor %}</table>{% endif %}
+</details>
+{% endfor %}
+{% endif %}
+</div>

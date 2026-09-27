@@ -1,0 +1,78 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Revue{% endblock %}
+{% block content %}
+<h1>Revue — {{ "bac " ~ target if target else "monde de travail" }}</h1>
+{% if not target %}
+  {% if session_until %}
+  <div class="error-banner" style="background:var(--chg);color:var(--warn);border-color:var(--warn)">Session de revue du monde de travail ouverte jusqu'à {{ session_until.strftime("%H:%M") }} (prolongée à chaque décision)
+    <form method="post" action="/review/session" style="display:inline" hx-boost="false"><button name="stop" value="1">Terminer</button></form></div>
+  {% else %}
+  <form method="post" action="/review/session" hx-boost="false" class="stat">Le monde de travail est en <b>lecture</b>.
+    <label><input type="checkbox" name="confirm_world" value="1"> je confirme vouloir décider dans le monde de travail</label>
+    <button>Revoir dans le monde de travail</button> <span class="small muted">— ou choisir un bac dans la barre de contexte pour essayer d'abord.</span></form>
+  {% endif %}
+{% endif %}
+{% if error %}<div class="error-banner">{{ error }}</div>{% endif %}
+{% if last %}<h2>Dernière décision</h2>{{ m.result_head(last) }}{% if last.output %}<pre>{{ last.output|yaml }}</pre>{% endif %}{% endif %}
+
+<form method="get" action="/review" onchange="this.requestSubmit()" class="small">
+  <input type="hidden" name="target" value="{{ target or '' }}">
+  filtrer : lot <input name="batch" value="{{ request.query_params.get('batch', '') }}" size="6">
+  étiquette <select name="tag"><option value="">toutes</option>{% for t in tags %}<option {{ 'selected' if request.query_params.get('tag') == t }}>{{ t }}</option>{% endfor %}</select>
+  document <input name="doc" value="{{ request.query_params.get('doc', '') }}" size="18">
+</form>
+{{ m.result_head(listing) }}
+{% set o = listing.output or {} %}
+
+{% if o.nature_questions %}<h2>Questions de nature ({{ o.nature_questions|length }})</h2>
+<table>{% for q in o.nature_questions %}<tr><td>{{ q.document }} p{{ q.passage }}</td><td>méta détecté : {{ q.subjects|join(", ") }}</td>
+<td>{% if writable %}{% for d in ["accept", "refuse"] %}<form method="post" action="/review/decide" style="display:inline" hx-boost="false">
+  <input type="hidden" name="target" value="{{ target or '' }}"><input type="hidden" name="action" value="nature">
+  <input type="hidden" name="document" value="{{ q.document }}"><input type="hidden" name="passage" value="{{ q.passage }}">
+  <button name="decision" value="{{ d }}">{{ "accepter la nature méta" if d == "accept" else "refuser (reste diégétique)" }}</button></form>{% endfor %}{% endif %}</td></tr>{% endfor %}</table>{% endif %}
+
+{% if o.flagged_passages %}<h2>Passages signalés</h2>
+<table>{% for f in o.flagged_passages %}<tr><td>{{ f.document }} p{{ f.passage }}</td><td>{{ f.flags|join(", ") }}</td>
+<td>{% if writable and "attribution" in f.flags %}<form method="post" action="/review/decide" hx-boost="false"><input type="hidden" name="target" value="{{ target or '' }}">
+  <input type="hidden" name="action" value="dismiss"><input type="hidden" name="document" value="{{ f.document }}"><input type="hidden" name="passage" value="{{ f.passage }}"><button>écarter</button></form>{% endif %}</td></tr>{% endfor %}</table>{% endif %}
+
+{% set open_replays = replays|selectattr("status", "equalto", "open")|list %}
+{% if open_replays %}<h2>Rejeux ouverts</h2>
+<table>{% for r in open_replays %}<tr><td><b>{{ r.id }}</b> {{ r.source }} → {{ r.branch }}</td><td>suspendu sur <code>{{ r.current }}</code><br><span class="small">{{ r.conflict|join(" ; ") }}</span></td>
+<td>{% if writable %}{% for a in ["keep", "discard"] %}<form method="post" action="/review/decide" style="display:inline" hx-boost="false"><input type="hidden" name="target" value="{{ target or '' }}">
+  <input type="hidden" name="replay" value="{{ r.id }}"><button name="action" value="{{ a }}">{{ "garder" if a == "keep" else "écarter" }}</button></form>{% endfor %}{% endif %}</td></tr>{% endfor %}</table>{% endif %}
+
+<h2>Propositions ({{ proposals|length }})</h2>
+{% for p in proposals %}{% set d = details[p.id] %}
+<div class="stat" style="margin-bottom:8px;background:#fff">
+  <b class="mono">{{ p.id }}</b> — {{ p.doc }} p{{ p.passage }} · sujet {{ p.subject }} · {{ p.tags|join(", ") }}
+  {% if p.needs_recheck %}<b class="s-pending"> · à revérifier</b>{% endif %}{% if p.blocked %}<b class="s-refused"> · bloquée (document obsolète)</b>{% endif %}
+  {% if d.awaiting_nature %}<b class="s-pending"> · attend la question de nature</b>{% endif %}
+  {% if p.depends_on %}<span class="small"> · dépend de {{ p.depends_on|join(", ") }}</span>{% endif %}
+  <form method="post" action="/review/decide" hx-boost="false">
+    <input type="hidden" name="target" value="{{ target or '' }}"><input type="hidden" name="proposal" value="{{ p.id }}">
+    <input type="hidden" name="total" value="{{ d.changes|selectattr('state', 'equalto', 'open')|list|length }}">
+    <table>{% for c in d.changes %}<tr class="{{ 'removed' if c.state in ['refused'] else '' }}">
+      <td>{% if c.state == "open" %}<input type="checkbox" name="keep" value="{{ c.index }}" {{ '' if 'optional' in c.tags else 'checked' }}>{% endif %} [{{ c.index }}]</td>
+      <td>{{ c.text }}</td><td class="small">{{ c.tags|join(", ") }}{% if c.state != "open" %} — {{ c.state }}{% endif %}</td>
+      <td class="small">{% if c.detail.occupied_by %}l'état contient : {{ c.detail.occupied_by.fact|join(" ") }}{% if c.detail.occupied_by.value is defined %} = {{ c.detail.occupied_by.value }}{% endif %}<br>{% endif %}
+        {% for x in c.detail.get("competes_with", []) %}concurrente de {{ x }}<br>{% endfor %}{% for x in c.detail.get("conflicts_with", []) %}en conflit avec {{ x }}<br>{% endfor %}
+        {% for x in c.detail.get("contradicts", []) %}contredit {{ x }}<br>{% endfor %}{% if c.detail.suggested %}suggestion : {{ c.detail.suggested }}{% endif %}</td></tr>{% endfor %}</table>
+    {% if d.issues %}<p class="small sev-warning">{{ d.issues|join(" ; ") }}</p>{% endif %}
+    {% if writable %}
+    <button name="action" value="accept">accepter (cochés)</button>
+    <button name="action" value="refuse">refuser</button>
+    {% if "batch_conflict" in p.tags or "competing" in p.tags %}<button name="action" value="choose">choisir celle-ci</button>{% endif %}
+    {% if "claim" in p.tags %}<button name="action" value="qualify" onclick="this.form.value.value='true'">vraie</button>
+      <button name="action" value="qualify" onclick="this.form.value.value='false'">fausse</button>
+      <button name="action" value="qualify" onclick="this.form.value.value='undetermined'">indéterminée</button>
+      <button name="action" value="promote">promouvoir en fait</button><input type="hidden" name="value" value="">{% endif %}
+    <button name="action" value="abandon">abandonner</button>
+    <input name="reason" placeholder="motif (facultatif)" size="24">
+    <details><summary>adapter…</summary><textarea name="changes" rows="3" style="width:100%" class="mono" placeholder="- { op: schema_set_relation, … }"></textarea>
+      <label><input type="checkbox" name="replace" value="1"> remplacer (sinon : ajouter avant)</label> <button name="action" value="adapt">confirmer adapté</button></details>
+    {% endif %}
+  </form>
+</div>
+{% endfor %}
+{% endblock %}

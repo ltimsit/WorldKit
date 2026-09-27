@@ -25,6 +25,7 @@
     worldkit --db valmont.db serve [--port 8765] [--no-browser]   (banc d'essai web, I2)
     worldkit --db valmont.db run stages --batch b4 --batches … --oracle … [--from E1 --to E9] [--input N] [--yes]
     worldkit --db valmont.db run save N [--sandbox N] [--to E12] [--decisions d.yaml] | runs-diff A B   (I4)
+    worldkit --db valmont.db walkthrough list | walkthrough run W15   (parcours d'acceptation, I5)
     worldkit --db valmont.db redefine <changes.yaml> --after e003 [--from BRANCHE]          (aperçu, R-RED-01)
     worldkit --db valmont.db redefine <changes.yaml> --after e003 --mode retroactive [--branch NOM] [--id r1]
     worldkit --db valmont.db redefine <changes.yaml> --mode point [--id ID]
@@ -827,6 +828,8 @@ def build_parser() -> argparse.ArgumentParser:
     from worldkit.service.cli import add_parsers, add_pipeline_parsers
     add_parsers(commands)
     add_pipeline_parsers(commands)
+    from worldkit.service.cli import add_walkthrough_parsers
+    add_walkthrough_parsers(commands)
     serve = commands.add_parser("serve", help="banc d'essai web local, en lecture (I2)")
     serve.add_argument("--port", type=int, default=8765)
     serve.add_argument("--no-browser", action="store_true", help="ne pas ouvrir le navigateur")
@@ -862,6 +865,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.command == "serve":
             return _serve(args)
+        if args.command == "walkthrough":
+            from worldkit.service.cli import run_walkthrough
+            return run_walkthrough(args)
         if args.command in ("run", "runs-diff"):
             from worldkit.service.cli import run_pipeline
             return run_pipeline(args)

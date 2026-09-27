@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v36** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v37** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -1133,6 +1133,19 @@ La voie **traçable** est retenue partout où elle ne retarde pas le premier éc
 
 **Décision.** I-PPL-01 à I-PPL-03 (*cadre-interface.md* §8.4) ; I-PPL-04 est proposé. La refactorisation n'a changé aucun comportement : les tests passent inchangés, et le pipeline découpé, sérialisé à chaque frontière, donne le même monde qu'`ingest` sur tous les lots.
 
+### 00.57 Revue à l'écran et parcours exécutables (v37)
+
+> Décision du 27 septembre 2026, jalon I5.
+
+**Problème.** Revoir un lot à l'écran écrit de nombreuses fois de suite dans le monde de travail, alors que l'interface écrit dans un bac par défaut. Par ailleurs, les parcours d'acceptation désignaient les propositions de façon informelle (« b1/notes p3 ») et leurs attendus étaient en prose : impossible de les exécuter, encore moins de les vérifier.
+
+**Voies comparées.**
+- *Revue* : toujours dans un bac, ou une confirmation à chaque décision, sont écartés au profit d'**une session de revue confirmée une fois**.
+- *Parcours* : des assertions brutes, ou des heuristiques pour deviner les propositions, sont écartées au profit de **verbes lisibles avec des identifiants réels et un vocabulaire de vérifications typées**.
+- *Ampleur* : tout d'un coup, ou W15 et W08 sans leurs chaînes, sont écartés au profit de **W15 et W08 complets avec leurs chaînes**.
+
+**Décision.** I-REV-01, I-ACC-02 et I-ACC-03 (*cadre-interface.md* §8.5) ; I-REV-02 est proposé. En chemin, les 18 parcours sont devenus exécutables, et un attendu de W08 qui décrivait le comportement d'avant J8 a été reformulé.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1739,6 +1752,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 81. Comment lire et comparer l'état d'un monde à l'écran ? — **Réponse (v34) :** ✅ Une application web locale en lecture, dont chaque adresse porte son contexte (cible, branche, point, filtre) et reproduit la même lecture ; deux lectures se comparent en deux colonnes, le service désignant les faits ajoutés, retirés ou changés (00.54).
 82. Comment écrire depuis l'interface sans risque, et faire passer un essai dans le monde ? — **Réponse (v35) :** ✅ Toute écriture va par défaut dans un bac à sable, et le monde exige un choix confirmé. Rendre réel, c'est une répétition à blanc sur le monde tel qu'il est, où chaque écriture est jugée identique, en écart ou en divergence, puis une application en tout ou rien, seulement sans divergence (00.55).
 83. Comment exécuter l'ingestion étape par étape, de x à y ? — **Réponse (v36) :** ✅ E1 à E9 sont des calculs sur un artefact sérialisable et réinjectable, seul le cache d'extraction étant écrit. L'enregistrement du lot (E9+) est une écriture explicite, qui relit l'extraction. Les exécutions longues tournent en tâche de fond, avec estimation, confirmation et plafond pour les modèles. Deux exécutions se comparent étape par étape (00.56).
+84. Comment revoir un lot à l'écran, et vérifier les parcours d'acceptation automatiquement ? — **Réponse (v37) :** ✅ La revue décide sur la cible affichée, et le monde de travail demande une session confirmée une fois. Les parcours s'exécutent dans un monde d'acceptation neuf, avec leurs prérequis, par identifiants réels ; leurs attendus sont vérifiés par des contrôles typés partagés entre pytest et l'écran Acceptation (00.57).
 
 ---
 

@@ -50,7 +50,7 @@ Python ; pydantic pour le méta-schéma et le validateur unique (T-SCH-01) ; SQL
 
 Le corpus de test est `corpus/valmont-v1/` (voir son `README.md`) :
 - `schemas/` et `valmont/` : schémas, vérité structurée, documents par lots, annotations `gold/`, scénarios ;
-- `valmont/walkthroughs/walkthroughs.yaml` : parcours W00–W17, chacun rattaché à un jalon, avec résultats attendus — ce sont les **tests d'acceptation** ;
+- `valmont/walkthroughs/walkthroughs.yaml` : parcours W00–W17, chacun rattaché à un jalon, avec résultats attendus — ce sont les **tests d'acceptation**, exécutables (`worldkit walkthrough run W15`, format au README du corpus §3) ; attendus structurés : W08, W15 ;
 - `valmont/questions.yaml` : questions de compétence par vue ;
 - `tools/check_corpus.py` : contrôle de cohérence du corpus lui-même (à lancer après toute modification du corpus).
 
@@ -72,7 +72,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **I2 — fait** (branche `i2-lecture`) : application web locale en lecture (`worldkit/web/`, `worldkit serve`) : tableau de bord, wiki, comparaison de deux lectures (`wiki.compare`), branches, journal, exécutions (I-WEB-01 à I-WEB-03). Fiche : `docs/i2-brief.md`.
 - **I3 — fait** (branche `i3-saisie`) : éditeur YAML vérifié en direct (`/editor`), banc de mécanismes (`/bench`), rendre réel un bac (`sandbox.promote`, `worldkit sandbox promote N [--yes]`), rejeu exposé par le service ; écriture dans un bac par défaut (I-ACT-01 à I-ACT-04). Fiche : `docs/i3-brief.md`.
 - **I4 — fait** (branche `i4-pipeline`) : ingestion découpée en étapes (`worldkit/ingest/stages.py`, E1 à E9 purs, E9+ Enregistrer), `pipeline.run` / `pipeline.save` / `pipeline.estimate` / `runs.diff`, tâches de fond (`worldkit/service/jobs.py`), banc de pipeline `/pipeline`, commandes `run stages`, `run save`, `runs-diff` (I-PPL-01 à I-PPL-04). Fiche : `docs/i4-brief.md`.
-- **Prochain : I5** (revue complète : propositions, questions de nature, rejeu ; parcours exécutables, W15 et W08 d'abord). En parallèle, côté auteur : second jet du corpus (choix du LLM, T-TST-01).
+- **I5 — fait** (branche `i5-revue`) : écran de revue `/review` (session du monde de travail), parcours exécutables (`worldkit/service/walkthroughs.py`, `walkthrough.run`, `/acceptance`, `worldkit walkthrough run W15`), format exécutable du corpus (identifiants réels, `requires`, vérifications typées), W15 et W08 structurés, 18 parcours exécutables (I-REV-01, I-REV-02, I-ACC-02, I-ACC-03). Fiche : `docs/i5-brief.md`.
+- **Prochain : I6** (graphe, mesures T2 et leur historique). En parallèle, côté auteur : second jet du corpus (choix du LLM, T-TST-01) ; tests humains à l'écran (curation chronométrée, retcon, Loup sous deux systèmes, comparaison de deux modèles).
 - Lacunes L1, L2, L6 du corpus tranchées avant J8 (cadre R-MET-02, R-MET-04, T-FAI-01 ; analyse 00.50) : toutes les lacunes du corpus v1 sont closes.
 
 ## Carte du code

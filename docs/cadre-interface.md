@@ -1,7 +1,7 @@
 # Cadre de l'interface
 
 **Objet :** vision, principes, découpage et points à trancher de l'interface de `worldkit`, conçue d'abord comme un **banc d'essai** : tester, suivre l'efficacité, contrôler, et obtenir des retours complets et explicites.
-**Version :** 0.6 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
+**Version :** 0.7 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (en attente). En cas de divergence, le cadre de la fondation puis le cadre technique prévalent.
 
 **Conventions**
@@ -221,6 +221,15 @@ Opérations d'I1 (`worldkit ops`) : consultations `world.summary`, `branch.list`
 | I-PPL-03 | Comparer deux exécutions | Dès I4 : `runs.diff` aligne deux exécutions étape par étape (identique ou différent) et détaille les éléments qui changent, identifiés par passage et par contenu (brouillons, affirmations, drapeaux, retenus par le classement, changements, étiquettes, propositions), avec les indicateurs et durées côte à côte. | Attendre I6 (comparaison à l'œil d'artefacts JSON). | validé |
 | I-PPL-04 | Enregistrer depuis un artefact | `pipeline.run` (calcul) va au plus jusqu'à E9 ; `pipeline.save` (écriture) reprend un artefact d'au moins E4 : **l'extraction est relue, jamais rappelée**, E3 et E5 à E8 sont refaits contre la cible, puis E9+ et, sur demande, E10 (décisions scriptées) à E12. La promotion d'un bac rejoue `pipeline.save` : aucun nouvel appel au modèle. Chaque étape enregistre son artefact (`runs.artifact`), réinjectable en `artifact` ou par `input` (exécution) et `input_stage`. Coût (I-LLM-01) : `pipeline.estimate`, statut « en attente » sans confirmation, plafond `max_calls_per_run` (30), passages au-delà marqués `cap_reached`. | — | proposé |
 
+### 8.5 Revue et acceptation (I5)
+
+| ID | Sujet | Décision | Alternatives écartées | Statut |
+|---|---|---|---|---|
+| I-REV-01 | Où vont les décisions de revue | La revue décide sur la **cible affichée**. Sur un bac, directement. Sur le **monde de travail**, l'écran est en lecture jusqu'à l'ouverture d'une **session de revue**, confirmée une fois, de 30 minutes prolongées à chaque décision, affichée en permanence, terminable ; chaque décision reste une exécution enregistrée. | Toujours dans un bac puis promouvoir (file du monde pleine jusqu'à la promotion, mesure de curation alourdie) ; confirmation à chaque décision (valider sans lire). | validé |
+| I-ACC-02 | Format exécutable des parcours | Verbes lisibles gardés, traduits en opérations du service ; décisions par identifiant réel et action du service ; `requires` pour la chaîne de prérequis ; attendus en phrase (à lire) ou `{text, checks}`, vérifications typées `fact`, `no_fact`, `pending`, `proposal`, `support`, `signal`, `page`, `branch`, `step`, et `call` en porte de secours (README du corpus §3). Exécution dans un **monde d'acceptation** neuf créé depuis `world.yaml`, consultable comme un bac, jamais promouvable. | Appels bruts et assertions génériques (illisible, lié à la forme interne des résultats) ; deviner les propositions à partir des désignations informelles (fragile, un test qui devine n'est pas un test). | validé |
+| I-ACC-03 | Ampleur en I5 | W15 et W08 complets (attendus structurés et verts) ; leurs chaînes exécutables. Toutes les étapes des 18 parcours s'exécutent désormais ; les autres attendus restent à structurer, au fil des jalons qui touchent leur domaine. Les tests écrits à la main restent tant qu'un parcours n'est pas entièrement structuré. | Tous les parcours d'un coup (jalon trop long) ; W15 et W08 sans chaînes (exécuteur non éprouvé). | validé |
+| I-REV-02 | Écran de revue | File filtrable (lot, étiquette, document) ; questions de nature ; passages signalés (écarter une attribution) ; rejeux ouverts (garder, écarter) ; par proposition : changements à cocher (acceptation partielle), étiquettes, occupant de la clé, concurrence, conflits, suggestion, dépendances ; accepter, refuser, choisir, qualifier, promouvoir, abandonner, adapter. | — | proposé |
+
 ## 9. Périmètre
 
 | Dans le périmètre | Préparé (possible plus tard) | Hors périmètre |
@@ -236,7 +245,7 @@ Opérations d'I1 (`worldkit ops`) : consultations `world.summary`, `branch.list`
 | I2 — **fait** | Application FastAPI : tableau de bord, wiki auteur et joueur, comparaison de deux lectures, branches et historique (lignée Mermaid), journal, éditions, exécutions, opérations, en lecture seule ; JSON brut de chaque résultat (I-WEB-01 à I-WEB-03) | relire le retcon d'Aldren entre `reference` et `reference-r1` (automatisé dans `tests/test_web.py`, à faire à l'écran) |
 | I3 — **fait** | Saisie YAML vérifiée en direct ; banc de mécanismes ; rendre réel un essai de bac ; rejeu exposé par le service (I-ACT-01 à I-ACT-04) | refaire le retcon d'Aldren dans un bac à sable, puis le rendre réel (automatisé dans `tests/test_i3.py`, guide vérifié) |
 | I4 — **fait** | Découpage du pipeline (E1 à E12 et E9+), banc de pipeline de x à y en tâche de fond, contrôle du coût, comparaison d'exécutions (I-PPL-01 à I-PPL-04) | Loup sous deux systèmes (J8), de E1 à E12 et par morceaux (guide vérifié ; comparaison de deux modèles réels en attente de l'accord de l'auteur) |
-| I5 | Revue complète (propositions, questions de nature, rejeu) ; parcours exécutables, W15 et W08 structurés d'abord (I-ACC-01) | sessions de curation chronométrées |
+| I5 — **fait** | Revue complète (`/review`, session du monde de travail) ; parcours exécutables (`walkthrough.run`, `/acceptance`, `worldkit walkthrough run`), W15 et W08 structurés, les 18 parcours exécutables (I-REV-01, I-REV-02, I-ACC-02, I-ACC-03) | sessions de curation chronométrées (à faire à l'écran) |
 | I6 | Graphe (I-GRA-01), mesures T2 et leur historique, comparaison d'exécutions | choix du modèle sur le second jet du corpus |
 
 ## 11. Questions

@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Acceptation{% endblock %}
+{% block content %}
+<h1>Parcours d'acceptation</h1>
+<p class="small muted">Chaque parcours s'exécute dans un monde d'acceptation neuf, avec ses prérequis ; ses attendus structurés sont vérifiés, les autres restent à lire (I-ACC-01). Le même exécuteur sert à pytest.</p>
+{% if error %}<div class="error-banner">{{ error }}</div>{% endif %}
+{{ m.result_head(listing) }}
+<table><tr><th>parcours</th><th>titre</th><th>jalon</th><th>prérequis</th><th>étapes</th><th>attendus</th><th>structurés</th><th>exécutable</th><th></th></tr>
+{% for w in listing.output or [] %}<tr><td><b>{{ w.id }}</b></td><td>{{ w.title }}</td><td>{{ w.milestone }}</td><td>{{ w.requires|join(", ") }}</td>
+<td>{{ w.steps }}</td><td>{{ w.expects }}</td><td>{{ w.structured }}</td><td>{{ "oui" if w.executable else "non" }}</td>
+<td>{% if w.executable %}<form method="post" action="/acceptance" hx-boost="false"><button name="id" value="{{ w.id }}">exécuter</button></form>{% endif %}</td></tr>{% endfor %}
+</table>
+<h2>Exécutions</h2>
+<table><tr><th>#</th><th>quand</th><th>parcours</th><th>statut</th></tr>
+{% for r in runs %}<tr><td><a href="/acceptance/{{ r.id }}">{{ r.id }}</a></td><td class="small">{{ r.created }}</td><td>{{ r.params.id }}</td><td class="s-{{ r.status }}">{{ r.status }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

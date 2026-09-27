@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Acceptation #{{ run.id }}{% endblock %}
+{% block content %}
+<h1>Exécution d'acceptation #{{ run.id }}</h1>
+{% include "_acceptance_status.html" %}
+<p><a href="/acceptance">← parcours</a></p>
+{% endblock %}
