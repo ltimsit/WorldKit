@@ -71,7 +71,8 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 - **I1 — fait** (branche `i1-service`) : couche de service (`worldkit/service/`), registre d'opérations, résultat de forme commune, exécutions `monde.runs.db`, bacs à sable ; commandes `ops`, `call`, `sandbox`, `runs` (I-SVC-01 à I-SVC-04). Fiche : `docs/i1-brief.md`.
 - **I2 — fait** (branche `i2-lecture`) : application web locale en lecture (`worldkit/web/`, `worldkit serve`) : tableau de bord, wiki, comparaison de deux lectures (`wiki.compare`), branches, journal, exécutions (I-WEB-01 à I-WEB-03). Fiche : `docs/i2-brief.md`.
 - **I3 — fait** (branche `i3-saisie`) : éditeur YAML vérifié en direct (`/editor`), banc de mécanismes (`/bench`), rendre réel un bac (`sandbox.promote`, `worldkit sandbox promote N [--yes]`), rejeu exposé par le service ; écriture dans un bac par défaut (I-ACT-01 à I-ACT-04). Fiche : `docs/i3-brief.md`.
-- **Prochain : I4** (découpage du pipeline en étapes E1 à E12, banc de pipeline de x à y, contrôle du coût LLM). En parallèle, côté auteur : second jet du corpus (choix du LLM, T-TST-01).
+- **I4 — fait** (branche `i4-pipeline`) : ingestion découpée en étapes (`worldkit/ingest/stages.py`, E1 à E9 purs, E9+ Enregistrer), `pipeline.run` / `pipeline.save` / `pipeline.estimate` / `runs.diff`, tâches de fond (`worldkit/service/jobs.py`), banc de pipeline `/pipeline`, commandes `run stages`, `run save`, `runs-diff` (I-PPL-01 à I-PPL-04). Fiche : `docs/i4-brief.md`.
+- **Prochain : I5** (revue complète : propositions, questions de nature, rejeu ; parcours exécutables, W15 et W08 d'abord). En parallèle, côté auteur : second jet du corpus (choix du LLM, T-TST-01).
 - Lacunes L1, L2, L6 du corpus tranchées avant J8 (cadre R-MET-02, R-MET-04, T-FAI-01 ; analyse 00.50) : toutes les lacunes du corpus v1 sont closes.
 
 ## Carte du code
@@ -85,7 +86,7 @@ Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'im
 | M5 workflows | `worldkit/core/workflows/` | scénarios, pistes d'auteur, déroulés (`scenarios.py`) ; redéfinition rétroactive et rejeu (`replay.py`) |
 | M10–M11 vues | `worldkit/core/views/` | notoriété effective, pages, rendu Markdown, export JSON, signalements |
 | Façade | `worldkit/core/world.py` | `World` : créer, appliquer, soumettre, confirmer, rebaser, branches, transposer |
-| M6–M9 ingestion | `worldkit/ingest/` | déclaration et passages, lots, propositions, file de revue vivante, décisions ; méta : nature, questions de nature, `sheet_values` (`meta.py`) ; report des propositions en fin de rejeu (`carry.py`) |
+| M6–M9 ingestion | `worldkit/ingest/` | déclaration et passages, pipeline en étapes (`stages.py`, `ingest` dans `batch.py`), propositions, file de revue vivante, décisions ; méta : nature, questions de nature, `sheet_values` (`meta.py`) ; report des propositions en fin de rejeu (`carry.py`) |
 | Périphérie | `worldkit/periphery/` | extracteur oracle, adaptateurs LLM et profils (`llm/`), extracteur LLM, mesure T2 |
 | Service | `worldkit/service/` | registre d'opérations (`registry.py`, `ops.py`), `Session.call` (`session.py`), `Result` (`result.py`), exécutions et bacs (`runs.py`), commandes `ops`/`call`/`sandbox`/`runs` (`cli.py`) |
 | Web | `worldkit/web/` | application FastAPI (`app.py`), gabarits Jinja (`templates/`), style, htmx et Mermaid copiés (`static/`) ; lecture seule jusqu'à I3 |

@@ -42,6 +42,7 @@ DEFAULT: dict[str, Any] = {
 class LLMConfig:
     profiles: dict[str, Profile]
     tasks: dict[str, str] = field(default_factory=dict)
+    max_calls_per_run: int = 30  # plafond d'appels au modèle par exécution (I-LLM-01)
 
     def profile(self, name: str | None = None, task: str = "extraction") -> Profile:
         name = name or self.tasks.get(task)
@@ -63,7 +64,7 @@ def parse_config(raw: dict[str, Any]) -> LLMConfig:
     for task, name in tasks.items():
         if name not in profiles:
             raise LLMError(f"tâche {task} : profil inconnu « {name} »")
-    return LLMConfig(profiles, tasks)
+    return LLMConfig(profiles, tasks, int(raw.get("max_calls_per_run", 30)))
 
 
 def load_config(path: str | Path | None = None) -> LLMConfig:

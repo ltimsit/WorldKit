@@ -1,7 +1,7 @@
 # Cadre technique de la fondation
 
 **Objet :** décisions techniques de la fondation : éléments structurants, découpage en modules, architecture, articulation entre le noyau et l'ingestion, stratégie de test et étapes de construction.
-**Version :** 2.15 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21, qu'il cite sans le dupliquer.
+**Version :** 2.16 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21, qu'il cite sans le dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (argumenté, en attente de validation). En cas de divergence, *cadre-fondation.md* prévaut.
 
 **Conventions**
@@ -331,6 +331,10 @@ Vues antérieures (R-VUE-03) : un fait dont la clé est réécrite plus tard, su
 ### 5.3 quater Redéfinition rétroactive et rejeu (J7)
 
 *(R-RED-01 à R-RED-05, §6.4 ; T-RED-01.)* `worldkit redefine` montre d'abord l'**aperçu d'impact** : éditions postérieures à l'ancrage qui lisent ou écrivent une clé écrite par la redéfinition (sous-clés de notoriété ramenées à leur clé), et éditions en attente concernées. Le mode est ensuite choisi explicitement (`--mode point` : édition `redefinition` ponctuelle en tête ; `--mode retroactive` : rejeu). Le rejeu transpose (§5.3 bis) chaque édition postérieure, dans l'ordre, sur la nouvelle branche `source-rN` ; il reprend là où il s'est arrêté, y compris après des éditions arrivées entre-temps sur la source, qui reste la branche de travail jusqu'à la fin. Garder une édition en contradiction ne retire le fait occupant que pour une clé qu'elle **écrit** : une clé seulement lue (une qualification) est laissée intacte. Une édition écartée rend dépendantes celles qui la lisaient. Une modification de schéma se rejoue de la même façon (R-RED-05). La périphérie reporte ses propres éléments en attente par un reporteur enregistré auprès du noyau, qui n'importe pas l'ingestion. Exemple (W15) : « Aldren est mort de fièvre » après e003 ; seule la qualification « mort au combat : fausse » est présentée, l'auteur la garde ; ad-2 passe à revérifier, ad-1 non ; `reference-r1` devient la référence, `reference` est archivée ; `variante-mj` est signalée.
+
+### 5.3 quinquies Pipeline en étapes (I4)
+
+L'ingestion est découpée en étapes nommées (`worldkit/ingest/stages.py`, *cadre-interface.md* §4 et I-PPL-01) : E1 Déclaration, E2 Passages, E3 Nature, E4 Extraction, E5 Traduction, E6 Classement, E7 Résolution, E8 Qualification, E9 Propositions, **E9+ Enregistrer**, E10 Revue, E11 Application, E12 Vues. E1 à E9 sont des calculs sur un artefact cumulé sérialisable (JSON canonique), seule écriture le cache d'extraction (T-ING-09) ; E9+ est l'écriture du lot, précédée de la requalification de la file (T-ING-06). `ingest` = E1 à E8 puis E9+ : comportement inchangé. Précisions : le changement revendiqué d'une affirmation est enregistré à clés triées ; deux passages de même texte dans un lot ne coûtent qu'un appel d'extraction ; `proposals.assemble` = `qualify_all` (E8) puis `group` (E9) ; le plafond d'appels par exécution se règle par `max_calls_per_run` dans `worldkit-llm.yaml` (30 par défaut, I-LLM-01).
 
 ### 5.4 Règles du cadre issues de cette analyse
 

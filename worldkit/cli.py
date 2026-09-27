@@ -23,6 +23,8 @@
     worldkit --db valmont.db ops | call <opération> [params.yaml] [--param clé=valeur]… [--sandbox N] [--json]
     worldkit --db valmont.db sandbox create|list|drop … | runs list|show|purge …   (couche de service, I1)
     worldkit --db valmont.db serve [--port 8765] [--no-browser]   (banc d'essai web, I2)
+    worldkit --db valmont.db run stages --batch b4 --batches … --oracle … [--from E1 --to E9] [--input N] [--yes]
+    worldkit --db valmont.db run save N [--sandbox N] [--to E12] [--decisions d.yaml] | runs-diff A B   (I4)
     worldkit --db valmont.db redefine <changes.yaml> --after e003 [--from BRANCHE]          (aperçu, R-RED-01)
     worldkit --db valmont.db redefine <changes.yaml> --after e003 --mode retroactive [--branch NOM] [--id r1]
     worldkit --db valmont.db redefine <changes.yaml> --mode point [--id ID]
@@ -822,8 +824,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     view_opts(commands.add_parser("export", help="graphe filtré en JSON, pour un LLM (R-LLM-01)"))
     view_opts(commands.add_parser("check", help="non-conformités, fiches manquantes, faits masqués"), False)
-    from worldkit.service.cli import add_parsers
+    from worldkit.service.cli import add_parsers, add_pipeline_parsers
     add_parsers(commands)
+    add_pipeline_parsers(commands)
     serve = commands.add_parser("serve", help="banc d'essai web local, en lecture (I2)")
     serve.add_argument("--port", type=int, default=8765)
     serve.add_argument("--no-browser", action="store_true", help="ne pas ouvrir le navigateur")
@@ -859,6 +862,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.command == "serve":
             return _serve(args)
+        if args.command in ("run", "runs-diff"):
+            from worldkit.service.cli import run_pipeline
+            return run_pipeline(args)
         if args.command in ("ops", "call", "sandbox", "runs"):
             from worldkit.service.cli import run
             return run(args)

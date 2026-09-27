@@ -1,0 +1,37 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Pipeline #{{ run.id }}{% endblock %}
+{% block content %}
+<h1>Exécution de pipeline #{{ run.id }}</h1>
+{% if run.record %}<p class="small mono">{{ run.record.params|tojson }}</p>{% endif %}
+{% if run.live %}<form method="post" action="/pipeline/{{ run.id }}/cancel" hx-boost="false"><button>Arrêter</button> <span class="small muted">arrêt propre entre deux groupes de passages ; ce qui est extrait reste en cache</span></form>{% endif %}
+{% include "_run_status.html" %}
+{% if run.result and run.result.output and run.result.output.flagged %}
+<h2>Passages signalés</h2><table>{% for k, v in run.result.output.flagged.items() %}<tr><td>{{ k }}</td><td>{{ v|join(", ") }}</td></tr>{% endfor %}</table>
+{% endif %}
+{% if run.result and run.result.status == "pending" and run.result.output.estimate %}
+<p class="s-pending"><b>En attente de confirmation</b> : {{ run.result.output.estimate.calls }} appel(s) estimé(s) au modèle {{ run.result.output.estimate.model }}. Relancer depuis le <a href="/pipeline">banc</a> en cochant « confirmer ».</p>
+{% endif %}
+{% if run.stages and run.stages[-1] in ["E4", "E5", "E6", "E7", "E8", "E9"] and run.status != "running" %}
+<h2>Enregistrer le lot (E9+ à E12)</h2>
+<p class="small muted">L'extraction de cette exécution est relue, jamais rappelée ; E3 et E5 à E8 sont refaits contre la cible. Par défaut dans un nouveau bac à sable (I-ACT-01).</p>
+<form method="post" action="/pipeline/{{ run.id }}/save" hx-boost="false">
+  <p><label>jusqu'à <select name="to">{% for s in ["E9+", "E10", "E11", "E12"] %}<option>{{ s }}</option>{% endfor %}</select></label>
+  <label>destination <select name="destination"><option value="new">nouveau bac à sable</option>
+    {% for b in sandboxes %}<option value="{{ b.id }}">bac {{ b.id }}{% if b.note %} — {{ b.note }}{% endif %}</option>{% endfor %}
+    <option value="world">monde de travail (confirmation requise)</option></select></label>
+  <label><input type="checkbox" name="confirm_world" value="1"> je confirme l'écriture dans le monde de travail</label></p>
+  <p><label>décisions scriptées pour E10 (YAML, facultatif)<br>
+  <textarea name="decisions" rows="4" style="width:100%" class="mono" placeholder="- {action: nature, document: bestiaire-loup-de-cendre, passage: 6, decision: accept}&#10;- {action: accept, proposal: b4.bestiaire-loup-de-cendre.p6.1}"></textarea></label></p>
+  <p><button>Enregistrer</button></p>
+</form>
+{% endif %}
+{% if saved is defined and (saved or save_error) %}
+<h2>Enregistrement</h2>
+{% if save_error %}<p class="sev-error">{{ save_error }}</p>{% endif %}
+{% if saved %}{{ m.result_head(saved) }}
+<table>{% for s in saved.output.stages if saved.output %}<tr><td>{{ s.stage }}</td><td>{{ s.name }}</td><td>{{ s.duration_ms }}</td><td class="mono small">{{ s.indicators|tojson }}</td></tr>{% endfor %}</table>
+{% if save_target and save_target != "world" %}<p>Écrit dans le <b>bac {{ save_target }}</b> : <a href="/?target={{ save_target }}">l'ouvrir</a> · <a href="/wiki?target={{ save_target }}">wiki</a> · <a href="/sandbox/{{ save_target }}/promote">rendre réel…</a></p>{% endif %}
+{% endif %}
+{% endif %}
+<p><a href="/pipeline">← banc de pipeline</a> · comparer avec <form method="get" action="/runs-diff" style="display:inline"><input type="hidden" name="a" value="{{ run.id }}"><input name="b" size="4" placeholder="#"> <button>comparer</button></form></p>
+{% endblock %}

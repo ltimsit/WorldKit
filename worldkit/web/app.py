@@ -243,6 +243,10 @@ def create_app(db: str | Path) -> FastAPI:
 
     from .actions import register
     register(app, db, render, lambda: Page(db), templates)
+    from .pipeline import register as register_pipeline
+    register_pipeline(app, db, render, lambda: Page(db), templates)
+    from worldkit.ingest.stages import STAGE_NAMES
+    env.globals["names"] = STAGE_NAMES
     return app
 
 

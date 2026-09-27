@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Comparer deux exécutions{% endblock %}
+{% block content %}
+<h1>Comparer deux exécutions de pipeline</h1>
+<form method="get" action="/runs-diff"><input name="a" value="{{ a }}" size="4"> et <input name="b" value="{{ b }}" size="4"> <button>comparer</button></form>
+{% if result %}
+{{ m.result_head(result) }}
+{% set o = result.output %}
+{% if o %}
+<p>A = <a href="/pipeline/{{ o.a }}">#{{ o.a }}</a>, B = <a href="/pipeline/{{ o.b }}">#{{ o.b }}</a> ·
+{% if o.first_difference %}première différence : <b>{{ o.first_difference }}</b>{% else %}<b class="s-ok">aucune différence sur les étapes communes</b>{% endif %}
+{% if o.only_in_a %} · seulement dans A : {{ o.only_in_a|join(", ") }}{% endif %}{% if o.only_in_b %} · seulement dans B : {{ o.only_in_b|join(", ") }}{% endif %}</p>
+<table><tr><th>étape</th><th>état</th><th>durée A / B (ms)</th><th>indicateurs A</th><th>indicateurs B</th></tr>
+{% for s in o.stages %}<tr class="{{ '' if s.same else 'changed' }}"><td><b>{{ s.stage }}</b></td><td>{{ "identique" if s.same else "différent" }}</td>
+<td>{{ s.duration_ms.a }} / {{ s.duration_ms.b }}</td><td class="mono small">{{ s.indicators.a|tojson }}</td><td class="mono small">{{ s.indicators.b|tojson }}</td></tr>{% endfor %}
+</table>
+{% for s in o.stages if not s.same %}
+<h2>{{ s.stage }} : ce qui diffère</h2>
+<table><tr><th>élément</th><th>A</th><th>B</th></tr>
+{% for k in s.only_a %}<tr class="removed"><td class="mono small">{{ k }}</td><td>présent</td><td>—</td></tr>{% endfor %}
+{% for k in s.only_b %}<tr class="added"><td class="mono small">{{ k }}</td><td>—</td><td>présent</td></tr>{% endfor %}
+{% for c in s.changed %}<tr class="changed"><td class="mono small">{{ c.key }}</td><td class="mono small">{{ c.a|tojson }}</td><td class="mono small">{{ c.b|tojson }}</td></tr>{% endfor %}
+</table>
+{% endfor %}
+{% endif %}
+{% endif %}
+{% endblock %}

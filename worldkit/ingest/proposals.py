@@ -387,12 +387,25 @@ def depends(reads: set[FactKey] | frozenset[FactKey], writes: set[FactKey] | fro
 def assemble(batch_id: str, items: list[Item], base: State,
              new: dict[str, NewEntity]) -> tuple[list[Qualified], list[ProposalDraft]]:
     """Qualifie les changements du lot ; rend (supports, propositions)."""
+    return group(batch_id, qualify_all(items, base, new), base, new)
+
+
+def qualify_all(items: list[Item], base: State, new: dict[str, NewEntity]) -> list[Qualified]:
+    """Étape E8 : qualification de chaque changement, contrôles croisés du lot, empreintes (T-ING-02 à T-ING-08)."""
     ctx = _context(base, new, items)
     new_by_id = {e.id: e for e in new.values()}
     qualified = [qualify_item(i, base, ctx) for i in items]
     _cross_checks(qualified)
     for q in qualified:
         q.fingerprint = change_fingerprint(q, new_by_id)
+    return qualified
+
+
+def group(batch_id: str, qualified: list[Qualified], base: State,
+          new: dict[str, NewEntity]) -> tuple[list[Qualified], list[ProposalDraft]]:
+    """Étape E9 : supports, regroupement en propositions (passage, sujet), lectures, écritures, dépendances."""
+    ctx = _context(base, new, [q.item for q in qualified])
+    new_by_id = {e.id: e for e in new.values()}
     # Un passage dont la nature est à décider ne soutient rien tant qu'elle ne l'est pas (R-DEC-02).
     supports = [q for q in qualified if q.is_support and not q.item.awaiting_nature]
 

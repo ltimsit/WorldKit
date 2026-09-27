@@ -12,25 +12,19 @@ from __future__ import annotations
 
 import hashlib
 import json
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
-from pydantic import ValidationError
-
-from worldkit.core.journal.models import BaseState, Edit, EditStatus
+from worldkit.core.journal.models import BaseState
 from worldkit.core.projection.serialize import state_to_dict
-from worldkit.core.schema.changes import CloseEntity, DeleteEntity, SetVisibility, parse_change
+from worldkit.core.schema.changes import CloseEntity, DeleteEntity, SetVisibility
 from worldkit.core.world import World
 from worldkit.periphery.extraction import Extraction, ExtractionContext, Extractor, KnownEntity
-from worldkit.periphery.llm.adapters import LLMError
 
-from .declaration import DocumentVersion, Voice, read_document
-from .declaration import name_key, normalize
-from .meta import DIEGETIC, METAN, NATURE_FLAG, UNDETERMINED, expand_sheet_values, is_meta, passage_nature
-from .proposals import NEW, Item, NewEntity, ProposalDraft, Qualified, assemble, depends, new_entities, resolve
-from .queue import StoredProposal, load, name_index, pending_new_entities, refresh, save_change
+from .declaration import DocumentVersion, name_key
+from .proposals import NEW, NewEntity, ProposalDraft, Qualified, depends
+from .queue import StoredProposal, pending_new_entities, refresh
 from .store import dumps, ensure_tables
 
 
@@ -97,231 +91,42 @@ def passage_context(context: ExtractionContext, doc: DocumentVersion, passage: A
                    speaker=speakers[0] if speakers else doc.axes.speaker, document=doc.title)
 
 
-def _parallel(extractor: Extractor, doc: DocumentVersion, passages: list[Any], context: ExtractionContext,
-              conn: Any, schema_fp: str) -> dict[int, Extraction | LLMError]:
-    """Extrait en parallèle les passages absents du cache ; l'ordre des résultats ne dépend que des passages."""
-    missing = [p for p in passages if conn.execute(
-        "SELECT 1 FROM extraction_cache WHERE passage_fp = ? AND schema_fp = ? AND extractor = ?",
-        (p.fingerprint, schema_fp, extractor.version)).fetchone() is None]
-
-    def one(p: Any) -> Extraction | LLMError:
-        try:
-            return extractor.extract(doc.doc_id, p.text, passage_context(context, doc, p))
-        except LLMError as e:
-            return e
-
-    workers = max(1, int(getattr(extractor, "concurrency", 1)))
-    if workers == 1 or len(missing) < 2:
-        return {p.index: one(p) for p in missing}
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        return dict(zip((p.index for p in missing), pool.map(one, missing)))
 
 
-def _extract(world: World, extractor: Extractor, doc: DocumentVersion, schema_fp: str,
-             report: BatchReport, skip: set[str], context: ExtractionContext) -> list[tuple[int, Extraction]]:
-    out = []
-    conn = world.store.conn
-    todo = []
-    for p in doc.passages:
-        if p.fingerprint in skip:
-            report.unchanged += 1
-            continue
-        todo.append(p)
-    fresh = _parallel(extractor, doc, todo, context, conn, schema_fp)
-    for p in todo:
-        row = conn.execute("SELECT payload FROM extraction_cache WHERE passage_fp = ? AND schema_fp = ?"
-                           " AND extractor = ?", (p.fingerprint, schema_fp, extractor.version)).fetchone()
-        if row is not None:
-            d = json.loads(row[0])
-            ex = Extraction(tuple(d["drafts"]), frozenset(d["optional"]), tuple(d["claims"]), tuple(d["flags"]),
-                            d["nature"])
-            report.cached += 1
-        else:
-            ex = fresh[p.index]
-            if isinstance(ex, LLMError):  # T-ING-17 : erreur d'extraction, jamais une proposition ; non mise en cache
-                report.errors[f"{doc.doc_id} p{p.index}"] = str(ex)
-                out.append((p.index, Extraction(flags=("extraction_error",))))
-                continue
-            conn.execute("INSERT INTO extraction_cache VALUES (?, ?, ?, ?)",
-                         (p.fingerprint, schema_fp, extractor.version,
-                          dumps({**asdict(ex), "optional": sorted(ex.optional)})))
-            report.extracted += 1
-        out.append((p.index, ex))
-    return out
 
 
 def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extractor,
            branch: str | None = None) -> BatchReport:
-    conn = world.store.conn
-    ensure_tables(conn)
-    if conn.execute("SELECT 1 FROM batches WHERE batch_id = ?", (batch_id,)).fetchone():
+    """Ingestion d'un lot = étapes E1 à E8 (calculs), puis E9+ Enregistrer (écriture) : `stages.py`."""
+    from . import stages as S
+    ensure_tables(world.store.conn)
+    if world.store.conn.execute("SELECT 1 FROM batches WHERE batch_id = ?", (batch_id,)).fetchone():
         raise BatchError(f"lot déjà ingéré : {batch_id}")
     branch = branch or world.reference_branch
     refresh(world, branch)
-    head = world.state(branch)
-    base = BaseState(branch=branch, seq=head.seq, schema_rev=head.schema_rev)
-    schema_fp = schema_fingerprint(head)
-    context = extraction_context(world, head)
-    docs = [read_document(p) for p in paths]
-    if len({d.doc_id for d in docs}) != len(docs):
-        raise BatchError("un même document figure deux fois dans le lot")
-    report = BatchReport(batch_id, base, [d.doc_id for d in docs], [], [], [])
-    # Un document obsolète ne produit rien, pas même l'enregistrement de ses passages : à la levée du
-    # statut, une nouvelle ingestion le traitera comme neuf (R-DOC-05, décision J3.4).
-    report.obsolete = [d.doc_id for d in docs if head.obsolete_documents.get(d.doc_id)]
-    docs = [d for d in docs if d.doc_id not in report.obsolete]
+    run = S.Run(world, extractor)
+    try:
+        art = S.run_range(run, S.start(world, batch_id, branch), "E1", "E8", paths)
+        art = S.e9_save(run, art)
+    except S.StageError as e:
+        raise BatchError(str(e)) from e
+    return report_of(art)
 
-    # Extraction (ou cache), puis brouillons à résoudre.
-    raw: list[tuple[DocumentVersion, int, int, dict[str, Any], bool]] = []
-    passage_flags: dict[tuple[str, int], list[str]] = {}
-    awaiting: set[tuple[str, int, int]] = set()  # (document, passage, brouillon) : nature à décider (R-DEC-02)
-    sheets: dict[tuple[str, str], str] = {}      # fiches créées par le lot (forme `sheet_values`)
-    retracted: list[tuple[str, str, int]] = []
-    with conn:
-        for doc in docs:
-            known = _known_passages(world, branch, doc.doc_id)
-            current = {p.fingerprint for p in doc.passages}
-            for fp, places in known.items():
-                if fp not in current:  # passage supprimé ou modifié : ses supports sont retirés (T-ING-10, T-ING-11)
-                    retracted += [(doc.doc_id, vfp, idx) for vfp, idx in places]
-                    report.removed += 1
-            for index, ex in _extract(world, extractor, doc, schema_fp, report, set(known), context):
-                flags = list(ex.flags)
-                passage = doc.passages[index - 1]
-                declared = passage_nature(doc, passage)
-                if doc.axes.voice is not Voice.IN_WORLD:  # en in_world, le contenu n'établit pas de faits
-                    for draft, optional in _expanded(ex, head, sheets, flags):
-                        meta = is_meta(draft, head)
-                        if declared == DIEGETIC and meta:  # la déclaration l'emporte (R-DEC-01, R-MET-03)
-                            _flag(flags, "meta_in_diegetic")
-                            continue
-                        if declared == METAN and not meta:
-                            _flag(flags, "diegetic_in_meta")
-                            continue
-                        i = sum(1 for r in raw if r[0] is doc and r[1] == index)
-                        if declared == UNDETERMINED and meta:  # détection : proposée, jamais décidée (R-DEC-02)
-                            _flag(flags, NATURE_FLAG)
-                            awaiting.add((doc.doc_id, index, i))
-                        raw.append((doc, index, i, draft, optional))
-                speakers = passage.speakers()
-                for n, claim in enumerate(ex.claims, start=1):
-                    speaker = claim.get("speaker") or (speakers[0] if speakers else doc.axes.speaker)
-                    if speaker is None:
-                        continue  # une affirmation a un énonciateur (R-DOC-02)
-                    raw.append((doc, index, sum(1 for r in raw if r[0] is doc and r[1] == index), {
-                        "op": "add_claim", "claim": f"{doc.doc_id}.p{index}.c{n}", "document": doc.doc_id,
-                        "speaker": speaker, "text": claim["text"], "claimed": claim.get("claimed")}, False))
-                passage_flags[(doc.doc_id, index)] = flags
 
-    # Résolution : les créations proposées par les lots en attente sont reprises, jamais dupliquées (T-ING-07).
-    pending_new = pending_new_entities(world, head)
-    by_name = name_index(pending_new)
-    reused: dict[str, NewEntity] = dict(pending_new)
-    for _, _, _, d, _ in raw:
-        entity = d.get("entity")
-        if d.get("op") == "set_attribute" and d.get("attribute") == "name" and isinstance(entity, str)                 and entity.startswith(NEW):
-            label = entity[len(NEW):]
-            types = {x.get("type") for _, _, _, x, _ in raw if x.get("op") == "create_entity" and x.get("entity") == entity}
-            for t in types:
-                match = by_name.get((t, name_key(str(d["value"]))))
-                if match:
-                    reused[label] = match
-    raw = [r for r in raw if not (r[3].get("op") == "create_entity" and isinstance(r[3].get("entity"), str)
-                                  and r[3]["entity"].startswith(NEW) and r[3]["entity"][len(NEW):] in reused)]
-    raw = _merge_new_labels(raw)
-    taken = set(head.entities) | {r[0] for r in conn.execute("SELECT entity_id FROM new_entities")}
-    own = new_entities([r[3] for r in raw], taken)
-    new = {**reused, **own}
-    items: list[Item] = []
-    for order, (doc, index, i, draft, optional) in enumerate(raw):
-        draft = resolve(draft, new)
-        if doc.axes.visibility is not None and "visibility" not in draft \
-                and draft.get("op") not in ("close_entity", "delete_entity", "set_visibility"):
-            draft = {**draft, "visibility": doc.axes.visibility.value}  # niveau 1 : en-tête (R-DEC-01)
-        try:
-            change = parse_change(draft)
-        except (ValidationError, ValueError):
-            passage_flags.setdefault((doc.doc_id, index), []).append("extraction_error")  # T-ING-17
-            continue
-        items.append(Item(doc.doc_id, doc.fingerprint, index, order, change, doc.axes.mode, optional,
-                          (doc.doc_id, index, i) in awaiting))
-
-    supports, proposals = assemble(batch_id, items, head, new)
-    others = [p for p in load(world, branch) if p.batch != batch_id]
-    _across_batches(proposals, others)
-    states = _remembered(world, branch, proposals, report)
-    report.supports, report.proposals, report.new_entities = supports, proposals, list(own.values())
-    report.flagged = {f"{d} p{i}": f for (d, i), f in sorted(passage_flags.items()) if f}
-
-    with conn:
-        for doc_id, vfp, idx in retracted:
-            conn.execute("DELETE FROM supports WHERE doc_id = ? AND version_fp = ? AND passage_idx = ?",
-                         (doc_id, vfp, idx))
-        conn.execute("INSERT INTO batches VALUES (?, ?, ?, ?, (SELECT COUNT(*) FROM batches))",
-                     (batch_id, branch, base.seq, base.schema_rev))
-        for pos, doc in enumerate(docs):
-            conn.execute("INSERT OR IGNORE INTO document_versions VALUES (?, ?, ?, ?)",
-                         (doc.doc_id, doc.fingerprint, doc.path, dumps(asdict(doc.axes))))
-            conn.execute("INSERT INTO batch_documents VALUES (?, ?, ?, ?)", (batch_id, doc.doc_id, doc.fingerprint, pos))
-            for p in doc.passages:
-                conn.execute("INSERT OR IGNORE INTO passages VALUES (?, ?, ?, ?, ?, ?)",
-                             (doc.doc_id, doc.fingerprint, p.index, p.fingerprint, p.text,
-                              dumps(passage_flags.get((doc.doc_id, p.index), []))))
-        creators = {q.item.change.entity: p.id for p in proposals for q in p.items
-                    if q.item.change.op == "create_entity"}
-        for e in own.values():
-            conn.execute("INSERT INTO new_entities (batch_id, label, entity_id, type, name, creator)"
-                         " VALUES (?, ?, ?, ?, ?, ?)", (batch_id, e.label, e.id, e.type, e.name, creators.get(e.id)))
-        for q in supports:
-            it = q.item
-            for k in q.keys:
-                conn.execute("INSERT OR IGNORE INTO supports VALUES (?, ?, ?, ?, ?, ?)",
-                             (it.doc_id, it.version_fp, it.passage, dumps(k), dumps(q.value), batch_id))
-        for p in proposals:
-            edit = Edit(id=p.id, branch=branch, origin=None, tags=["ingestion", batch_id],
-                        changes=[q.item.change for q in p.items])
-            world.store.record_edit(edit, EditStatus.PENDING, base, frozenset(p.reads), frozenset(p.writes))
-            conn.execute("INSERT INTO proposals (edit_id, batch_id, doc_id, version_fp, passage_idx, subject, kind,"
-                         " issues) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                         (p.id, batch_id, p.doc_id, p.version_fp, p.passage, p.subject, p.kind, dumps(p.issues)))
-            for i, q in enumerate(p.items):
-                conn.execute("INSERT INTO proposal_changes (edit_id, idx, fingerprint, tags, detail, state)"
-                             " VALUES (?, ?, ?, ?, ?, ?)", (p.id, i, q.fingerprint, dumps(sorted(q.tags)),
-                                                            dumps(q.detail), states.get((p.id, i), "open")))
-                for k in q.keys:
-                    conn.execute("INSERT OR IGNORE INTO proposal_keys VALUES (?, ?, ?, ?)",
-                                 (p.id, i, dumps(k), dumps(q.value)))
-            for dep in sorted(p.depends_on):
-                conn.execute("INSERT INTO proposal_deps VALUES (?, ?)", (p.id, dep))
-        for other in others:
-            for c in other.changes:
-                save_change(world, other.id, c)  # étiquettes « concurrente » ajoutées de l'autre côté
-        for p in proposals:
-            if all(states.get((p.id, i)) == "refused" for i in range(len(p.items))):
-                world.store.update_pending(p.id, status=EditStatus.ABANDONED)
-                conn.execute("UPDATE proposals SET closed_reason = 'remembered' WHERE edit_id = ?", (p.id,))
+def report_of(art: Any) -> BatchReport:
+    """Le compte rendu d'un lot enregistré, tiré de son artefact."""
+    from . import stages as S
+    c = art.counters
+    report = BatchReport(art.batch_id, BaseState(**art.base), [d.doc_id for d in art.documents],
+                         [S.proposal_of(p) for p in art.proposals], [S.qualified_of(q) for q in art.supports],
+                         [S.new_of(e) for e in art.new_entities if e.get("own")])
+    report.flagged = {k: v for k, v in sorted(art.flagged().items(), key=lambda kv: kv[0])}
+    report.extracted, report.cached, report.unchanged = c.extracted, c.cached, c.unchanged
+    report.removed, report.remembered, report.errors = c.removed, c.remembered, dict(c.errors)
+    report.obsolete = [d.doc_id for d in art.documents if d.obsolete]
     return report
 
 
-def _flag(flags: list[str], flag: str) -> None:
-    if flag not in flags:
-        flags.append(flag)
-
-
-def _expanded(ex: Extraction, head: Any, sheets: dict[tuple[str, str], str],
-              flags: list[str]) -> list[tuple[dict[str, Any], bool]]:
-    """Brouillons du passage, la forme réduite `sheet_values` traduite en changements (décision J8)."""
-    out: list[tuple[dict[str, Any], bool]] = []
-    for i, draft in enumerate(ex.drafts):
-        if draft.get("op") != "sheet_values":
-            out.append((draft, i in ex.optional))
-            continue
-        changes = expand_sheet_values(draft, head, sheets)
-        if changes is None:  # sujet inconnu ou catégorie introuvable : sortie inexploitable (T-ING-17)
-            _flag(flags, "extraction_error")
-            continue
-        out += [(c, i in ex.optional) for c in changes]
-    return out
 
 
 def _merge_new_labels(raw: list[tuple[Any, int, int, dict[str, Any], bool]]) -> list[tuple[Any, int, int, dict[str, Any], bool]]:

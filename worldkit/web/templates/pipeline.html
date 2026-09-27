@@ -1,0 +1,50 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Banc de pipeline{% endblock %}
+{% block content %}
+<h1>Banc de pipeline</h1>
+<p class="small muted">Étapes E1 à E9 de l'ingestion, de x à y, sans rien écrire (le cache d'extraction excepté) ; chaque étape garde son artefact, réinjectable. L'enregistrement du lot se fait ensuite, depuis l'exécution (E9+ à E12). Avec un modèle : estimation, confirmation, plafond (I-LLM-01).</p>
+{% if error %}<div class="error-banner">{{ error }}</div>{% endif %}
+{% if estimate %}
+<div class="stat" style="border-color:var(--warn)">
+  <b>Estimation</b> : {{ estimate.output.calls }} appel(s) au modèle {{ estimate.output.model }} ({{ estimate.output.cached }} passage(s) déjà en cache, plafond {{ estimate.output.max_calls }}).
+  Cocher « confirmer les appels au modèle » ci-dessous puis relancer.
+  <div class="small muted">passages à extraire : {{ estimate.output.missing|join(", ") }}</div>
+</div>
+{% endif %}
+<form method="post" action="/pipeline" hx-boost="false">
+<div class="cols">
+<div>
+  <h2>Entrée</h2>
+  <p><label>lot <input name="batch_id" value="{{ values.batch_id }}"></label>
+     <label>batches.yaml <input name="batches" value="{{ values.batches }}" size="45"></label>
+     <label>lot déclaré <input name="batch" value="{{ values.batch or '' }}" placeholder="(= lot)" size="6"></label></p>
+  <p><label>ou documents (un chemin par ligne)<br><textarea name="documents" rows="2" style="width:100%" class="mono">{{ values.documents or '' }}</textarea></label></p>
+  <p><label>ou reprendre l'artefact de l'exécution <input name="input" value="{{ values.input or '' }}" size="5"></label>
+     <label>à l'étape <input name="input_stage" value="{{ values.input_stage or '' }}" size="4" placeholder="dernière"></label></p>
+  <details {{ 'open' if values.artifact }}><summary>ou un artefact saisi (YAML ou JSON), par exemple des brouillons écrits à la main pour commencer en E5</summary>
+    <textarea name="artifact" rows="10" style="width:100%" class="mono">{{ values.artifact or '' }}</textarea></details>
+</div>
+<div>
+  <h2>Étapes et extracteur</h2>
+  <p><label>de <select name="from">{% for s in stages[:9] %}<option {{ 'selected' if values.get('from', 'E1') == s }}>{{ s }}</option>{% endfor %}</select></label>
+     <label>à <select name="to">{% for s in stages[:9] %}<option {{ 'selected' if values.get('to', 'E9') == s }}>{{ s }}</option>{% endfor %}</select></label></p>
+  <p><label><input type="radio" name="extractor" value="oracle" {{ 'checked' if values.get('extractor', 'oracle') == 'oracle' }}> oracle</label>
+     <input name="oracle" value="{{ values.oracle }}" size="36"></p>
+  <p><label><input type="radio" name="extractor" value="profile" {{ 'checked' if values.get('extractor') == 'profile' }}> modèle</label>
+     <select name="profile">{% for pr in profiles %}<option {{ 'selected' if values.get('profile') == pr }}>{{ pr }}</option>{% endfor %}</select>
+     <label>plafond <input name="max_calls" value="{{ values.max_calls or '' }}" size="4" placeholder="30"></label>
+     <label><input type="checkbox" name="confirm" value="1"> confirmer les appels au modèle</label></p>
+  <p><label>cible (état de base lu)
+    <select name="target"><option value="">monde de travail</option>
+      {% for b in sandboxes %}<option value="{{ b.id }}" {{ 'selected' if values.get('target') == b.id|string }}>bac {{ b.id }}{% if b.note %} — {{ b.note }}{% endif %}</option>{% endfor %}</select></label></p>
+  <p><button>Lancer</button></p>
+</div>
+</div>
+</form>
+<h2>Exécutions de pipeline</h2>
+<form method="get" action="/runs-diff" style="margin-bottom:6px">comparer <input name="a" size="4" placeholder="#"> et <input name="b" size="4" placeholder="#"> <button>comparer</button></form>
+<table><tr><th>#</th><th>quand</th><th>cible</th><th>statut</th><th>paramètres</th></tr>
+{% for r in runs %}<tr><td><a href="/pipeline/{{ r.id }}">{{ r.id }}</a></td><td class="small">{{ r.created }}</td><td>{{ r.target }}</td>
+<td class="s-{{ r.status }}">{{ r.status }}</td><td class="mono small">{{ r.params|tojson|truncate(140) }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

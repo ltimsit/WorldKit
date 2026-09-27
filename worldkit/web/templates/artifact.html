@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Artefact {{ stage }} #{{ run_id }}{% endblock %}
+{% block content %}
+<h1>Artefact {{ stage }} de l'exécution <a href="/pipeline/{{ run_id }}">#{{ run_id }}</a></h1>
+{{ m.result_head(result) }}
+{% if art %}
+<p>Lot <b>{{ art.batch_id }}</b> · branche {{ art.branch }} · base rang {{ art.base.seq }} · extracteur {{ art.extractor or "—" }} · étapes disponibles :
+{% for s in result.output.stages %}<a href="/runs/{{ run_id }}/artifact/{{ s }}">{{ s }}</a> {% endfor %}</p>
+<h2>Passages</h2>
+<table><tr><th>document</th><th>#</th><th>nature</th><th>déjà ingéré</th><th>source E4</th><th>brouillons E4</th><th>après E5</th><th>drapeaux</th><th>texte</th></tr>
+{% for d in art.documents %}{% for p in d.passages %}<tr><td class="mono small">{{ d.doc_id }}{% if d.obsolete %} (obsolète){% endif %}</td><td>{{ p.index }}</td><td>{{ p.nature or "" }}</td>
+<td>{{ "oui" if p.unchanged else "" }}</td><td>{{ p.source or "" }}</td><td>{{ (p.extraction.drafts|length) if p.extraction else "" }}</td>
+<td>{{ (p.drafts|length) if p.drafts is not none else "" }}</td><td class="small">{{ p.flags|join(", ") }}</td><td class="small">{{ p.text|truncate(90) }}</td></tr>{% endfor %}{% endfor %}
+</table>
+{% if art.raw %}<h2>Retenus par le classement (E6) : {{ art.raw|length }}</h2>
+<table>{% for r in art.raw %}<tr><td>{{ r.doc_id }} p{{ r.passage }}</td><td class="mono small">{{ r.draft|tojson }}</td><td>{{ "nature à décider" if r.awaiting else "" }}</td></tr>{% endfor %}</table>{% endif %}
+{% if art.proposals %}<h2>Propositions (E9) : {{ art.proposals|length }}</h2>
+<table>{% for p in art.proposals %}<tr><td class="mono">{{ p.id }}</td><td>{{ p.subject }}</td><td class="small">{% for q in p["items"] %}{{ q.item.change|tojson }} [{{ q.tags|join(", ") }}]<br>{% endfor %}</td></tr>{% endfor %}</table>{% endif %}
+<p class="small muted">Pour réinjecter : copier le YAML ci-dessous, le modifier (par exemple les brouillons d'un passage), le coller dans « artefact saisi » du <a href="/pipeline?from={{ stage_next }}">banc</a> et commencer à l'étape suivante.</p>
+<details><summary>YAML (réinjectable)</summary><pre>{{ yaml_text }}</pre></details>
+<details><summary>JSON</summary><pre>{{ pretty }}</pre></details>
+{% endif %}
+{% endblock %}

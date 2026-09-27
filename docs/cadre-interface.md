@@ -1,7 +1,7 @@
 # Cadre de l'interface
 
 **Objet :** vision, principes, découpage et points à trancher de l'interface de `worldkit`, conçue d'abord comme un **banc d'essai** : tester, suivre l'efficacité, contrôler, et obtenir des retours complets et explicites.
-**Version :** 0.5 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
+**Version :** 0.6 — 27 septembre 2026. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.15, qu'il cite sans les dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (en attente). En cas de divergence, le cadre de la fondation puis le cadre technique prévalent.
 
 **Conventions**
@@ -77,7 +77,8 @@ flowchart LR
   E6 --> E7["E7 Résolution<br/>entités du lot"]
   E7 --> E8["E8 Qualification<br/>étiquettes, clés, supports"]
   E8 --> E9["E9 Propositions<br/>assemblage, dépendances"]
-  E9 --> E10["E10 Revue<br/>décisions humaines"]
+  E9 --> E9S["E9+ Enregistrer<br/>écriture du lot"]
+  E9S --> E10["E10 Revue<br/>décisions humaines"]
   E10 --> E11["E11 Application<br/>journal, état"]
   E11 --> E12["E12 Vues<br/>wiki, export, signalements"]
 ```
@@ -92,12 +93,13 @@ flowchart LR
 | E6 Classement | changements + natures | retenus, écartés (garde), en attente de nature | oui |
 | E7 Résolution | changements du lot | entités nouvelles, regroupements | oui |
 | E8 Qualification | changements + état de base | changements qualifiés, supports | oui |
-| E9 Propositions | changements qualifiés | propositions, dépendances, concurrence | oui |
+| E9 Propositions | changements qualifiés | propositions, dépendances, aperçu de la concurrence | oui |
+| E9+ Enregistrer | artefact | lot, passages, entités nouvelles, supports, propositions (écriture) | oui |
 | E10 Revue | propositions + décisions | décisions tracées, éditions | humain |
 | E11 Application | éditions | journal, état | oui |
 | E12 Vues | état | pages, export, signalements | oui |
 
-Aujourd'hui, `ingest` enchaîne E1 à E9 d'un bloc et n'expose que le résultat. Découper ces étapes est un **travail côté ingestion** : refactorisation sans changement de comportement, vérifiée par les tests existants, préalable au banc de pipeline (I-PIP-01).
+Depuis I4, `ingest` est l'enchaînement de ces étapes (`worldkit/ingest/stages.py`) : E1 à E8, puis E9+ Enregistrer. La refactorisation n'a changé aucun comportement : les tests existants passent inchangés, et une propriété T1 vérifie que le pipeline exécuté étape par étape, en passant par le JSON à chaque frontière, donne le même monde qu'`ingest` sur tous les lots du corpus.
 
 ## 5. Espaces de l'interface (proposés)
 
@@ -210,6 +212,15 @@ Opérations d'I1 (`worldkit ops`) : consultations `world.summary`, `branch.list`
 | I-ACT-03 | Banc de mécanismes | **Console générique** sur tout le registre : opération, cible, paramètres en YAML pré-remplis (exemple Valmont déclaré avec l'opération, sinon gabarit tiré du schéma), résultat de forme commune, « rejouer » qui compare au précédent (déterminisme, I-PRI-05). Mécanismes ajoutés au registre : `schema.validate`, `change.keys`, `transpose.analyse`, `redefine.preview`, `document.declare` ; rejeu exposé comme écritures rejouables : `replay.start`, `replay.decide`, `replay.resume`, `replay.abandon` (et `replay.status`). | Un écran dédié par mécanisme (coût par mécanisme, rendus divergents). | validé |
 | I-ACT-04 | Éditeur | Éditeur YAML vérifié par `edit.check` à chaque pause de frappe (htmx) : applicable ou non, signalements rattachés à la **ligne** de `changes[i]`, clés, lectures et écritures, effet sur l'état (faits ajoutés, retirés, changés) ; gabarits d'opérations ; entités connues cliquables ; boutons « appliquer » et « soumettre ». | — | proposé |
 
+### 8.4 Pipeline en étapes (I4)
+
+| ID | Sujet | Décision | Alternatives écartées | Statut |
+|---|---|---|---|---|
+| I-PPL-01 | Quand le pipeline écrit | **E1 à E9 sont des calculs** : chacun complète l'artefact cumulé (`PipelineArt`) sans rien écrire dans le monde, sauf le **cache d'extraction** d'E4, mémoire de calcul qui évite de repayer un appel (T-ING-09). **E9+ Enregistrer** est l'écriture du lot : il requalifie la file de revue (T-ING-06), recalcule la concurrence entre lots et la mémoire des décisions, puis écrit. E9 n'en donne qu'un aperçu, contre la file telle qu'elle est. | Écritures au fil des étapes, pipelines partiels dans des bacs jetables (lot à moitié écrit, pas d'enchaînement E1→E6 puis E7→E9). | validé |
+| I-PPL-02 | Exécutions longues | **Tâches de fond** (`worldkit/service/jobs.py`) : l'exécution est créée « en cours » dans `runs.db`, tourne dans un fil, écrit sa progression (étape, passages faits sur le total, appels) ; arrêt propre entre deux groupes de passages ; un seul pipeline avec modèle à la fois par monde ; au démarrage du serveur, une exécution restée « en cours » est marquée « interrompue ». Ligne de commande synchrone, progression affichée, Ctrl+C = arrêt propre. | Exécution dans la requête (rien à suivre ni à arrêter) ; processus séparé avec file de tâches (infrastructure de trop). | validé |
+| I-PPL-03 | Comparer deux exécutions | Dès I4 : `runs.diff` aligne deux exécutions étape par étape (identique ou différent) et détaille les éléments qui changent, identifiés par passage et par contenu (brouillons, affirmations, drapeaux, retenus par le classement, changements, étiquettes, propositions), avec les indicateurs et durées côte à côte. | Attendre I6 (comparaison à l'œil d'artefacts JSON). | validé |
+| I-PPL-04 | Enregistrer depuis un artefact | `pipeline.run` (calcul) va au plus jusqu'à E9 ; `pipeline.save` (écriture) reprend un artefact d'au moins E4 : **l'extraction est relue, jamais rappelée**, E3 et E5 à E8 sont refaits contre la cible, puis E9+ et, sur demande, E10 (décisions scriptées) à E12. La promotion d'un bac rejoue `pipeline.save` : aucun nouvel appel au modèle. Chaque étape enregistre son artefact (`runs.artifact`), réinjectable en `artifact` ou par `input` (exécution) et `input_stage`. Coût (I-LLM-01) : `pipeline.estimate`, statut « en attente » sans confirmation, plafond `max_calls_per_run` (30), passages au-delà marqués `cap_reached`. | — | proposé |
+
 ## 9. Périmètre
 
 | Dans le périmètre | Préparé (possible plus tard) | Hors périmètre |
@@ -224,7 +235,7 @@ Opérations d'I1 (`worldkit ops`) : consultations `world.summary`, `branch.list`
 | I1 — **fait** | Couche de service et forme commune d'un résultat (§7) ; exécutions enregistrées (`monde.runs.db`) ; bacs à sable (créer, dupliquer, lister, jeter) ; commandes `ops`, `call`, `sandbox`, `runs` (I-SVC-01 à I-SVC-04) | tests automatiques du service (`tests/test_service.py`) |
 | I2 — **fait** | Application FastAPI : tableau de bord, wiki auteur et joueur, comparaison de deux lectures, branches et historique (lignée Mermaid), journal, éditions, exécutions, opérations, en lecture seule ; JSON brut de chaque résultat (I-WEB-01 à I-WEB-03) | relire le retcon d'Aldren entre `reference` et `reference-r1` (automatisé dans `tests/test_web.py`, à faire à l'écran) |
 | I3 — **fait** | Saisie YAML vérifiée en direct ; banc de mécanismes ; rendre réel un essai de bac ; rejeu exposé par le service (I-ACT-01 à I-ACT-04) | refaire le retcon d'Aldren dans un bac à sable, puis le rendre réel (automatisé dans `tests/test_i3.py`, guide vérifié) |
-| I4 | Découpage du pipeline (E1 à E12, I-PIP-01) ; banc de pipeline de x à y ; contrôle du coût (I-LLM-01) | Loup sous deux systèmes (J8), de E1 à E12 et par morceaux |
+| I4 — **fait** | Découpage du pipeline (E1 à E12 et E9+), banc de pipeline de x à y en tâche de fond, contrôle du coût, comparaison d'exécutions (I-PPL-01 à I-PPL-04) | Loup sous deux systèmes (J8), de E1 à E12 et par morceaux (guide vérifié ; comparaison de deux modèles réels en attente de l'accord de l'auteur) |
 | I5 | Revue complète (propositions, questions de nature, rejeu) ; parcours exécutables, W15 et W08 structurés d'abord (I-ACC-01) | sessions de curation chronométrées |
 | I6 | Graphe (I-GRA-01), mesures T2 et leur historique, comparaison d'exécutions | choix du modèle sur le second jet du corpus |
 
