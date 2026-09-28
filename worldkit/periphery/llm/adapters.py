@@ -6,7 +6,7 @@ La périphérie ne décide rien : la sortie est ensuite validée par le noyau (T
 | Adaptateur | Accès | Usage |
 |---|---|---|
 | `claude-code` | abonnement Claude, via `claude -p` (Claude Code en mode non interactif) | usage personnel |
-| `anthropic-api` | clé d'API (SDK officiel `anthropic`, sorties structurées) | facturé à l'usage |
+| `anthropic-api` | clé d'API dans `WORLDKIT_ANTHROPIC_API_KEY` (SDK officiel `anthropic`, sorties structurées) | facturé à l'usage |
 | `ollama` | modèle local (`http://localhost:11434`) | rien ne quitte la machine |
 """
 
@@ -110,9 +110,10 @@ class ClaudeCodeAdapter:
                 "--no-session-persistence", *ISOLATION]
             if self.effort:
                 command += ["--effort", self.effort]
+            env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}  # reste sur l'abonnement
             try:
                 run = subprocess.run(command, input=prompt, capture_output=True, text=True, encoding="utf-8",
-                                     timeout=self.timeout, cwd=neutral)
+                                     timeout=self.timeout, cwd=neutral, env=env)
             except (OSError, subprocess.TimeoutExpired) as e:
                 raise LLMError(f"claude -p : {e}") from e
         if run.returncode != 0:
@@ -131,6 +132,18 @@ class ClaudeCodeAdapter:
 # API Anthropic (clé)
 # ---------------------------------------------------------------------------
 
+API_KEY_VARIABLES = ("WORLDKIT_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY")
+
+
+def api_key() -> str:
+    """La clé propre à worldkit d'abord : définir ANTHROPIC_API_KEY pour tout le compte ferait aussi passer
+    Claude Code (et donc l'adaptateur claude-code) sur la facturation de l'API."""
+    for name in API_KEY_VARIABLES:
+        if os.environ.get(name):
+            return os.environ[name]
+    raise LLMError("clé d'API absente : la définir dans la variable d'environnement WORLDKIT_ANTHROPIC_API_KEY")
+
+
 @dataclass
 class AnthropicApiAdapter:
     """SDK officiel, sorties structurées (`output_config.format`) ; prompt système mis en cache."""
@@ -147,7 +160,7 @@ class AnthropicApiAdapter:
                 import anthropic
             except ImportError as e:
                 raise LLMError("le paquet « anthropic » n'est pas installé (pip install anthropic)") from e
-            client = self.client = anthropic.Anthropic()
+            client = self.client = anthropic.Anthropic(api_key=api_key())
         output_config: dict[str, Any] = {"format": {"type": "json_schema", "schema": schema}}
         if self.effort:
             output_config["effort"] = self.effort

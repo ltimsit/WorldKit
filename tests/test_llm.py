@@ -119,6 +119,26 @@ def test_claude_code_call_is_isolated_from_the_user_environment(tmp_path):
     assert not Path(out["cwd"]).exists()  # dossier temporaire supprimé après l'appel
 
 
+def test_claude_code_stays_on_the_subscription_even_with_an_api_key(tmp_path, monkeypatch):
+    """Claude Code utilise ANTHROPIC_API_KEY quand elle existe : l'appel ne doit pas basculer sur l'API."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    fake = tmp_path / "fake_claude.py"
+    fake.write_text("import json, os\nprint(json.dumps({'is_error': False, 'structured_output': "
+                    "{'key': os.environ.get('ANTHROPIC_API_KEY')}}))\n", encoding="utf-8")
+    assert ClaudeCodeAdapter("m", command=[sys.executable, str(fake)]).complete("s", "p", {}) == {"key": None}
+
+
+def test_api_key_prefers_the_worldkit_variable(monkeypatch):
+    monkeypatch.delenv("WORLDKIT_ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    with pytest.raises(LLMError, match="WORLDKIT_ANTHROPIC_API_KEY"):
+        adapters.api_key()
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "générale")
+    assert adapters.api_key() == "générale"
+    monkeypatch.setenv("WORLDKIT_ANTHROPIC_API_KEY", "propre")
+    assert adapters.api_key() == "propre"
+
+
 def test_npm_launcher_is_replaced_by_the_native_binary(tmp_path, monkeypatch):
     """`claude.cmd` passe par cmd.exe, limité à 8 191 caractères : on lui préfère le binaire qu'il lance."""
     monkeypatch.delenv("WORLDKIT_CLAUDE_BIN", raising=False)
