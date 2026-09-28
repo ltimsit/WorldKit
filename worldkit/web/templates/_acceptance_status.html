@@ -13,7 +13,7 @@
 <details {{ 'open' if loop.last or not res.steps_ok }}><summary><b>{{ res.id }}</b> {{ res.title }} — étapes {{ "toutes réussies" if res.steps_ok else "EN ÉCHEC" }}{% if loop.last %} · {{ res.passed }} réussi(s), {{ res.failed }} échoué(s), {{ res.unstructured }} non structuré(s){% endif %}</summary>
 <table><tr><th>#</th><th>étape</th><th>état</th><th>appels</th></tr>
 {% for s in res.steps %}<tr class="{{ '' if s.ok else 'removed' }}"><td>{{ loop.index }}</td><td>{{ s.do }}</td><td>{{ "ok" if s.ok else "échec" }}</td>
-<td class="small">{% for c in s.calls %}<span class="mono">{{ c.op }}</span> → {{ c.status }}{% for i in c.issues if not c.ok %} [{{ i.rule }}] {{ i.message }}{% endfor %}<br>{% endfor %}</td></tr>{% endfor %}</table>
+<td class="small">{% for c in s.calls %}<span class="mono">{{ explain(c.op) }}</span> → {{ explain(c.status) }}{% for i in c.issues if not c.ok %} [{{ i.rule }}] {{ i.message }}{% endfor %}<br>{% endfor %}</td></tr>{% endfor %}</table>
 {% if loop.last %}<table><tr><th>attendu</th><th>état</th><th>vérifications</th></tr>
 {% for e in res.expects %}<tr class="{{ {'passed': 'added', 'failed': 'removed'}.get(e.status, '') }}"><td>{{ e.text }}</td>
 <td>{{ {"passed": "réussi", "failed": "ÉCHOUÉ", "unstructured": "à lire"}[e.status] }}</td>

@@ -26,7 +26,10 @@
     <a href="/measures" class="{{ 'on' if path.startswith('/measures') }}">Mesures</a>
     <a href="/runs?{{ q }}" class="{{ 'on' if path.startswith('/runs') }}">Exécutions</a>
     <a href="/ops?{{ q }}" class="{{ 'on' if path == '/ops' }}">Opérations</a>
+    <a href="/aide/guide" class="{{ 'on' if path == '/aide/guide' }}">Guide</a>
+    <a href="/aide" class="{{ 'on' if path == '/aide' }}">Aide</a>
   </nav>
+  {% set tool = tool_for(path) %}{% if tool and path != '/aide' %}<a class="help-link" href="{{ help_href(tool.key) }}" title="{{ tool.title }} : {{ tool.text|striptags }}">?</a>{% endif %}
   <span class="small muted" style="margin-left:auto">écritures : bac à sable par défaut · worldkit {{ server.version }} · serveur démarré à {{ server.started }}</span>
 </header>
 <div id="htmx-error" class="error-banner" hidden></div>
@@ -68,6 +71,9 @@
 </form>
 {% endblock %}
 <main>
+{% if tool and path != '/aide' %}<p class="small tool-intro"><b>{{ tool.title }}</b> — {{ tool.text|md }}
+  <span class="muted">Quand : {{ (tool.fields.get("Quand s'en servir") or "")|md }} Écrit : {{ (tool.fields.get("Écrit") or "")|md }}.</span>
+  <a href="{{ help_href(tool.key) }}">notions et opérations…</a></p>{% endif %}
 {% block content %}{% endblock %}
 <section class="calls">
   <details>
@@ -75,7 +81,7 @@
     <table>
       <tr><th>opération</th><th>sorte</th><th>cible</th><th>paramètres</th><th>statut</th><th>ms</th><th></th></tr>
       {% for c in calls %}
-      <tr><td class="mono">{{ c.operation }}</td><td>{{ c.kind }}</td><td>{{ c.target }}</td>
+      <tr><td class="mono">{{ explain(c.operation) }}</td><td>{{ explain(c.kind) }}</td><td>{{ c.target }}</td>
         <td class="mono small">{{ c.params|tojson }}</td><td>{{ m.status(c) }}</td><td>{{ c.trace.duration_ms }}</td>
         <td><a href="{{ raw_link(c) }}">JSON brut</a></td></tr>
       {% endfor %}

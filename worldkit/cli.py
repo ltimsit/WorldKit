@@ -26,6 +26,7 @@
     worldkit --db valmont.db run stages --batch b4 --batches … --oracle … [--from E1 --to E9] [--input N] [--yes]
     worldkit --db valmont.db run save N [--sandbox N] [--to E12] [--decisions d.yaml] | runs-diff A B   (I4)
     worldkit --db valmont.db walkthrough list | walkthrough run W15   (parcours d'acceptation, I5)
+    worldkit explain R-NOT-07 | E5 | edit.apply | pending | notoriété   (aide, I7)
     worldkit --db valmont.db redefine <changes.yaml> --after e003 [--from BRANCHE]          (aperçu, R-RED-01)
     worldkit --db valmont.db redefine <changes.yaml> --after e003 --mode retroactive [--branch NOM] [--id r1]
     worldkit --db valmont.db redefine <changes.yaml> --mode point [--id ID]
@@ -871,6 +872,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command in ("run", "runs-diff"):
             from worldkit.service.cli import run_pipeline
             return run_pipeline(args)
+        if args.command == "explain":
+            from worldkit.service.cli import explain
+            return explain(args)
         if args.command in ("ops", "call", "sandbox", "runs"):
             from worldkit.service.cli import run
             return run(args)

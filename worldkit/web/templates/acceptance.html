@@ -2,7 +2,7 @@
 {% block title %}Acceptation{% endblock %}
 {% block content %}
 <h1>Parcours d'acceptation</h1>
-<p class="small muted">Chaque parcours s'exécute dans un monde d'acceptation neuf, avec ses prérequis ; ses attendus structurés sont vérifiés, les autres restent à lire (I-ACC-01). Le même exécuteur sert à pytest.</p>
+<p class="small muted">{% filter linkify %}Un parcours part toujours d'un monde neuf : ses prérequis (<code>requires</code>) sont rejoués d'abord. Attendus : <code>passed</code>, <code>failed</code> (valeur obtenue et attendue montrées) ou <code>unstructured</code> (en prose, à lire). pytest utilise le même exécuteur (I-ACC-01, I-ACC-03).{% endfilter %}</p>
 {% if error %}<div class="error-banner">{{ error }}</div>{% endif %}
 {{ m.result_head(listing) }}
 <table><tr><th>parcours</th><th>titre</th><th>jalon</th><th>prérequis</th><th>étapes</th><th>attendus</th><th>structurés</th><th>exécutable</th><th></th></tr>
@@ -12,6 +12,6 @@
 </table>
 <h2>Exécutions</h2>
 <table><tr><th>#</th><th>quand</th><th>parcours</th><th>statut</th></tr>
-{% for r in runs %}<tr><td><a href="/acceptance/{{ r.id }}">{{ r.id }}</a></td><td class="small">{{ r.created }}</td><td>{{ r.params.id }}</td><td class="s-{{ r.status }}">{{ r.status }}</td></tr>{% endfor %}
+{% for r in runs %}<tr><td><a href="/acceptance/{{ r.id }}">{{ r.id }}</a></td><td class="small">{{ r.created }}</td><td>{{ r.params.id }}</td><td class="s-{{ r.status }}">{{ explain(r.status) }}</td></tr>{% endfor %}
 </table>
 {% endblock %}
