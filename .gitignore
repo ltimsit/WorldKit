@@ -5,3 +5,4 @@ __pycache__/
 .hypothesis/
 *.db
 wiki-*/
+worldkit-llm.yaml

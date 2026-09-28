@@ -9,6 +9,7 @@ import json
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -22,6 +23,8 @@ from worldkit.periphery.extraction import OracleExtractor
 from worldkit.periphery.llm import (
     AnthropicApiAdapter, ClaudeCodeAdapter, LLMError, OllamaAdapter, Profile, load_config, parse_config,
 )
+from worldkit.periphery.llm import adapters
+from worldkit.periphery.llm.adapters import find_claude_code
 from worldkit.periphery.llm_extractor import OUTPUT_SCHEMA, LLMExtractor
 
 B1 = batch_documents(VALMONT / "docs" / "batches.yaml", "b1")
@@ -63,7 +66,8 @@ NOTES = {
 
 # --- Configuration et profils ---
 
-def test_default_config_routes_extraction_to_a_light_model():
+def test_default_config_routes_extraction_to_a_light_model(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # sans le worldkit-llm.yaml personnel de l'auteur
     config = load_config()
     assert config.profile().model == "claude-haiku-4-5" and config.profile().adapter == "claude-code"
     assert config.profile("local").adapter == "ollama"
@@ -86,14 +90,52 @@ def test_config_file_routes_tasks_to_profiles(tmp_path):
 def test_claude_code_adapter_builds_the_command_and_reads_structured_output(tmp_path):
     fake = tmp_path / "fake_claude.py"
     fake.write_text(
-        "import json, sys\n"
+        "import json, os, sys\n"
         "args = sys.argv[1:]\n"
         "assert args[0] == '-p' and '--json-schema' in args and args[args.index('--tools') + 1] == ''\n"
         "prompt = sys.stdin.read()\n"
+        "system = open(args[args.index('--system-prompt-file') + 1], encoding='utf-8').read()\n"
         "print(json.dumps({'is_error': False, 'subtype': 'success', 'structured_output': "
-        "{'echo': prompt, 'model': args[args.index('--model') + 1]}}))\n", encoding="utf-8")
+        "{'echo': prompt, 'system': system, 'model': args[args.index('--model') + 1], 'args': args, "
+        "'cwd_files': os.listdir('.')}}))\n", encoding="utf-8")
     adapter = ClaudeCodeAdapter("claude-haiku-4-5", command=[sys.executable, str(fake)])
-    assert adapter.complete("système", "bonjour", {"type": "object"}) == {"echo": "bonjour", "model": "claude-haiku-4-5"}
+    out = adapter.complete("système « long »", "bonjour", {"type": "object"})
+    assert (out["echo"], out["system"], out["model"]) == ("bonjour", "système « long »", "claude-haiku-4-5")
+    assert "--system-prompt" not in out["args"]  # le prompt passe par un fichier : aucune limite de ligne de commande
+
+
+def test_claude_code_call_is_isolated_from_the_user_environment(tmp_path):
+    """Ni MCP, ni compétences, ni réglages, ni CLAUDE.md : sans cela, ~34 000 tokens de contexte par appel."""
+    fake = tmp_path / "fake_claude.py"
+    fake.write_text(
+        "import json, os, sys\n"
+        "print(json.dumps({'is_error': False, 'structured_output': {'args': sys.argv[1:], 'cwd': os.getcwd(), "
+        "'files': os.listdir('.')}}))\n", encoding="utf-8")
+    out = ClaudeCodeAdapter("m", command=[sys.executable, str(fake)]).complete("s", "p", {})
+    args = out["args"]
+    assert "--strict-mcp-config" in args and "--disable-slash-commands" in args
+    assert args[args.index("--setting-sources") + 1] == "local"
+    assert out["files"] == ["system.txt"]  # dossier vide : aucun CLAUDE.md découvert
+    assert not Path(out["cwd"]).exists()  # dossier temporaire supprimé après l'appel
+
+
+def test_npm_launcher_is_replaced_by_the_native_binary(tmp_path, monkeypatch):
+    """`claude.cmd` passe par cmd.exe, limité à 8 191 caractères : on lui préfère le binaire qu'il lance."""
+    monkeypatch.delenv("WORLDKIT_CLAUDE_BIN", raising=False)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")  # aucune extension VS Code
+    launcher = tmp_path / "npm" / "claude.cmd"
+    launcher.parent.mkdir()
+    launcher.write_text("@echo off", encoding="utf-8")
+    monkeypatch.setattr(adapters.shutil, "which", lambda name: str(launcher))
+    assert find_claude_code() == [str(launcher)]  # pas de binaire natif : le lanceur, faute de mieux
+    native = launcher.parent / "node_modules" / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
+    native.parent.mkdir(parents=True)
+    native.write_text("", encoding="utf-8")
+    assert find_claude_code() == [str(native)]
+    monkeypatch.setattr(adapters.shutil, "which", lambda name: str(tmp_path / "bin" / "claude"))
+    assert find_claude_code() == [str(tmp_path / "bin" / "claude")]  # un vrai binaire sur le PATH est gardé
+    monkeypatch.setenv("WORLDKIT_CLAUDE_BIN", "choisi")
+    assert find_claude_code() == ["choisi"]
 
 
 def test_claude_code_adapter_reports_failures(tmp_path):
@@ -218,6 +260,27 @@ def test_oracle_measured_against_itself_is_perfect():
     report = evaluate(oracle, oracle, VALMONT / "gold", B1, extraction_context(world, world.state()), repeat=2)
     summary = report.summary()
     assert (summary["precision"], summary["recall"], summary["traps_fallen"], summary["stability"]) == (1.0, 1.0, 0, 1.0)
+
+
+def test_measure_where_every_extraction_failed_says_so_T_ING_17():
+    """Une précision de 0 sans aucune extraction réussie passerait pour un résultat : la mesure le signale."""
+    world = base_world()
+    broken = LLMExtractor(FakeAdapter({}, fail_first=10**6), PROFILE)
+    report = evaluate(broken, OracleExtractor(VALMONT / "gold"), VALMONT / "gold", B1,
+                      extraction_context(world, world.state()))
+    assert report.all_failed and report.summary()["errors"] == len(report.passages)
+    oracle = OracleExtractor(VALMONT / "gold")
+    assert not evaluate(oracle, oracle, VALMONT / "gold", B1, extraction_context(world, world.state())).all_failed
+
+
+def test_measure_duration_is_the_elapsed_time_not_the_sum_of_passages():
+    """Les passages sont extraits en parallèle : additionner leurs durées compterait plusieurs fois le même temps."""
+    world = base_world()
+    oracle = OracleExtractor(VALMONT / "gold")
+    report = evaluate(oracle, oracle, VALMONT / "gold", B1, extraction_context(world, world.state()))
+    for p in report.passages:
+        p.seconds = 10.0
+    assert report.elapsed is not None and report.summary()["seconds"] == round(report.elapsed, 1) < 10
 
 
 def test_measure_counts_misses_extras_and_traps():

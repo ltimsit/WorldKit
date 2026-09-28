@@ -118,6 +118,9 @@ def eval_run(ctx: Context, p: EvalParams) -> Output:
              "summary": summary, "passages": passages, "estimate": estimate}
     issues = [Issue(IssueCode.EDIT_RULE, f"{x['doc']} p{x['index']} : piège tombé ({t})", "T-TST-01", Severity.WARNING)
               for x in passages for t in x["traps"]]
+    if report.all_failed:
+        issues.insert(0, Issue(IssueCode.EDIT_RULE, "toutes les extractions ont échoué, la mesure ne vaut rien : "
+                                                    f"{report.passages[0].error[:200]}", "T-ING-17"))
     return Output(value, issues, {"precision": summary["precision"], "recall": summary["recall"],
                                   "questions_precision": summary["questions"]["precision"],
                                   "questions_recall": summary["questions"]["recall"],

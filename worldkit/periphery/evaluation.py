@@ -136,6 +136,12 @@ def _scores(pairs: list[tuple[set[Any], set[Any]]]) -> dict[str, Any]:
 class Report:
     extractor: str
     passages: list[PassageResult]
+    elapsed: float | None = None  # temps écoulé ; les passages sont extraits en parallèle, leurs durées se recouvrent
+
+    @property
+    def all_failed(self) -> bool:
+        """Toutes les extractions ont échoué : la mesure ne mesure rien (précision et rappel à 0 trompeurs)."""
+        return bool(self.passages) and all(p.error for p in self.passages)
 
     def per_op(self) -> dict[str, dict[str, Any]]:
         ops = sorted({dict(k)["op"] for p in self.passages for k in p.expected | p.found})
@@ -163,7 +169,7 @@ class Report:
             "claimed_changes": f"{sum(p.claimed_matched for p in self.passages)}"
                                f"/{sum(p.claimed_expected for p in self.passages)}",
             "stability": round(sum(stabilities) / len(stabilities), 3) if stabilities else None,
-            "seconds": round(sum(p.seconds for p in self.passages), 1),
+            "seconds": round(self.elapsed if self.elapsed is not None else sum(p.seconds for p in self.passages), 1),
             "per_op": self.per_op(),
         }
 
@@ -202,6 +208,7 @@ def evaluate(extractor: Extractor, oracle: Extractor, gold_dir: Path, documents:
     `documents` : une liste de chemins (un seul lot), ou une liste de lots (listes de chemins), mesurés
     dans l'ordre. Noms des entités nouvelles et créations répétées se lisent à l'échelle du lot.
     """
+    start = time.perf_counter()
     groups = [documents] if documents and not isinstance(documents[0], (list, tuple)) else documents
     gold = _gold_index(Path(gold_dir))
     batches = [_prepare(oracle, gold, list(group), context) for group in groups]
@@ -218,7 +225,7 @@ def evaluate(extractor: Extractor, oracle: Extractor, gold_dir: Path, documents:
                     label = e.split(":", 1)[1]
                     if not any(k.id == label for k in pending):
                         pending.append(KnownEntity(label, str(d.get("type")), (gold_names.get(label, label),)))
-    return Report(getattr(extractor, "version", type(extractor).__name__), results)
+    return Report(getattr(extractor, "version", type(extractor).__name__), results, time.perf_counter() - start)
 
 
 def _expand(drafts: tuple[dict[str, Any], ...], state: Any, sheets: dict[tuple[str, str], str]) -> list[dict[str, Any]]:
