@@ -186,9 +186,14 @@ def _run_eval(world: Any, args: argparse.Namespace) -> int:
     if args.out:
         Path(args.out).write_text(_json.dumps({"summary": summary, "passages": [
             {"doc": r.doc, "passage": r.index, "expected": sorted(map(str, r.expected)),
-             "found": sorted(map(str, r.found)), "traps": r.traps, "error": r.error, "stability": r.stability}
+             "found": sorted(map(str, r.found)), "traps": r.traps, "error": r.error, "stability": r.stability,
+             "seconds": round(r.seconds, 1)}
             for r in report.passages]}, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"rapport écrit : {args.out}")
+    if report.all_failed:
+        print(f"ÉCHEC : toutes les extractions ont échoué, la mesure ne vaut rien (T-ING-17) : "
+              f"{report.passages[0].error[:200]}", file=sys.stderr)
+        return 1
     return 0
 
 

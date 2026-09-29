@@ -86,7 +86,7 @@ Sans modèle, tout fonctionne avec l'**extracteur oracle**, qui lit les réponse
 | Adaptateur | Ce qu'il faut |
 |---|---|
 | `claude-code` | Claude Code installé et connecté : `claude` sur le `PATH`, dans l'extension VS Code, ou désigné par `WORLDKIT_CLAUDE_BIN` ; appelle `claude -p` |
-| `anthropic-api` | le paquet `anthropic` (`pip install anthropic`) et une clé d'API dans `ANTHROPIC_API_KEY` |
+| `anthropic-api` | une clé d'API dans la variable d'environnement `WORLDKIT_ANTHROPIC_API_KEY` (le SDK `anthropic` est installé avec worldkit) ; facturé au token. Éviter `ANTHROPIC_API_KEY` pour tout le compte : Claude Code l'utiliserait aussi, et quitterait l'abonnement |
 | `ollama` | un modèle local servi par Ollama |
 
 **Un appel à un modèle consomme du quota.** Avant toute extraction ou mesure, l'outil affiche le nombre exact d'appels et attend une confirmation ; un plafond par exécution (`max_calls_per_run`, 30 par défaut) protège des mauvaises surprises. Les réponses sont gardées en cache : relancer ne coûte rien.

@@ -6,7 +6,7 @@ La périphérie ne décide rien : la sortie est ensuite validée par le noyau (T
 | Adaptateur | Accès | Usage |
 |---|---|---|
 | `claude-code` | abonnement Claude, via `claude -p` (Claude Code en mode non interactif) | usage personnel |
-| `anthropic-api` | clé d'API (SDK officiel `anthropic`, sorties structurées) | facturé à l'usage |
+| `anthropic-api` | clé d'API dans `WORLDKIT_ANTHROPIC_API_KEY` (SDK officiel `anthropic`, sorties structurées) | facturé à l'usage |
 | `ollama` | modèle local (`http://localhost:11434`) | rien ne quitte la machine |
 """
 
@@ -17,6 +17,7 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -51,19 +52,35 @@ class Profile:
 # Claude Code (abonnement)
 # ---------------------------------------------------------------------------
 
+# Lanceurs npm sous Windows : `claude.cmd` passe par cmd.exe, qui refuse une ligne de plus de 8 191 caractères.
+_LAUNCHERS = (".cmd", ".bat", ".ps1")
+_NPM_NATIVE = Path("node_modules") / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
+
+# Isolement de l'appel : ni serveurs MCP, ni compétences, ni réglages de l'utilisateur ou du projet. Sans lui,
+# Claude Code ajoutait environ 34 000 tokens de contexte à chaque appel (mesure sur b1 : 39 000 contre 4 900).
+# `--bare` irait plus loin mais exige une clé d'API : il ignore la connexion de l'abonnement.
+ISOLATION = ("--strict-mcp-config", "--disable-slash-commands", "--setting-sources", "local")
+
+
 def find_claude_code() -> list[str]:
-    """Commande `claude` : variable WORLDKIT_CLAUDE_BIN, sinon le PATH, sinon le binaire de l'extension VS Code."""
+    """Commande `claude` : variable WORLDKIT_CLAUDE_BIN, sinon le PATH, sinon le binaire de l'extension VS Code.
+
+    Un lanceur npm (`claude.cmd`) est remplacé par le binaire natif qu'il lance, quand il existe."""
     explicit = os.environ.get("WORLDKIT_CLAUDE_BIN")
     if explicit:
         return [explicit]
     on_path = shutil.which("claude")
-    if on_path:
+    if on_path and Path(on_path).suffix.lower() not in _LAUNCHERS:
         return [on_path]
+    candidates = [Path(on_path).parent / _NPM_NATIVE] if on_path else []
     pattern = str(Path.home() / ".vscode" / "extensions" / "anthropic.claude-code-*" / "resources" / "native-binary"
                   / ("claude.exe" if os.name == "nt" else "claude"))
-    found = sorted(glob.glob(pattern))
-    if found:
-        return [found[-1]]
+    candidates += [Path(p) for p in sorted(glob.glob(pattern), reverse=True)]
+    for candidate in candidates:
+        if candidate.is_file():
+            return [str(candidate)]
+    if on_path:
+        return [on_path]
     raise LLMError("Claude Code introuvable : l'installer, ou indiquer son chemin dans WORLDKIT_CLAUDE_BIN")
 
 
@@ -72,7 +89,9 @@ class ClaudeCodeAdapter:
     """`claude -p` en mode non interactif, avec la connexion de l'utilisateur (abonnement).
 
     Aucun outil, aucune session conservée, notre prompt système à la place de celui de Claude Code ;
-    la réponse structurée est lue dans le champ `structured_output`.
+    la réponse structurée est lue dans le champ `structured_output`. Le prompt système passe par un
+    fichier (aucune limite de longueur de ligne de commande) et l'appel tourne dans un dossier vide,
+    isolé (`ISOLATION`) : aucun CLAUDE.md, aucune mémoire, aucun réglage n'entre dans le contexte.
     """
 
     model: str
@@ -81,16 +100,22 @@ class ClaudeCodeAdapter:
     timeout: float = 300.0
 
     def complete(self, system: str, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
-        command = (self.command or find_claude_code()) + [
-            "-p", "--output-format", "json", "--json-schema", json.dumps(schema, ensure_ascii=False),
-            "--model", self.model, "--system-prompt", system, "--tools", "", "--no-session-persistence"]
-        if self.effort:
-            command += ["--effort", self.effort]
-        try:
-            run = subprocess.run(command, input=prompt, capture_output=True, text=True, encoding="utf-8",
-                                 timeout=self.timeout)
-        except (OSError, subprocess.TimeoutExpired) as e:
-            raise LLMError(f"claude -p : {e}") from e
+        executable = self.command or find_claude_code()
+        with tempfile.TemporaryDirectory(prefix="worldkit-claude-") as neutral:
+            prompt_file = Path(neutral) / "system.txt"
+            prompt_file.write_text(system, encoding="utf-8")
+            command = executable + [
+                "-p", "--output-format", "json", "--json-schema", json.dumps(schema, ensure_ascii=False),
+                "--model", self.model, "--system-prompt-file", str(prompt_file), "--tools", "",
+                "--no-session-persistence", *ISOLATION]
+            if self.effort:
+                command += ["--effort", self.effort]
+            env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}  # reste sur l'abonnement
+            try:
+                run = subprocess.run(command, input=prompt, capture_output=True, text=True, encoding="utf-8",
+                                     timeout=self.timeout, cwd=neutral, env=env)
+            except (OSError, subprocess.TimeoutExpired) as e:
+                raise LLMError(f"claude -p : {e}") from e
         if run.returncode != 0:
             raise LLMError(f"claude -p a échoué ({run.returncode}) : {(run.stderr or run.stdout)[:300]}")
         try:
@@ -106,6 +131,18 @@ class ClaudeCodeAdapter:
 # ---------------------------------------------------------------------------
 # API Anthropic (clé)
 # ---------------------------------------------------------------------------
+
+API_KEY_VARIABLES = ("WORLDKIT_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY")
+
+
+def api_key() -> str:
+    """La clé propre à worldkit d'abord : définir ANTHROPIC_API_KEY pour tout le compte ferait aussi passer
+    Claude Code (et donc l'adaptateur claude-code) sur la facturation de l'API."""
+    for name in API_KEY_VARIABLES:
+        if os.environ.get(name):
+            return os.environ[name]
+    raise LLMError("clé d'API absente : la définir dans la variable d'environnement WORLDKIT_ANTHROPIC_API_KEY")
+
 
 @dataclass
 class AnthropicApiAdapter:
@@ -123,7 +160,7 @@ class AnthropicApiAdapter:
                 import anthropic
             except ImportError as e:
                 raise LLMError("le paquet « anthropic » n'est pas installé (pip install anthropic)") from e
-            client = self.client = anthropic.Anthropic()
+            client = self.client = anthropic.Anthropic(api_key=api_key())
         output_config: dict[str, Any] = {"format": {"type": "json_schema", "schema": schema}}
         if self.effort:
             output_config["effort"] = self.effort
