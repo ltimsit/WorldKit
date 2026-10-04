@@ -113,12 +113,14 @@ Les couches C1 à C6 découpent l'actuelle E4 (Extraction) et absorbent une part
 | genre | mention, référence, ignorer, voix, secret, fait, note |
 | valeur | selon le genre : type d'entité, identifiant (`aldren-ii`), changement proposé, texte libre |
 | origine | l'auteur, ou une couche (nom, modèle, version du prompt) |
-| score | confiance de la couche (définition à établir, §8.2) |
+| score | confiance de la couche, en trois niveaux : `sure` (sûr), `likely` (probable), `doubt` (doute) |
 | doutes | autres candidats, avec un motif court (« titre porté par deux entités ») |
 | statut | proposée, gardée, retirée, corrigée |
 | branche | `branch_id` (T-BRA-01) |
 
 **Règle de relance.** Une couche relancée tient pour acquis tout ce que l'auteur a gardé, corrigé ou ajouté, et ne complète que le reste. Une annotation « ignorer » empêche la couche de reproduire un faux positif. Exemple : C1 propose « cité portuaire » comme lieu et rate « le Roi Gris » ; l'auteur pose « ignorer » sur le premier, sélectionne le second, relance ; C1 garde ces deux décisions et ne cherche que le reste.
+
+**Score en niveaux.** Au premier prototype, la couche déclare un niveau plutôt qu'un nombre : un petit modèle calibre mal un score entre 0 et 1 (des 0,9 partout), alors que trois niveaux suffisent pour trier et accepter en lot. Un niveau `doubt` s'accompagne toujours de candidats et d'un motif. L'accord entre plusieurs tirages et les *logprobs* sont des expériences à comparer ensuite (§8.2), pas des prérequis.
 
 **Doutes portés par le modèle.** Plutôt qu'un détecteur séparé qui pose des questions, la couche marque elle-même ses doutes dans ses annotations : c'est plus simple, et c'est une compétence mesurable (§9). Les détecteurs déterministes restent possibles là où ils sont triviaux (nom propre inconnu, titre porté par plusieurs entités), à évaluer selon leurs limites.
 
@@ -130,7 +132,9 @@ Les couches C1 à C6 découpent l'actuelle E4 (Extraction) et absorbent une part
 
 Les annotations ne sont ni un calcul jetable (comme le cache d'extraction) ni des faits du monde. Ce sont pourtant, pour celles de l'auteur, des décisions humaines qu'il ne faut pas perdre.
 
-- **Magasin d'atelier**, hors journal mais durable, en **ajout seul** (une correction est une nouvelle annotation qui remplace la précédente, l'historique reste), avec `branch_id` sur chaque annotation. Créer une branche voit les annotations de sa base ; une annotation sur la branche ne touche pas la base. Exemple : sur une branche de redéfinition, « le Roi Gris » peut désigner Odon sans toucher la Chronique de la Chute annotée en référence.
+- **Magasin d'atelier**, hors journal mais durable, en **ajout seul** (une correction est une nouvelle annotation qui remplace la précédente, l'historique reste), avec `branch_id` sur chaque annotation.
+- **Dans le fichier du monde** (T-STO-02), dans des tables à part : les annotations de l'auteur sont des décisions humaines, pas des traces d'exécution (contrairement à `monde.runs.db`). Elles voyagent avec le monde quand on le copie ou le sauvegarde.
+- **Lecture par lignée**, comme le journal : une branche voit les annotations de sa base jusqu'à son point de départ, sans copie ; une annotation posée sur la branche ne touche pas la base. Exemple : sur une branche de redéfinition, « le Roi Gris » peut désigner Odon sans toucher la Chronique de la Chute annotée en référence.
 - **Le savoir sur le monde sort par proposition.** Une annotation qui affirme quelque chose du monde (« le Roi Gris » est un alias d'Aldren II) produit une proposition vers le journal ; acceptée, elle devient un fait, et la résolution suivante devient exacte. Une annotation locale (« ce *il* désigne Odon ») reste dans l'atelier.
 - **Les notes qui entrent au wiki** recopient leurs références dans l'édition de la note (choix 4) ; un désaccord ultérieur avec l'atelier est signalé et se corrige par une édition, jamais en silence (R-HIS-01).
 
@@ -138,7 +142,8 @@ Le journal reste le monde ; l'atelier reste l'établi ; le passage de l'un à l'
 
 ### 6.4 Modifier une source déjà traitée
 
-- **Texte et annotations stockés séparément** (annotations déportées), avec une **forme en ligne** exportable et réimportable (syntaxe à fixer, par exemple `[le Roi Gris]{aldren-ii}`), pour que l'auteur puisse annoter dans son propre éditeur. L'import d'un texte en ligne produit des annotations d'origine « auteur ».
+- **Texte et annotations stockés séparément** (annotations déportées), avec une **forme en ligne** exportable et réimportable, pour que l'auteur puisse annoter dans son propre éditeur. L'import d'un texte en ligne produit des annotations d'origine « auteur ».
+- **Syntaxe en ligne** : celle des portions de Pandoc, une seule pour tous les genres, par exemple `[le Roi Gris]{ref=aldren-ii}`, `[cité portuaire]{ignore}`, `[membre du Cercle des Cendres]{secret}`. Les **liens Obsidian** `[[aldren-ii|le Roi Gris]]` sont lus à l'import comme des références, parce que beaucoup de MJ écrivent déjà ainsi. Le détail de la grammaire (clés, valeurs multiples, échappement) reste à écrire au prototype.
 - **Recalage** : quand le texte change, les annotations sont recalées par différence de texte. Dans une portion inchangée, elles survivent ; dans une portion modifiée, elles deviennent **orphelines**, à revoir, jamais effacées.
 - **Relance ciblée** : le cache par couche est indexé par l'entrée de la couche (passage, annotations amont, empreinte des indications de schéma) ; seules les couches dont l'entrée a changé sont relancées.
 
@@ -171,7 +176,7 @@ Esquisse d'un espace dédié, à porter dans *cadre-interface.md* quand elle ser
 ### 8.2 Conditions de mise en place
 
 1. **Contraintes simulées**, inscrites dans le profil et vérifiées à l'appel :
-   - un budget d'entrée par appel (à fixer, de l'ordre de 4 000 tokens) ;
+   - un **budget d'entrée de 4 000 tokens par appel**, réglable par une variable d'environnement (`WORLDKIT_LLM_INPUT_BUDGET`). Un dépassement **n'est pas refusé** : il est signalé (avertissement) et **mesuré** (tokens au-delà du budget, par appel et par couche), pour suivre l'écart d'une itération à l'autre. L'appel actuel (environ 4 900 tokens) le dépasse : c'est le premier écart à réduire ;
    - une seule tâche par appel, un petit schéma de sortie ;
    - pas de réflexion étendue, effort bas (à vérifier que Haiku 4.5 accepte le paramètre `effort`), température 0 (l'adaptateur `anthropic-api` ne la fixe pas aujourd'hui).
 2. **Rien de propre à Anthropic dans la conception.**
@@ -361,23 +366,23 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 13. **Magasin d'atelier** pour les annotations : hors journal, durable, en ajout seul, `branch_id` sur chaque annotation ; le savoir sur le monde en sort par proposition (§6.3).
 14. **Haiku 4.5 par l'API comme substitut** d'un petit modèle, sous les conditions du §8 ; puis petit modèle hébergé, puis local.
 15. **Indicateurs par couche** (§9), pilotés par les gestes jusqu'à satisfaction et le rendement des annotations.
+16. **Atelier dans le fichier du monde, lu par lignée** (§6.3) : tables à part, hors journal, en ajout seul ; une branche voit les annotations de sa base jusqu'à son point de départ, sans copie.
+17. **Syntaxe en ligne** `[texte]{...}`, avec lecture des liens Obsidian à l'import (§6.4).
+18. **Score en trois niveaux avec doutes** pour le premier prototype ; les autres définitions sont des expériences (§6.2).
+19. **Budget d'entrée de 4 000 tokens par appel, avec avertissement** et mesure du dépassement, réglable par variable d'environnement (§8.2).
 
 ## 14. Questions ouvertes
 
-1. **Stockage de l'atelier** : dans le fichier du monde (T-STO-02) ou à côté, comme `monde.runs.db` ? Copie des annotations à la création d'une branche ou lecture par lignée ?
-2. **Syntaxe en ligne** des annotations (`[texte]{valeur}`, liens à la Obsidian `[[aldren-ii|le Roi Gris]]`, autre) ?
-3. **Recalage** des annotations après modification du texte : algorithme (différence par mots, par phrases), seuil d'orphelinat ?
-4. **Score** : déclaré, accord entre tirages, *logprobs* ? Une ou plusieurs définitions comparées ?
-5. **Budget par appel** simulé pour Haiku : valeur, et ce qui est refusé ou tronqué au-delà ?
-6. **Revue sur le texte et file de revue** : l'Atelier remplace-t-il `/review` pour les propositions d'une source, ou s'y ajoute-t-il ?
-7. **Poids des gestes** dans l'effort simulé, avant calibration par T3 ?
-8. **Hébergeur et modèle** pour la deuxième étape ; décision de confidentialité pour les vraies notes.
-9. Couche haute d'ontologie : oui ou non, et quel contenu minimal ?
-10. Notes (`add_note`) et facettes : quel modèle exact, quelles facettes par défaut ? Description canonique : statut, affichage, péremption ?
-11. Fenêtre de validité diégétique : l'extraire, et sous quelle forme ?
-12. Parsing structurel : jusqu'où (listes, tableaux, PDF) ?
-13. Plan de corpus : lesquels écrire en premier, et qui annote (l'Atelier peut servir d'outil d'annotation du gold) ?
-14. Les hallucinations (classe H) existent-elles ailleurs que dans b1 ? La Chronique de la Chute (b2, *in_world*) est le meilleur candidat.
+1. **Recalage** des annotations après modification du texte : algorithme (différence par mots, par phrases), seuil d'orphelinat ?
+2. **Revue sur le texte et file de revue** : l'Atelier remplace-t-il `/review` pour les propositions d'une source, ou s'y ajoute-t-il ?
+3. **Poids des gestes** dans l'effort simulé, avant calibration par T3 ?
+4. **Hébergeur et modèle** pour la deuxième étape ; décision de confidentialité pour les vraies notes.
+5. Couche haute d'ontologie : oui ou non, et quel contenu minimal ?
+6. Notes (`add_note`) et facettes : quel modèle exact, quelles facettes par défaut ? Description canonique : statut, affichage, péremption ?
+7. Fenêtre de validité diégétique : l'extraire, et sous quelle forme ?
+8. Parsing structurel : jusqu'où (listes, tableaux, PDF) ?
+9. Plan de corpus : lesquels écrire en premier, et qui annote (l'Atelier peut servir d'outil d'annotation du gold) ?
+10. Les hallucinations (classe H) existent-elles ailleurs que dans b1 ? La Chronique de la Chute (b2, *in_world*) est le meilleur candidat.
 
 ## 15. Évolutions du cadre à prévoir
 
@@ -390,8 +395,8 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 | T-ING-11 supports | un support porte une portion du texte (l'annotation de fait) |
 | T-ING-17 erreur d'extraction | une erreur par couche ; sort d'un passage dont C1 réussit et C5 échoue |
 | T-ARC-03 | nouvelles notions : l'annotation et son score, produits de la périphérie, distincts de la qualification du noyau ; l'annotation de l'auteur, décision humaine hors journal |
-| T-STO-02 | un magasin d'atelier à placer (dans le fichier du monde ou à côté) |
-| T-BRA-01 | `branch_id` sur les annotations ; héritage par lignée |
+| T-STO-02 | le fichier du monde reçoit les tables du magasin d'atelier, hors journal |
+| T-BRA-01 | `branch_id` sur les annotations ; lecture par lignée, sans copie |
 | R-PRI-04 mémoire des décisions | ne retient que des décisions humaines sur des propositions ; l'avis du critique n'en est pas une ; les annotations de l'auteur vivent à part |
 | R-PRI-03 symétrie du lot | tout contexte pris hors du document ne doit pas dépendre de l'ordre des documents |
 | I-LLM-01 | un budget par couche ou par appel, en plus du plafond par exécution |
