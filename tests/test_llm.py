@@ -317,6 +317,25 @@ def test_measure_counts_misses_extras_and_traps():
     assert lieux_p4.traps and not (lieux_p4.found & lieux_p4.expected)
 
 
+def test_optional_gold_changes_are_neutral_T_ING_19():
+    """Facultatifs du gold : ni manqués quand ils manquent, ni en trop quand ils sont trouvés (chantier §9)."""
+    world = base_world()
+    taverne = [change("create_entity", entity="new:heron", type="Place"),
+               change("set_attribute", entity="new:heron", attribute="name", value="la taverne du Héron"),
+               change("add_relation", from_="new:heron", relation="located_in", to="brume")]
+    category = [change("set_attribute", entity="new:heron", attribute="category", value="taverne")]
+    passages = {}
+    for answer in (taverne, taverne + category):
+        report = evaluate(LLMExtractor(FakeAdapter({"La taverne du Héron": {
+            "changes": answer, "claims": [], "attribution": False}}), PROFILE),
+            OracleExtractor(VALMONT / "gold"), VALMONT / "gold", B1, extraction_context(world, world.state()))
+        passages[len(answer)] = next(r for r in report.passages if r.doc == "lieux-de-valmont" and r.index == 3)
+    without, with_category = passages[3], passages[4]
+    assert len(without.optional) == 4 and without.expected <= without.found and not without.extra
+    assert not with_category.extra and len(with_category.found & with_category.optional) == 1
+    assert report.summary()["optional"] == "1/4"
+
+
 def test_batch_merges_new_entities_by_type_and_name_T_ING_07():
     """Deux passages extraits isolément créent chacun « le conseil » sous deux étiquettes : une seule entité."""
     world = base_world()

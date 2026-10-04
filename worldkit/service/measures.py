@@ -109,7 +109,8 @@ def eval_run(ctx: Context, p: EvalParams) -> Output:
     passages = []
     for r in report.passages:
         passages.append({"doc": r.doc, "index": r.index, "missed": sorted(readable(k) for k in r.expected - r.found),
-                         "extra": sorted(readable(k) for k in r.found - r.expected),
+                         "extra": sorted(readable(k) for k in r.extra),
+                         "optional": sorted(readable(k) for k in r.found & r.optional),
                          "found": sorted(readable(k) for k in r.found), "expected": sorted(readable(k) for k in r.expected),
                          "supports": sorted(readable(k) for k in r.supports), "traps": r.traps,
                          "attribution_ok": r.attribution_ok, "claims": [r.claims_found, r.claims_expected],

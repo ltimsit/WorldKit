@@ -172,7 +172,7 @@ def _run_eval(world: Any, args: argparse.Namespace) -> int:
     for op, m in summary["per_op"].items():
         print(f"  {op:16} précision {m['precision']:.2f}  rappel {m['recall']:.2f}  (vp {m['tp']}, fp {m['fp']}, fn {m['fn']})")
     for r in report.passages:
-        missing, extra = r.expected - r.found, r.found - r.expected
+        missing, extra = r.expected - r.found, r.extra
         if missing or extra or r.traps or r.error or not r.attribution_ok:
             print(f"  -- {r.doc} p{r.index}" + (f" : ERREUR {r.error[:120]}" if r.error else ""))
             for k in sorted(missing, key=repr):

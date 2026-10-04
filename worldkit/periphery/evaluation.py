@@ -11,6 +11,9 @@ des formes réduites (`sheet_values`) contre l'état de base, comme le fait le l
 Indicateurs : précision et rappel, globaux et sur les seuls changements qui posent une question
 (les supports, qui répètent l'état, n'en posent aucune) ; par opération ; pièges (`must_not`) ;
 attributions ; affirmations ; stabilité (deux extractions d'un même passage).
+
+Les changements facultatifs du gold (`optional: true`) sont neutres : absents, ils ne comptent pas comme
+manqués ; trouvés, ni comme vrais positifs ni comme en trop. Ils sont décomptés à part (`optional`).
 Mesure indicative, jamais bloquante : elle n'entre pas dans `pytest`, un vrai modèle coûte et varie.
 """
 
@@ -114,6 +117,16 @@ class PassageResult:
     error: str | None = None
     seconds: float = 0.0
     supports: set[tuple[Any, ...]] = field(default_factory=set)  # attendus ou trouvés qui répètent l'état
+    optional: set[tuple[Any, ...]] = field(default_factory=set)  # facultatifs du gold, hors `expected`, neutres
+
+    @property
+    def scored(self) -> set[tuple[Any, ...]]:
+        """Changements trouvés qui comptent : les facultatifs du gold sont neutres."""
+        return self.found - self.optional
+
+    @property
+    def extra(self) -> set[tuple[Any, ...]]:
+        return self.scored - self.expected
 
     @property
     def expected_questions(self) -> set[tuple[Any, ...]]:
@@ -121,7 +134,7 @@ class PassageResult:
 
     @property
     def found_questions(self) -> set[tuple[Any, ...]]:
-        return self.found - self.supports
+        return self.scored - self.supports
 
 
 def _scores(pairs: list[tuple[set[Any], set[Any]]]) -> dict[str, Any]:
@@ -144,16 +157,16 @@ class Report:
         return bool(self.passages) and all(p.error for p in self.passages)
 
     def per_op(self) -> dict[str, dict[str, Any]]:
-        ops = sorted({dict(k)["op"] for p in self.passages for k in p.expected | p.found})
+        ops = sorted({dict(k)["op"] for p in self.passages for k in p.expected | p.scored})
         return {op: _scores([({k for k in p.expected if dict(k)["op"] == op},
-                              {k for k in p.found if dict(k)["op"] == op}) for p in self.passages]) for op in ops}
+                              {k for k in p.scored if dict(k)["op"] == op}) for p in self.passages]) for op in ops}
 
     def questions(self) -> dict[str, Any]:
         """Précision et rappel sur les seuls changements qui posent une question (supports écartés)."""
         return _scores([(p.expected_questions, p.found_questions) for p in self.passages])
 
     def summary(self) -> dict[str, Any]:
-        overall = _scores([(p.expected, p.found) for p in self.passages])
+        overall = _scores([(p.expected, p.scored) for p in self.passages])
         stabilities = [p.stability for p in self.passages if p.stability is not None]
         return {
             "extractor": self.extractor,
@@ -162,7 +175,9 @@ class Report:
             "precision": overall["precision"],
             "recall": overall["recall"],
             "questions": self.questions(),
-            "extra_supports": sum(len((p.found - p.expected) & p.supports) for p in self.passages),
+            "extra_supports": sum(len(p.extra & p.supports) for p in self.passages),
+            "optional": f"{sum(len(p.found & p.optional) for p in self.passages)}"
+                        f"/{sum(len(p.optional) for p in self.passages)}",
             "traps_fallen": sum(len(p.traps) for p in self.passages),
             "attribution_errors": sum(1 for p in self.passages if not p.attribution_ok),
             "claims": f"{sum(p.claims_found for p in self.passages)}/{sum(p.claims_expected for p in self.passages)}",
@@ -280,8 +295,9 @@ def _measure(extractor: Extractor, batch: _Batch, context: ExtractionContext, re
             if repeated:
                 created.add(k)
             found.add(k)
-        r = PassageResult(doc.doc_id, p.index, {key(d, gold_names) for d in expected.drafts}, found,
-                          error=error, seconds=seconds)
+        optional = {key(d, gold_names) for i, d in enumerate(expected.drafts) if i in expected.optional}
+        r = PassageResult(doc.doc_id, p.index, {key(d, gold_names) for d in expected.drafts} - optional, found,
+                          error=error, seconds=seconds, optional=optional)
         r.supports = {k for k in r.expected | r.found if is_support(k, state)}
         r.traps = [str(t) for t in g.get("must_not") or [] if any(matches(t, k, names) for k in found)]
         r.attribution_ok = ("attribution" in first.flags) == ("attribution" in expected.flags)

@@ -122,6 +122,7 @@ Un signalement (`Issue`) porte un code, une sévérité, un message et la règle
 | Faux positif | `fp` | Changement produit mais non attendu (« en trop »). |
 | Faux négatif | `fn` | Changement attendu mais non produit (« manqué »). |
 | Piège | `trap` | Difficulté annotée dans le gold (faux homonyme, ironie, rumeur…) ; « tombé » : l'extracteur s'y est laissé prendre. Exemple : le « Roi Gris ». |
+| Facultatifs | `optional` | Changements du gold marqués `optional: true` (vrais, mais qu'on ne reproche pas d'oublier) : neutres dans la mesure, ni manqués ni en trop. Décompte « trouvés / attendus » (`1/4`). |
 | Supports | `supports` | Changements qui ne font que confirmer un fait déjà présent ; comptés à part : la précision « questions » les exclut. |
 | Erreur d'attribution | `attribution_error` | Affirmation rattachée au mauvais énonciateur. |
 | Stabilité | `stability` | Accord entre plusieurs extractions répétées d'un même passage (0 à 1) ; mesure le hasard du modèle. |
