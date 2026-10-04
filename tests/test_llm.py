@@ -262,6 +262,22 @@ def test_api_schema_stays_under_the_union_limit_and_restores_nulls():
     assert out["claims"][0]["claimed"]["entity"] is None and out["claims"][0]["text"] == "t"
 
 
+def test_calls_are_traced_exactly_as_sent_when_asked(tmp_path, monkeypatch):
+    """WORLDKIT_LLM_LOG_DIR : chaque appel écrit tel qu'il part (schéma réécrit pour l'API compris) et sa réponse."""
+    monkeypatch.setenv("WORLDKIT_LLM_LOG_DIR", str(tmp_path / "log"))
+    adapter = AnthropicApiAdapter("claude-haiku-4-5", temperature=0.0,
+                                  client=SimpleNamespace(messages=SimpleNamespace(create=lambda **_: _api_response())))
+    with adapter.meter.label("notes-baron p1"):
+        adapter.complete("système exact", "message exact", OUTPUT_SCHEMA)
+    [trace] = (tmp_path / "log").iterdir()
+    text = trace.read_text(encoding="utf-8")
+    assert "notes-baron-p1" in trace.name and "système exact" in text and "message exact" in text
+    assert '"temperature": 0.0' in text and '"anyOf"' in text and '{"ok": true}' in text
+    monkeypatch.delenv("WORLDKIT_LLM_LOG_DIR")
+    adapter.complete("s", "p", {})
+    assert len(list((tmp_path / "log").iterdir())) == 1  # sans la variable, rien n'est écrit
+
+
 def test_haiku_refuses_effort_before_any_call():
     def create(**_):
         raise AssertionError("aucun appel ne doit partir")

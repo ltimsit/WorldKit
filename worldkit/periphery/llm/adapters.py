@@ -126,6 +126,8 @@ class ClaudeCodeAdapter:
                                      timeout=self.timeout, cwd=neutral, env=env)
             except (OSError, subprocess.TimeoutExpired) as e:
                 raise LLMError(f"claude -p : {e}") from e
+        self.meter.trace("claude-code", self.model, system, prompt, schema, {"effort": self.effort},
+                         run.stdout or run.stderr)
         if run.returncode != 0:
             raise LLMError(f"claude -p a échoué ({run.returncode}) : {(run.stderr or run.stdout)[:300]}")
         try:
@@ -240,7 +242,13 @@ class AnthropicApiAdapter:
                 system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
                 messages=[{"role": "user", "content": prompt}], output_config=output_config, **sampling)
         except Exception as e:  # erreurs typées du SDK : réseau, 4xx, 5xx (déjà relancées par le SDK)
+            self.meter.trace("anthropic-api", self.model, system, prompt, output_config["format"]["schema"],
+                             {"max_tokens": self.max_tokens, "effort": self.effort, "temperature": self.temperature},
+                             f"ERREUR : {e}")
             raise LLMError(f"API Anthropic : {e}") from e
+        self.meter.trace("anthropic-api", self.model, system, prompt, output_config["format"]["schema"],
+                         {"max_tokens": self.max_tokens, "effort": self.effort, "temperature": self.temperature},
+                         response.to_dict() if hasattr(response, "to_dict") else repr(response))
         u = getattr(response, "usage", None)
         if u is not None:
             read, write = getattr(u, "cache_read_input_tokens", 0) or 0, getattr(u, "cache_creation_input_tokens", 0) or 0
@@ -283,6 +291,7 @@ class OllamaAdapter:
                 payload = json.loads(response.read().decode("utf-8"))
         except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
             raise LLMError(f"Ollama ({self.base_url}) : {e}") from e
+        self.meter.trace("ollama", self.model, system, prompt, schema, {"temperature": 0}, payload)
         self.meter.record(CallUsage(self.model, int(payload.get("prompt_eval_count") or 0),
                                     int(payload.get("eval_count") or 0), seconds=time.perf_counter() - start,
                                     cost=0.0))  # local : rien n'est facturé

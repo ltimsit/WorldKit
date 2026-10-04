@@ -4,19 +4,28 @@ Chaque adaptateur note ses appels dans un `UsageMeter`. La mesure T2 en tire le 
 par passage et au total. Le budget d'entrée simule un petit modèle (contexte court) : 4 000 tokens par appel
 par défaut, réglable par la variable d'environnement `WORLDKIT_LLM_INPUT_BUDGET` (`0` ou `off` : aucun).
 Un dépassement n'est pas refusé : il est signalé une fois par compteur, et mesuré.
+
+Trace des appels : si `WORLDKIT_LLM_LOG_DIR` désigne un dossier, chaque appel y est écrit en Markdown, exactement
+comme il part (prompt système, message, schéma de sortie, réglages) avec la réponse brute. Pour l'auteur, hors dépôt.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import re
 import threading
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 INPUT_BUDGET_VARIABLE = "WORLDKIT_LLM_INPUT_BUDGET"
+CALL_LOG_VARIABLE = "WORLDKIT_LLM_LOG_DIR"
 DEFAULT_INPUT_BUDGET = 4000
 CACHE_WRITE_FACTOR, CACHE_READ_FACTOR = 1.25, 0.1  # tarifs du cache de prompt, relatifs à l'entrée
 
@@ -79,6 +88,28 @@ class UsageMeter:
             yield
         finally:
             self._local.label = previous
+
+    def trace(self, adapter: str, model: str, system: str, prompt: str, schema: Any, settings: dict[str, Any],
+              response: Any) -> Path | None:
+        """Écrit l'appel tel qu'il part, et sa réponse brute, si `WORLDKIT_LLM_LOG_DIR` est défini."""
+        folder = os.environ.get(CALL_LOG_VARIABLE, "").strip()
+        if not folder:
+            return None
+        label = getattr(self._local, "label", None) or "appel"
+        path = Path(folder) / (f"{datetime.now():%Y%m%d-%H%M%S}-{re.sub(r'[^\w-]+', '-', label)}"
+                               f"-{uuid.uuid4().hex[:6]}.md")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        shown = response if isinstance(response, str) else json.dumps(response, ensure_ascii=False, indent=2)
+        fence = "````"
+        sections = [f"# {label}", "",
+                    f"- adaptateur : `{adapter}`", f"- modèle : `{model}`", f"- réglages : `{json.dumps(settings)}`",
+                    f"- date : {datetime.now():%Y-%m-%d %H:%M:%S}", "",
+                    "## Prompt système", "", fence + "text", system, fence, "",
+                    "## Message", "", fence + "text", prompt, fence, "",
+                    "## Schéma de sortie envoyé", "", fence + "json", json.dumps(schema, ensure_ascii=False, indent=2),
+                    fence, "", "## Réponse brute", "", fence + "json", shown, fence, ""]
+        path.write_text("\n".join(sections), encoding="utf-8")
+        return path
 
     def record(self, usage: CallUsage) -> None:
         usage = replace(usage, label=getattr(self._local, "label", None))

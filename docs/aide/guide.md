@@ -366,6 +366,12 @@ Une mesure avec un modèle rend aussi son **usage** : appels, tokens en entrée 
 $env:WORLDKIT_LLM_INPUT_BUDGET = "8000"   # « off » : aucun budget
 ```
 
+Pour voir exactement ce qui part vers le modèle, désignez un dossier : chaque appel y est écrit en Markdown (prompt système, message, schéma de sortie envoyé, réglages, réponse brute), un fichier par appel, nommé d'après le passage. Le dossier `llm-log/` est ignoré par git.
+
+```powershell sans-test
+$env:WORLDKIT_LLM_LOG_DIR = "llm-log"
+```
+
 ## 11. Vérifier après un changement de code
 
 Les **parcours d'acceptation** W00 à W17 du corpus rejouent des scénarios d'usage complets, chacun dans un monde neuf, avec leurs prérequis :
