@@ -556,6 +556,10 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 32. **Question ciblée par paire et avec relations connues** (§11.10) : déclenchée par une paire d'entités non reliées dans le passage, avec les relations du schéma comme préférence ; la consigne stricte de C5 est écartée.
 33. **Le critique C6 est mis en place** (§11.11) : un fait qui pose une question jugé contre son passage, mis de côté s'il n'est pas soutenu ; il reçoit les autres noms des entités et sait que la notoriété ne le regarde pas.
 34. **Énonciation sans modèle** (§11.12) : rumeur → attribution sans fait ; note de travail → ni fait ni entité nouvelle ; voie « s'adapter au cadre » (rumeurs hors périmètre, §1.4).
+35. **Atelier, premier incrément : les entités** ([fiche I8](i8-brief.md)) : magasin d'atelier, import d'une source, repérage et recoupement, point d'arrêt, écran Atelier ; les faits au deuxième incrément.
+36. **Une source de l'atelier est une version de document** (tables existantes, texte entier conservé) ; les annotations s'accrochent au passage.
+37. **« Proposer » est un geste explicite** : un lot (entités nouvelles confirmées, alias retenus) par le circuit existant jusqu'à la revue.
+38. **Trois portées pour une correction** : occurrence ; toutes les occurrences de la source (défaut) ; le monde (alias proposé au journal si positive, règle d'atelier par branche si négative).
 
 ## 14. Questions ouvertes
 
