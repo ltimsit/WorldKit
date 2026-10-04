@@ -1,0 +1,49 @@
+# Gold du contre-corpus de pièges (voir ../README.md). Mentions seulement : on mesure les faux positifs du
+# repérage et du recoupement sur des homographes de noms connus (AX-R11).
+document: homographes
+version: 1
+batch: p1
+axes: { mode: source, nature: diegetic, voice: author, visibility: unqualified }
+
+passages:
+  - index: 1
+    starts_with: "Une brume épaisse montait du port"
+    test_axes: [AX-R11, AX-S4]
+    mentions: { "Odon": odon, "Brume": brume }
+    changes: []
+    note: "« une brume épaisse » : du brouillard ; « les quais de Brume » : la ville."
+
+  - index: 2
+    starts_with: "Sa fille, une petite brune"
+    test_axes: [AX-R11, AX-R6]
+    mentions: {}
+    changes: []
+    note: "« brune » ressemble à Brume ; « une chute » n'est pas la Chute ; la fille n'est pas nommée."
+
+  - index: 3
+    starts_with: "Les veilleurs de nuit de Hautval"
+    test_axes: [AX-R11]
+    mentions: { "Hautval": hautval }
+    changes: []
+    note: "« les veilleurs de nuit » ne sont pas les Veilleurs (l'ordre) ; « cendre », « braises » : noms communs."
+
+  - index: 4
+    starts_with: "Un loup a été vu près des remparts"
+    test_axes: [AX-R11, AX-R6]
+    mentions: {}
+    changes: []
+    note: "« un loup » n'est pas le Loup de cendre ; « une morsure » n'est pas la capacité Morsure du système A."
+
+  - index: 5
+    starts_with: "Le cercle des anciens se réunit"
+    test_axes: [AX-R11]
+    mentions: { "Cercle des Cendres": cercle-des-cendres }
+    changes: []
+    note: "« le cercle des anciens » : un groupe générique, pas le Cercle des Cendres."
+
+  - index: 6
+    starts_with: "Depuis la Chute, plus personne"
+    test_axes: [AX-R11]
+    mentions: { "la Chute": la-chute }
+    changes: []
+    note: "« la flamme » n'est pas la Flamme d'azur."

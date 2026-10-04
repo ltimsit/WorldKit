@@ -237,6 +237,32 @@ class MentionFinder:
         return found
 
 
+def similar_mentions(window: Window, entities: tuple[KnownEntity, ...], existing: list[Mention]) -> list[Mention]:
+    """Signal sans modèle (X-012) : une suite de mots qui **ressemble** à un nom connu sans l'être (« la chuute »,
+    « Brme ») devient une mention **douteuse**, avec le candidat ; jamais rattachée d'office : « brume » au sens de
+    brouillard ressemble aussi à Brume. Une portion déjà couverte par une autre mention est ignorée."""
+    from .matching import LINK, fold, similarity
+    words = [(m.start(), m.end()) for m in re.finditer(r"[^\W\d_][\w'’-]*", window.text)]
+    found: list[Mention] = []
+    for e in entities:
+        for name in e.names:
+            target = fold(name)
+            size = len(target.split())
+            if len(target) < 4:
+                continue
+            for i in range(len(words) - size + 1):
+                start, end = words[i][0], words[i + size - 1][1]
+                span = window.text[start:end]
+                if fold(span) == target or window.is_struck(start, end):
+                    continue
+                if any(m.start < end and start < m.end for m in existing + found):
+                    continue
+                if similarity(span, name) >= LINK and fold(span)[:1] == target[:1]:
+                    found.append(Mention(span, start, window.passage_at(start), e.type, "similar", "doubt",
+                                         rule="doubt", candidates=(e.id,)))
+    return found
+
+
 def merge(known: list[Mention], found: list[Mention]) -> list[Mention]:
     """C1 : toutes les portions connues sont gardées. Une portion du modèle est écartée si elle est contenue dans
     une portion connue (« Chute » dans « la Chute ») ; elle est gardée si elle en contient une : les mentions
@@ -364,7 +390,7 @@ class Resolver:
 # Mesure contre les mentions du gold (X-002)
 # ---------------------------------------------------------------------------
 
-GESTURES = {"keep": 1, "remove": 1, "change": 2, "add": 3}  # poids provisoires (chantier §9)
+GESTURES = {"keep": 1, "confirm": 1, "remove": 1, "change": 2, "add": 3}  # poids provisoires (chantier §9)
 
 
 @dataclass
@@ -422,8 +448,12 @@ class MentionReport:
         for p in self.passages:
             for _, m in p.matched:
                 rules[m.rule or "?"] = rules.get(m.rule or "?", 0) + 1
-        wrong = tp - ok
-        gestures = {"keep": ok, "remove": fp, "change": wrong, "add": fn}
+        # Un doute dont le bon choix est proposé (le candidat, ou « nouvelle » quand le gold attend une entité
+        # nouvelle) se règle en un geste de confirmation (X-012).
+        confirm = sum(1 for p in self.passages for s, m in p.matched if not p.resolved_ok(s, m) and m.rule == "doubt"
+                      and (p.gold[s] in m.candidates or (not m.candidates and p.gold[s].startswith("new:"))))
+        wrong = tp - ok - confirm
+        gestures = {"keep": ok, "confirm": confirm, "remove": fp, "change": wrong, "add": fn}
         # Entités nouvelles proposées (une par nom normalisé dans le lot) : justes si le gold attend une entité
         # nouvelle à cet endroit ; fausses sinon, chacune une création à refuser en revue (E-006).
         proposed = {m.entity for p in self.passages for m in p.found if m.entity and m.entity.startswith("new:")}
@@ -464,7 +494,8 @@ def _gold_mentions(gold_dir: Path, window: Window) -> dict[int, dict[str, str]]:
 
 def evaluate_mentions(finder: MentionFinder | None, documents: list[Path], gold_dir: Path,
                       context: ExtractionContext, state: Any, repeat: int = 1,
-                      with_short_forms: bool = False, with_enunciation: bool = False) -> MentionReport:
+                      with_short_forms: bool = False, with_enunciation: bool = False,
+                      with_signals: bool = False) -> MentionReport:
     """C1 (C1a, et C1b si `finder`) puis C2 sur chaque document, comparés aux mentions du gold ; avec
     `with_short_forms`, la variante B ajoute les formes courtes des personnes repérées ; avec `with_enunciation`,
     une note de travail de l'auteur ne propose aucune entité nouvelle (C4, X-010)."""
@@ -486,6 +517,8 @@ def evaluate_mentions(finder: MentionFinder | None, documents: list[Path], gold_
     per_window = []
     for window, runs in zip(windows, model_runs):
         mentions = merge(known_mentions(window, context.entities, resolver.titles), runs[0] if runs else [])
+        if with_signals:  # X-012 : signaler sans décider
+            mentions = sorted(mentions + similar_mentions(window, context.entities, mentions), key=lambda m: m.start)
         for m in mentions:
             resolver.resolve(m)
         per_window.append(mentions)
@@ -495,6 +528,12 @@ def evaluate_mentions(finder: MentionFinder | None, documents: list[Path], gold_
                                              and enunciation(w.passage_texts.get(m.passage, "")) == "note")]
                       for w, ms in zip(windows, per_window)]
     resolver.cluster_new([m for ms in per_window for m in ms])  # entités nouvelles du lot (T-ING-07, R-PRI-03)
+    if with_signals:  # X-012 : une entité nouvelle peu sûre (minuscules seules, une seule occurrence) est un doute
+        everything = [m for ms in per_window for m in ms]
+        for eid in {m.entity for m in everything if m.entity and m.entity.startswith("new:")}:
+            forms = [m for m in everything if m.entity == eid]
+            if len(forms) == 1 and not any(c.isupper() for c in forms[0].text):
+                forms[0].entity, forms[0].rule, forms[0].candidates = None, "doubt", ()
     for window, runs, mentions in zip(windows, model_runs, per_window):
         if with_short_forms:
             mentions = sorted(mentions + short_forms(window, mentions, context.entities, context.schema),

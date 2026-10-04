@@ -221,7 +221,7 @@ def _run_eval_mentions(world: Any, args: argparse.Namespace) -> int:
         else:
             finder = MentionFinder(make_adapter(profile), profile, args.prompt_short_forms)
     report = evaluate_mentions(finder, paths, Path(args.oracle), extraction_context(world, state), state, args.repeat,
-                               args.short_forms, args.enunciation)
+                               args.short_forms, args.enunciation, args.signals)
     summary = report.summary()
     print(f"couches : {summary['finder']} ; {len(paths)} document(s) ; {summary['gold_mentions']} mention(s) au gold")
     for k in ("c1", "c2", "gestures", "stability", "usage"):
@@ -274,7 +274,20 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
         profile = config.profile(args.profile, "mentions")
         adapter = ReplayAdapter(args.mentions_replay) if args.mentions_replay else make_adapter(profile)
         mentions = evaluate_mentions(MentionFinder(adapter, profile), paths, Path(args.oracle), context, state,
-                                     with_short_forms=args.short_forms, with_enunciation=args.enunciation)
+                                     with_short_forms=args.short_forms, with_enunciation=args.enunciation,
+                                     with_signals=args.signals)
+        if args.checkpoint:
+            from worldkit.ingest.declaration import name_key as _key
+            for p in mentions.passages:  # l'auteur simulé confirme les entités avant les faits (§6.5), d'après le gold
+                matched = {id(m): s for s, m in p.matched}
+                for m in p.found:
+                    gold = p.gold.get(matched.get(id(m), ""), "")
+                    if m.rule == "doubt" and gold and gold in m.candidates:
+                        m.entity = gold
+                    elif m.rule == "doubt" and gold.startswith("new:"):
+                        m.entity = f"new:{_key(m.text)}"
+                    elif m.entity and m.entity.startswith("new:") and not gold.startswith("new:"):
+                        m.entity = None  # entité nouvelle refusée par l'auteur
         found = {w.doc_id: [m for p in mentions.passages if p.doc == w.doc_id for m in p.found] for w in windows}
         new_aliases = {m.entity: p.gold[s] for p in mentions.passages for s, m in p.matched
                        if m.entity and m.entity.startswith("new:") and p.gold[s].startswith("new:")}
@@ -936,6 +949,8 @@ def build_parser() -> argparse.ArgumentParser:
                      help="variante A : consigne de C1b sur les formes courtes (prénom seul, fonction)")
     evm.add_argument("--enunciation", action="store_true",
                      help="une note de travail de l'auteur ne propose aucune entité nouvelle (C4, X-010)")
+    evm.add_argument("--signals", action="store_true",
+                     help="signaler sans décider : nom connu ressemblant et entité nouvelle peu sûre deviennent des doutes (X-012)")
     evm.add_argument("--short-forms", action="store_true",
                      help="variante B : formes courtes des personnes repérées, cherchées sans modèle")
     evm.add_argument("--out", default=None, help="rapport JSON détaillé")
@@ -950,6 +965,9 @@ def build_parser() -> argparse.ArgumentParser:
                      help="entités confirmées : celles du gold, ou celles de C1 puis C2")
     evf.add_argument("--mentions-replay", default=None, help="chaîne : rejoue les réponses de C1 tracées")
     evf.add_argument("--short-forms", action="store_true", help="chaîne : formes courtes sans modèle (variante B)")
+    evf.add_argument("--signals", action="store_true", help="chaîne : signaler sans décider (X-012)")
+    evf.add_argument("--checkpoint", action="store_true",
+                     help="chaîne : l'auteur simulé (d'après le gold) confirme les entités avant les faits (§6.5, X-012)")
     evf.add_argument("--replay", default=None, help="rejoue les réponses de C5 tracées, sans appel ni coût")
     evf.add_argument("--probe", action="store_true",
                      help="question ciblée sur les phrases muettes (deux entités confirmées, aucun fait) : E-007")

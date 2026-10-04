@@ -66,6 +66,7 @@ Couches : C0 découpage, C1a noms connus, C1b repérage par le modèle, C2 recou
 | AX-R7 | **pronom** ambigu | « il » entre deux hommes | rattaché si le document tranche ; sinon rien | C5 |
 | AX-R8 | **lieu et personne** de même nom | « Brume » et « Odon de Brume » | deux entités, imbriquées | C1, C2 |
 | AX-R9 | **renommage**, identité double | « l'ancien nom de la ville » | alias, ou identité (R-IDT) par décision de l'auteur | C2 |
+| AX-R11 | **homographe** d'un nom connu | « une brume épaisse » (brouillard) à côté de la ville de Brume ; « les veilleurs de nuit » à côté de l'ordre des Veilleurs | aucune mention ; au pire un doute | C1a, C1b, C2 |
 | AX-R10 | **groupe** désigné de plusieurs façons | « les Bateliers », « la guilde », « le GdB » | une seule entité | C1, C2 |
 
 ## 5. Temps (AX-D)
@@ -112,6 +113,7 @@ Couches : C0 découpage, C1a noms connus, C1b repérage par le modèle, C2 recou
 | Valmont v1 | ciblé (premier jet) | règles du cadre ; AX-R4, AX-R8, AX-D1, AX-D4, AX-E7, AX-E8, AX-C1 à C4 | fait |
 | **Corbelle, brouillon** (`corpus/corbelle-v1/`) | ciblé | AX-S1 à S8, AX-T1, T2, T6, AX-E1 à E5, E9, AX-R1 à R6, R10, AX-D1 à D4 | fait, mesuré ([X-006](X-006-corbelle-chaine.md)) |
 | **Valmont bruité** (`corpus/valmont-bruite-v1/`) | dérivé (script) | AX-S1, S3, S4, S5, S6 à deux niveaux | fait, mesuré ([X-011](X-011-bruit-et-chaine-reelle.md)) |
+| **Pièges** (`corpus/pieges-v1/`) | ciblé | AX-R11 (homographes) | fait, mesuré ([X-012](X-012-signaler-et-pieges.md)) |
 | Session | ciblé | AX-J1 à J4, AX-D, AX-E5 | prévu |
 | Valmont grossi | dérivé (généré) | AX-M1, AX-R2 | prévu |
 | Autre genre | ciblé | AX-M2 à M4 | prévu |

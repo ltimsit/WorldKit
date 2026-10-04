@@ -489,6 +489,14 @@ Valmont b1 bruité par script (deux niveaux) et chaîne complète de Corbelle, ~
 - Corrigé : une désignation dont le nom connu porte une faute (« port de Burme ») est un doute, plus une création.
 - Pistes : chercher sans modèle les noms connus *ressemblants* dans le texte ; écarter les noms communs repérés comme entités ; mesurer C5 sur plusieurs passes.
 
+### 11.14 Signaler sans décider, contre-corpus de pièges (X-012)
+
+Signaux sans modèle (nom connu ressemblant → mention douteuse ; entité nouvelle peu sûre → doute) et contre-corpus d'homographes. Détail dans [X-012](recherche-ingestion/X-012-signaler-et-pieges.md).
+
+- **Résultat mitigé** : les signaux aident sous un bruit fort (gestes 45 → 39) et coûtent un peu ailleurs (35 → 36, 41 → 44, 36 → 37). Aucune règle adoptée ; options `--signals`, `--checkpoint`.
+- **Les homographes piègent la règle exacte actuelle et le recoupement par score** (« une brume épaisse » → la ville ; « les veilleurs de nuit » → l'ordre) ; le modèle évite mieux ces pièges que les règles.
+- **Leçon de méthode (remarque de l'auteur)** : on tire trop vite des conclusions de petits corpus écrits par Claude, en simulant l'auteur au lieu qu'il intervienne. Ces cas se jugent dans **l'ingestion réelle avec l'étape d'annotation**, où une correction faite une fois profite à la suite. C'est la prochaine étape.
+
 ## 12. Corpus
 
 Les axes de test sont compilés dans [axes-corpus.md](recherche-ingestion/axes-corpus.md) : une quarantaine d'axes identifiés (`AX-S1` fautes sur un nom, `AX-E1` note de travail de l'auteur, `AX-R2` homonymes…), regroupés en huit familles (surface, structure, énonciation, référence, temps, jeu, échelle, plusieurs documents), avec l'attendu et la couche éprouvée. Les corpus déclarent les axes qu'ils couvrent ; les fiches d'écart citent l'axe en cause.
@@ -505,6 +513,7 @@ Les axes de test sont compilés dans [axes-corpus.md](recherche-ingestion/axes-c
 
 - **Corbelle** (`corpus/corbelle-v1/`, ciblé, fait) : notes brouillon d'une petite ville, 3 documents, 13 passages, 36 mentions au gold ; fautes, casse, familier, abréviations, notes de travail, hors sujet, idée d'intrigue, correction barrée, homonymes, surnom, entité nouvelle citée d'un document à l'autre avec une faute. Gold sans `outcome`, avec `test_axes` et `silent`. Cohérence vérifiée par `tests/test_corpus_corbelle.py`.
 - **Valmont bruité** (`corpus/valmont-bruite-v1/`, dérivé, fait) : b1 perturbé par script à deux niveaux, gold recalé ; mesuré en X-011.
+- **Pièges** (`corpus/pieges-v1/`, ciblé, fait) : homographes de noms connus (AX-R11) ; mesuré en X-012.
 - **À venir** : Session, Valmont grossi, Autre genre, Chronique longue ; puis les notes réelles de l'auteur.
 
 Le second jet de Valmont, écrit par l'auteur (T-TST-01), devient le corpus « auteur » : il viendra quand le modèle sera établi.
