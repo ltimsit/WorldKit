@@ -144,7 +144,7 @@ Le journal reste le monde ; l'atelier reste l'établi ; le passage de l'un à l'
 
 - **Texte et annotations stockés séparément** (annotations déportées), avec une **forme en ligne** exportable et réimportable, pour que l'auteur puisse annoter dans son propre éditeur. L'import d'un texte en ligne produit des annotations d'origine « auteur ».
 - **Syntaxe en ligne** : celle des portions de Pandoc, une seule pour tous les genres, par exemple `[le Roi Gris]{ref=aldren-ii}`, `[cité portuaire]{ignore}`, `[membre du Cercle des Cendres]{secret}`. Les **liens Obsidian** `[[aldren-ii|le Roi Gris]]` sont lus à l'import comme des références, parce que beaucoup de MJ écrivent déjà ainsi. Le détail de la grammaire (clés, valeurs multiples, échappement) reste à écrire au prototype.
-- **Recalage** : quand le texte change, les annotations sont recalées par différence de texte. Dans une portion inchangée, elles survivent ; dans une portion modifiée, elles deviennent **orphelines**, à revoir, jamais effacées.
+- **Recalage strict, par mots** : quand le texte change, une différence par mots, déterministe, recale les annotations. Une annotation dont la portion est intacte survit et suit le texte ; si un seul mot de sa portion change, elle devient **orpheline**, à revoir, jamais effacée. Corriger « Roi Gris » en « Roi gris » fait une orpheline, revalidée en un geste ; en contrepartie, « le Roi Blanc » ne garde jamais en silence la référence du « Roi Gris ». Les annotations de passage suivent l'alignement des passages (T-ING-10).
 - **Relance ciblée** : le cache par couche est indexé par l'entrée de la couche (passage, annotations amont, empreinte des indications de schéma) ; seules les couches dont l'entrée a changé sont relancées.
 
 À étudier : jusqu'où une source traitée reste retraitable sans tout refaire, et ce que coûte, en gestes, une modification du texte après la revue.
@@ -163,7 +163,10 @@ Esquisse d'un espace dédié, à porter dans *cadre-interface.md* quand elle ser
 
 **Rythme : l'auteur décide.** Il lance la couche qu'il veut, quand il veut, avec ou sans annotation préalable. Exemple : il colle le texte, lance C1, trouve un faux positif et un manque, pose « ignorer » sur le premier et ajoute le second, relance C1, puis passe à C2 quand il est satisfait. Rien n'impose une passe humaine ; tout la rend possible.
 
-**Lien avec l'existant** : l'Atelier se branche sur le pipeline en étapes (I-PPL-01 à I-PPL-04) et sur la revue (`/review`). La frontière entre la revue sur le texte et la file de revue actuelle reste à dessiner (§14).
+**Lien avec l'existant** : l'Atelier se branche sur le pipeline en étapes (I-PPL-01 à I-PPL-04). Partage avec la revue (`/review`) :
+- **l'Atelier travaille une source** : annotations et faits sur le texte, garder ou retirer ;
+- **`/review` reste la file du lot, entre sources** : collisions, dépendances, concurrence entre documents (« le conseil siège à Hautval » contre « à Brume ») ;
+- les deux écrivent **les mêmes décisions** (R-PRI-04) : un fait gardé dans l'Atelier apparaît décidé dans `/review`, et inversement.
 
 ## 8. Haiku comme substitut d'un petit modèle
 
@@ -193,7 +196,7 @@ Esquisse d'un espace dédié, à porter dans *cadre-interface.md* quand elle ser
 - les couches sont stabilisées sur b1 et b2 avec Haiku, et leurs mesures sont reproductibles ;
 - un **adaptateur compatible OpenAI** existe (le même servirait pour ollama en local, qui expose ce protocole), avec repli sur un mode JSON simple et revalidation quand l'hébergeur ne gère pas le schéma ;
 - la clé est dans une variable propre à worldkit (nom à fixer, sur le modèle de `WORLDKIT_ANTHROPIC_API_KEY`) ;
-- une **décision de confidentialité** est prise : le corpus synthétique peut partir chez un tiers ; les vraies notes de l'auteur, à décider ;
+- **confidentialité** : un réglage par monde est prévu (synthétique : tout peut partir ; privé : local seulement, ou fournisseurs listés ; un appel vers un fournisseur non autorisé refusé avant l'envoi). Il est **désactivé pendant la phase de développement**, qui ne traite que des corpus synthétiques ; à activer avant d'ingérer de vraies notes ;
 - le choix de l'hébergeur et du modèle est argumenté (taille, contexte, support du schéma, *logprobs*, prix).
 
 ## 9. Indicateurs
@@ -204,7 +207,7 @@ Mesurer couche par couche, en séparant ce qui revient à la couche de ce qu'ell
 |---|---|---|
 | **Qualité propre d'une couche** | ce qu'elle vaut seule | on l'alimente avec l'amont *gold* (mentions, résolution, coréférence, faits) ; le gold a déjà des `mentions` par passage, les pronoms restent à annoter |
 | **Erreurs héritées** | ce que l'amont lui coûte | même couche avec l'amont réel ; l'écart avec la ligne précédente mesure la propagation |
-| **Gestes jusqu'à satisfaction** | l'effort de l'auteur | auteur simulé qui corrige jusqu'au gold : retraits, ajouts, changements, pondérés (un ajout coûte plus qu'un retrait) ; poids calibrés par les tests humains chronométrés (T3) |
+| **Gestes jusqu'à satisfaction** | l'effort de l'auteur | auteur simulé qui corrige jusqu'au gold ; poids provisoires : garder 1 (il faut lire), retirer 1, changer 2 (choisir un autre candidat), ajouter 3 (sélectionner, choisir le genre, chercher l'entité), accepter en lot 1 par lot ; poids réglables, décomptes bruts publiés à côté ; calibration par les tests humains chronométrés (T3) |
 | **Rendement d'une annotation** | faut-il recommander une passe humaine ? | gestes économisés en aval par annotation posée, avec et sans pré-annotation |
 | **Utilité des scores et des doutes** | peut-on trier, ou accepter en lot ? | précision au-dessus d'un seuil ; part des doutes qui tombent sur une vraie erreur ; part des erreurs sans doute signalé |
 | **Relances** | convergence | nombre de tours jusqu'à satisfaction ; erreurs nouvelles apparues à la relance |
@@ -370,19 +373,20 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 17. **Syntaxe en ligne** `[texte]{...}`, avec lecture des liens Obsidian à l'import (§6.4).
 18. **Score en trois niveaux avec doutes** pour le premier prototype ; les autres définitions sont des expériences (§6.2).
 19. **Budget d'entrée de 4 000 tokens par appel, avec avertissement** et mesure du dépassement, réglable par variable d'environnement (§8.2).
+20. **Recalage strict, par mots** : portion intacte, l'annotation suit ; un mot changé, elle devient orpheline (§6.4).
+21. **Atelier pour une source, `/review` pour le lot**, mêmes décisions des deux côtés (§7).
+22. **Poids provisoires des gestes** 1-1-2-3, réglables, décomptes bruts publiés (§9).
+23. **Confidentialité par monde**, prévue mais désactivée pendant le développement (§8.3).
 
 ## 14. Questions ouvertes
 
-1. **Recalage** des annotations après modification du texte : algorithme (différence par mots, par phrases), seuil d'orphelinat ?
-2. **Revue sur le texte et file de revue** : l'Atelier remplace-t-il `/review` pour les propositions d'une source, ou s'y ajoute-t-il ?
-3. **Poids des gestes** dans l'effort simulé, avant calibration par T3 ?
-4. **Hébergeur et modèle** pour la deuxième étape ; décision de confidentialité pour les vraies notes.
-5. Couche haute d'ontologie : oui ou non, et quel contenu minimal ?
-6. Notes (`add_note`) et facettes : quel modèle exact, quelles facettes par défaut ? Description canonique : statut, affichage, péremption ?
-7. Fenêtre de validité diégétique : l'extraire, et sous quelle forme ?
-8. Parsing structurel : jusqu'où (listes, tableaux, PDF) ?
-9. Plan de corpus : lesquels écrire en premier, et qui annote (l'Atelier peut servir d'outil d'annotation du gold) ?
-10. Les hallucinations (classe H) existent-elles ailleurs que dans b1 ? La Chronique de la Chute (b2, *in_world*) est le meilleur candidat.
+1. **Hébergeur et modèle** pour la deuxième étape (taille, contexte, support du schéma, *logprobs*, prix).
+2. Couche haute d'ontologie : oui ou non, et quel contenu minimal ?
+3. Notes (`add_note`) et facettes : quel modèle exact, quelles facettes par défaut ? Description canonique : statut, affichage, péremption ?
+4. Fenêtre de validité diégétique : l'extraire, et sous quelle forme ?
+5. Parsing structurel : jusqu'où (listes, tableaux, PDF) ?
+6. Plan de corpus : lesquels écrire en premier, et qui annote (l'Atelier peut servir d'outil d'annotation du gold) ?
+7. Les hallucinations (classe H) existent-elles ailleurs que dans b1 ? La Chronique de la Chute (b2, *in_world*) est le meilleur candidat.
 
 ## 15. Évolutions du cadre à prévoir
 
