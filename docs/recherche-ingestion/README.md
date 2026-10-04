@@ -22,7 +22,14 @@ Contrainte permanente : on vise un **petit modèle**. « Prendre un meilleur mod
 | Fiche | Titre | Classe | Statut |
 |---|---|---|---|
 | [E-001](E-001-cite-portuaire.md) | « la cité portuaire » prise pour une catégorie | S | ouverte |
-| [E-002](E-002-roi-gris.md) | « le Roi Gris » créé au lieu d'un alias d'Aldren II | R | ouverte |
+| [E-002](E-002-roi-gris.md) | « le Roi Gris » créé au lieu d'un alias d'Aldren II | R, T | ouverte |
+| [E-003](E-003-conseil-valeur.md) | « le conseil des marchands » pris pour une valeur, jamais créé | N | ouverte |
+| [E-004](E-004-depuis-la-chute.md) | « depuis la Chute » donne `odon involved_in la-chute` | H | ouverte |
+| [E-005](E-005-regent-de-brume.md) | « régent de Brume » au lieu de « régent » | S | ouverte |
+
+| Expérience | Titre | Statut |
+|---|---|---|
+| [X-001](X-001-b1-haiku-reference.md) | Mesure de référence : b1 sous Haiku 4.5 (API), extracteur actuel | conclue |
 
 Statuts : **ouverte** (observée, non traitée), **en cours** (remède essayé), **résolue** (remède mesuré, sans régression), **acceptée** (on vit avec, avec la raison), **transformée** (devenue une expérience ou une question du chantier).
 

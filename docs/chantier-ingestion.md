@@ -179,11 +179,11 @@ Esquisse d'un espace dédié, à porter dans *cadre-interface.md* quand elle ser
 ### 8.2 Conditions de mise en place
 
 1. **Contraintes simulées**, inscrites dans le profil et vérifiées à l'appel :
-   - un **budget d'entrée de 4 000 tokens par appel**, réglable par une variable d'environnement (`WORLDKIT_LLM_INPUT_BUDGET`). Un dépassement **n'est pas refusé** : il est signalé (avertissement) et **mesuré** (tokens au-delà du budget, par appel et par couche), pour suivre l'écart d'une itération à l'autre. L'appel actuel (environ 4 900 tokens) le dépasse : c'est le premier écart à réduire ;
+   - un **budget d'entrée de 4 000 tokens par appel**, réglable par une variable d'environnement (`WORLDKIT_LLM_INPUT_BUDGET`). Un dépassement **n'est pas refusé** : il est signalé (avertissement) et **mesuré** (tokens au-delà du budget, par appel et par couche), pour suivre l'écart d'une itération à l'autre. Par l'API, l'appel actuel tient dans le budget (3 538 tokens au plus sur b1) : les 4 900 tokens mesurés avec `claude -p` comprenaient le surcoût de Claude Code ;
    - une seule tâche par appel, un petit schéma de sortie ;
    - pas de réflexion étendue : Haiku 4.5 ne réfléchit pas par défaut et **refuse le paramètre `effort`** (refusé avant l'appel) ; température 0 dans le profil `api-haiku` (option `temperature`, envoyée seulement si donnée : Sonnet 5 la refuse).
 2. **Rien de propre à Anthropic dans la conception.**
-   - La sortie structurée a un équivalent local (grammaire d'ollama ou de llama.cpp, `format` de l'adaptateur `ollama`).
+   - La sortie structurée a un équivalent local (grammaire d'ollama ou de llama.cpp, `format` de l'adaptateur `ollama`). Elle a ses limites : l'API refuse plus de 16 champs de type union ; le schéma de l'extracteur actuel en a 27, réécrits par l'adaptateur `anthropic-api` (chaîne vide pour null). Un petit schéma de sortie par couche évite le problème partout.
    - Le cache de prompt est une optimisation de coût, jamais une hypothèse de qualité.
    - Les *logprobs* ne sont pas fournis par l'API d'Anthropic, alors que les modèles locaux et certains hébergeurs les donnent. Le **score** doit donc avoir une définition qui s'en passe (score déclaré par le modèle, accord entre plusieurs tirages), puis une variante qui les exploite ; comparer les deux est une expérience.
 3. **Mêmes prompts pour tous les adaptateurs**, rangés avec la couche (versionnés) ; seul l'adaptateur change.
@@ -334,6 +334,15 @@ Un appel envoie environ 9 200 caractères, dont **83** pour le passage : règles
 - Environ 34 000 tokens par appel venaient de l'environnement de Claude Code ; ils sont retirés par l'appel isolé (T-LLM-01).
 - La **réflexion** du modèle domine la durée ; l'effort bas a rendu le même résultat deux fois plus vite sur un passage, à confirmer sur un lot entier.
 
+### 11.3 b1 sous Haiku 4.5, substitut d'un petit modèle (X-001)
+
+Extracteur actuel inchangé, `api-haiku` (température 0), une passe, 4 octobre 2026 : précision 0,65, rappel 0,59 ; sur les questions, 0,50 et 0,47 (facultatifs neutres). 12 appels, 21,6 s, 42 374 tokens en entrée (au plus 3 538 par appel, aucun au-delà du budget), 0,051 $. Détail et classement dans [X-001](recherche-ingestion/X-001-b1-haiku-reference.md).
+
+- **L'écart dominant est structurel** : « le conseil des marchands » n'est jamais créé comme entité ([E-003](recherche-ingestion/E-003-conseil-valeur.md)) ; une seule cause, 6 manqués et 2 en trop sur trois passages. Premier test naturel d'une couche C1 « mentions ».
+- **Trois consignes explicites ignorées** (règles 5, 9, 10), dont deux citent le cas fautif mot pour mot (E-002, [E-004](recherche-ingestion/E-004-depuis-la-chute.md), [E-005](recherche-ingestion/E-005-regent-de-brume.md)). Un prompt de 13 règles dépasse ce que le modèle plus petit applique.
+- **E-001 n'est pas reproduit** : Haiku infère moins, y compris à tort.
+- Comparaison avec Sonnet à refaire avec la mesure actuelle (facultatifs neutres) ; stabilité à mesurer.
+
 ## 12. Corpus à venir
 
 Chaque nouveau corpus met un levier à l'épreuve ; chacun demande un gold (l'extraction peut en proposer un brouillon, que l'auteur corrige dans l'Atelier, en signalant le biais).
@@ -416,9 +425,9 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 ## 16. Prochaines étapes
 
 1. **Outillage de mesure** (fait) : facultatifs du gold neutres ; usage par appel (tokens, coût) dans les trois adaptateurs ; budget d'entrée mesuré (`WORLDKIT_LLM_INPUT_BUDGET`) ; température 0 pour `api-haiku`.
-2. **Profil « petit modèle simulé »** pour Haiku 4.5 (budget d'entrée, effort, une tâche par appel) ; estimer le coût d'une mesure de b1 et demander l'accord.
-3. **Mesurer b1 avec l'extracteur actuel sous Haiku** : point de départ de la cible ; ouvrir une fiche par écart qui coûte de la revue.
-4. **Traiter E-001 et E-002** par les remèdes les moins coûteux (vocabulaire du schéma ; alias par annotation de l'auteur) et mesurer.
+2. **Profil « petit modèle simulé »** (fait) : `api-haiku`, température 0, sans réflexion ni effort, budget d'entrée mesuré.
+3. **Mesurer b1 avec l'extracteur actuel sous Haiku** (fait, [X-001](recherche-ingestion/X-001-b1-haiku-reference.md)) : fiches E-003 à E-005 ouvertes, E-001 et E-002 complétées. Reste : stabilité (`repeat=2`) et comparaison juste avec Sonnet.
+4. **Traiter les écarts** par les remèdes les moins coûteux, en commençant par E-003 (le plus coûteux) : indication de schéma, puis annotation de l'auteur, puis C1 ; E-001 et E-005 par un vocabulaire d'attribut ; E-002 par l'annotation (alias) ; mesurer chaque essai.
 5. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis **C1 seule** mesurée contre les `mentions` du gold, avec et sans pré-annotation.
 6. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1.
 7. Ensuite : C2 (résolution en cascade), puis C5 (faits à entités données), chacune avec sa fiche d'expérience.
