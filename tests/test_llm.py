@@ -243,11 +243,23 @@ def test_temperature_is_sent_only_when_the_profile_gives_it():
     client = SimpleNamespace(messages=SimpleNamespace(create=lambda **kw: seen.append(kw) or _api_response()))
     AnthropicApiAdapter("claude-sonnet-5", client=client).complete("s", "p", {})  # Sonnet 5 refuse temperature
     AnthropicApiAdapter("claude-haiku-4-5", client=client, temperature=0.0).complete("s", "p", {})
-    assert "temperature" not in seen[0] and seen[1]["temperature"] == 0.0
+    assert "extra_body" not in seen[0] and seen[1]["extra_body"] == {"temperature": 0.0}  # le SDK 1.x n'a plus ce paramètre
     profile = load_config(None).profile("api-haiku")
     adapter = adapters.make_adapter(profile)
     assert adapter.temperature == 0.0 and adapter.price == {"input": 1.0, "output": 5.0}
     assert profile.signature.endswith(":t0")  # l'échantillonnage entre dans la version de l'extracteur (cache)
+
+
+def test_api_schema_stays_under_the_union_limit_and_restores_nulls():
+    """L'API refuse plus de 16 champs de type union ; le schéma de l'extracteur en a 27 (chaîne ou null)."""
+    from worldkit.periphery.llm.adapters import api_schema, api_value
+    sent = json.dumps(api_schema(OUTPUT_SCHEMA))
+    assert sent.count('"anyOf"') <= 16 and sent.count('"anyOf"') < json.dumps(OUTPUT_SCHEMA).count('"anyOf"')
+    raw = {"changes": [{"op": "set_attribute", "entity": "odon", "type": "", "value": "baron", "values": None}],
+           "claims": [{"text": "t", "claimed": {"op": "add_relation", "from": "odon", "entity": ""}}], "attribution": False}
+    out = api_value(raw, OUTPUT_SCHEMA)
+    assert out["changes"][0]["type"] is None and out["changes"][0]["value"] == "baron"
+    assert out["claims"][0]["claimed"]["entity"] is None and out["claims"][0]["text"] == "t"
 
 
 def test_haiku_refuses_effort_before_any_call():

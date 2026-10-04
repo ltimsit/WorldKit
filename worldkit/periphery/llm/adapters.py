@@ -149,6 +149,47 @@ class ClaudeCodeAdapter:
 # ---------------------------------------------------------------------------
 
 API_KEY_VARIABLES = ("WORLDKIT_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY")
+_NULL = {"type": "null"}
+
+
+def _nullable_scalar(schema: Any) -> dict[str, Any] | None:
+    """La branche scalaire d'un « scalaire ou null » (`anyOf: [{type: string}, {type: null}]`), sinon None."""
+    if isinstance(schema, dict) and isinstance(schema.get("anyOf"), list) and len(schema["anyOf"]) == 2             and _NULL in schema["anyOf"]:
+        other = next(b for b in schema["anyOf"] if b != _NULL)
+        if other.get("type") in ("string", "integer", "number", "boolean"):
+            return other
+    return None
+
+
+def api_schema(schema: Any) -> Any:
+    """Schéma accepté par l'API : au plus 16 champs de type union. Un « chaîne ou null » devient une chaîne, la
+    chaîne vide valant null (`api_value` rétablit null) ; les autres unions (objet ou null) restent."""
+    scalar = _nullable_scalar(schema)
+    if scalar is not None:
+        return dict(scalar)
+    if isinstance(schema, dict):
+        return {k: api_schema(v) for k, v in schema.items()}
+    if isinstance(schema, list):
+        return [api_schema(s) for s in schema]
+    return schema
+
+
+def api_value(value: Any, schema: Any) -> Any:
+    """Réponse lue contre le schéma d'origine : la chaîne vide d'un champ « chaîne ou null » redevient null."""
+    scalar = _nullable_scalar(schema)
+    if scalar is not None:
+        return None if value == "" else value
+    if not isinstance(schema, dict):
+        return value
+    if isinstance(value, dict) and "properties" in schema:
+        return {k: api_value(v, schema["properties"].get(k)) for k, v in value.items()}
+    if isinstance(value, list) and "items" in schema:
+        return [api_value(v, schema["items"]) for v in value]
+    if "anyOf" in schema and value is not None:
+        branch = next((b for b in schema["anyOf"] if b.get("type") == ("object" if isinstance(value, dict) else
+                                                                        "array" if isinstance(value, list) else None)), None)
+        return api_value(value, branch) if branch is not None else value
+    return value
 
 
 def api_key() -> str:
@@ -165,7 +206,8 @@ class AnthropicApiAdapter:
     """SDK officiel, sorties structurées (`output_config.format`) ; prompt système mis en cache.
 
     `temperature` n'est envoyée que si le profil la donne : Haiku 4.5 l'accepte, Sonnet 5 la refuse (400).
-    `effort` est refusé par Haiku 4.5 : l'erreur est levée avant l'appel. `price` (dollars par million de tokens,
+    `effort` est refusé par Haiku 4.5 : l'erreur est levée avant l'appel. Le schéma est réécrit pour la limite
+    de l'API (16 champs de type union au plus, `api_schema`) et la réponse remise dans la forme d'origine. `price` (dollars par million de tokens,
     `{input, output}`) donne le coût de chaque appel."""
 
     model: str
@@ -186,10 +228,11 @@ class AnthropicApiAdapter:
             except ImportError as e:
                 raise LLMError("le paquet « anthropic » n'est pas installé (pip install anthropic)") from e
             client = self.client = anthropic.Anthropic(api_key=api_key())
-        output_config: dict[str, Any] = {"format": {"type": "json_schema", "schema": schema}}
+        output_config: dict[str, Any] = {"format": {"type": "json_schema", "schema": api_schema(schema)}}
         if self.effort:
             output_config["effort"] = self.effort
-        sampling = {"temperature": self.temperature} if self.temperature is not None else {}
+        # Le SDK 1.x n'a plus de paramètre `temperature` (l'API l'accepte encore pour Haiku 4.5) : `extra_body`
+        sampling = {"extra_body": {"temperature": self.temperature}} if self.temperature is not None else {}
         start = time.perf_counter()
         try:
             response = client.messages.create(
@@ -210,7 +253,7 @@ class AnthropicApiAdapter:
         if text is None:
             raise LLMError("API Anthropic : aucune réponse texte")
         try:
-            return json.loads(text)
+            return api_value(json.loads(text), schema)
         except json.JSONDecodeError as e:
             raise LLMError(f"API Anthropic : JSON illisible ({e})") from e
 
