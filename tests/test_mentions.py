@@ -150,3 +150,21 @@ def test_prompt_variant_A_adds_one_rule_with_an_example_outside_the_corpus():
     system, _ = variant.prompt(document_window(B1[0]), context)
     assert system.startswith(plain.system) and "Marianne" in system and "Odon" not in system
     assert plain.version != variant.version  # deux variantes, deux versions (comparables, jamais mélangées)
+
+
+def test_designation_of_a_known_entity_is_never_a_new_entity_E_006():
+    """« baron de Brume » : le seul baron, relié à Brume, est Odon ; « régent de Brume » (titre que personne ne
+    porte) et « royaume de Valmont » (Faction, Valmont est un lieu) restent des doutes, jamais des créations."""
+    context, state = setup()
+    r = Resolver.from_state(context, state)
+    assert r.resolve(Mention("baron de Brume", 0, 1, "Character")).entity == "odon"
+    for text, type_, hint in (("régent de Brume", "Character", "brume"), ("royaume de Valmont", "Faction", "valmont")):
+        m = r.resolve(Mention(text, 0, 1, type_))
+        assert (m.entity, m.rule, m.candidates) == (None, "doubt", (hint,))
+    assert r.resolve(Mention("conseil des marchands", 0, 1, "Faction")).entity == "new:conseil des marchands"
+
+
+def test_creations_proposed_are_counted_with_the_false_ones():
+    context, state = setup()
+    s = evaluate_mentions(MentionFinder(FakeAdapter(), PROFILE), B1, VALMONT / "gold", context, state).summary()["c2"]
+    assert s["false_new"] == ["roi gris"] and s["new_proposed"] == 3  # conseil, taverne, Roi Gris

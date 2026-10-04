@@ -394,7 +394,7 @@ Document entier, une seule question au modèle (« quelles entités sont mention
 
 « Odon » seul et « le baron » manquaient. Trois remèdes, remesurés par rejeu : titres uniques cherchés par C1a (sans modèle, gardé d'office, s'abstient sur un titre partagé) ; variante A, une consigne de plus à C1b (exemple pris hors de Valmont) ; variante B, les mots d'un nom de personne cherchés sans modèle. **A et B font jeu égal sur b1** : 28 mentions du gold sur 28, 27 bien recoupées, gestes simulés de 43 à 35. Non tranché : b1 ne contient ni nom de famille employé seul, ni surnom, ni homonyme de prénom ; les deux restent des options. Détail dans [X-003](recherche-ingestion/X-003-formes-courtes.md).
 
-- **Nouvel écart coûteux** : trois désignations (« baron de Brume », « régent de Brume », « royaume de Valmont ») recoupées comme entités nouvelles, donc trois fausses créations en revue ([E-006](recherche-ingestion/E-006-designations-nouvelles.md)).
+- **Nouvel écart coûteux, résolu ensuite** : trois désignations (« baron de Brume », « régent de Brume », « royaume de Valmont ») recoupées comme entités nouvelles ([E-006](recherche-ingestion/E-006-designations-nouvelles.md)). Règle de C2 déterministe : « <titre> de <nom connu> » se rattache à l'entité seule qui porte le titre et est reliée au nom (« baron de Brume » → Odon), sinon devient un doute, jamais une création. Entités nouvelles proposées 6 → 3, fausses 4 → 1 (le Roi Gris, à l'auteur).
 - **Défaut déterministe corrigé** : une mention rendue avec son article (« le conseil des marchands ») est aussi cherchée sans lui (« au conseil des marchands »).
 - **Un seul corpus** : ces résultats sont des candidats, pas des règles (§12).
 
@@ -490,7 +490,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 2. **Profil « petit modèle simulé »** (fait) : `api-haiku`, température 0, sans réflexion ni effort, budget d'entrée mesuré.
 3. **Mesurer b1 avec l'extracteur actuel sous Haiku** (fait, [X-001](recherche-ingestion/X-001-b1-haiku-reference.md)) : fiches E-003 à E-005 ouvertes, E-001 et E-002 complétées, stabilité mesurée. Reste : comparaison juste avec Sonnet.
 4. **X-002, C1 et C2 sur b1** (fait, [fiche](recherche-ingestion/X-002-c1-c2-fenetre.md)) : 23 mentions sur 28, 22 bien recoupées sur 23 ; E-003 disparaît au niveau des entités. Formes courtes ensuite traitées (fait, [X-003](recherche-ingestion/X-003-formes-courtes.md)) : 28 sur 28 avec A ou B, non tranché.
-5. **E-006** : désignations recoupées comme entités nouvelles ; remède déterministe avec abstention, mesuré par rejeu.
+5. **E-006** (fait) : désignations rattachées ou mises en doute, jamais créées ; fausses créations 4 → 1. Reste à compléter le gold de b1 (vraies mentions non notées, classe G).
 6. **C5, faits entre entités confirmées** : vérifier que les relations du conseil des marchands suivent (E-003).
 7. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
 8. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.

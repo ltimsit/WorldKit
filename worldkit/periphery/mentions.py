@@ -249,6 +249,7 @@ class Resolver:
     entities: tuple[KnownEntity, ...]
     titles: dict[str, list[str]]  # titre normalisé → entités qui le portent aujourd'hui
     schema: Any
+    linked: set[frozenset[str]] = field(default_factory=set)  # paires d'entités reliées par une relation
 
     @classmethod
     def from_state(cls, context: ExtractionContext, state: Any) -> Resolver:
@@ -257,7 +258,25 @@ class Resolver:
             fact = state.facts.get(("attr", e.id, "title")) if state is not None else None
             if fact is not None:
                 titles.setdefault(name_key(str(fact.value)), []).append(e.id)
-        return cls(context.entities, titles, context.schema)
+        linked = {frozenset((f.subject, f.target)) for f in (state.facts.values() if state is not None else ())
+                  if f.kind == "rel"}
+        return cls(context.entities, titles, context.schema, linked)
+
+    def designation(self, key: str) -> tuple[str | None, tuple[str, ...]] | None:
+        """E-006 : « <mot> de <nom connu> » (« baron de Brume », « royaume de Valmont »). Rattachée à l'entité qui
+        porte ce titre et est reliée à l'entité nommée, si elle est seule (« baron de Brume » : Odon, baron, gouverne
+        Brume) ; sinon un doute, avec l'entité nommée pour indice, jamais une entité nouvelle. None : autre forme."""
+        found = re.match(r"^(.+?)\s+(?:de|du|des|d['’])\s*(.+)$", key)
+        if found is None:
+            return None
+        head, tail = found.group(1), found.group(2)
+        named = [e.id for e in self.entities if tail in {name_key(n) for n in e.names}]
+        if len(named) != 1:
+            return None
+        holders = [h for h in self.titles.get(head, []) if frozenset((h, named[0])) in self.linked]
+        if len(holders) == 1:
+            return holders[0], ()
+        return None, tuple(sorted(set(holders) | set(named)))
 
     def resolve(self, m: Mention) -> Mention:
         if m.entity is not None:
@@ -286,6 +305,14 @@ class Resolver:
                                   | {e.id for e in part}))
         if len(candidates) > 1:
             m.rule, m.candidates = "ambiguous", candidates
+            return m
+        designation = self.designation(key) if not candidates else None
+        if designation is not None:
+            entity, hints = designation
+            if entity is not None:
+                m.entity, m.rule = entity, "designation"
+            else:
+                m.rule, m.candidates = "doubt", hints  # désignation d'une entité connue : à préciser par l'auteur
             return m
         m.entity, m.rule = f"new:{key}", "new"
         return m
@@ -355,13 +382,21 @@ class MentionReport:
                 rules[m.rule or "?"] = rules.get(m.rule or "?", 0) + 1
         wrong = tp - ok
         gestures = {"keep": ok, "remove": fp, "change": wrong, "add": fn}
+        # Entités nouvelles proposées (une par nom normalisé dans le lot) : justes si le gold attend une entité
+        # nouvelle à cet endroit ; fausses sinon, chacune une création à refuser en revue (E-006).
+        proposed = {m.entity for p in self.passages for m in p.found if m.entity and m.entity.startswith("new:")}
+        justified = {m.entity for p in self.passages for s, m in p.matched
+                     if m.entity in proposed and p.gold[s].startswith(("new:", "pending:"))}
+        doubts = sum(1 for p in self.passages for m in p.found if m.rule in ("doubt", "ambiguous"))
         return {
             "finder": self.finder, "passages": len(self.passages), "gold_mentions": gold,
             "c1": {"recall": round(tp / gold, 3) if gold else 0.0,
                    "precision": round(tp / (tp + fp), 3) if tp + fp else 0.0, "tp": tp, "fp": fp, "fn": fn,
                    "found_without_model": known_tp, "recall_without_model": round(known_tp / gold, 3) if gold else 0.0,
                    "unplaced": len(self.unplaced)},
-            "c2": {"resolved_ok": ok, "of": tp, "accuracy": round(ok / tp, 3) if tp else 0.0, "rules": rules},
+            "c2": {"resolved_ok": ok, "of": tp, "accuracy": round(ok / tp, 3) if tp else 0.0, "rules": rules,
+                   "new_proposed": len(proposed), "new_false": len(proposed - justified),
+                   "false_new": sorted(e.split(":", 1)[1] for e in proposed - justified), "doubts": doubts},
             "gestures": {**gestures, "weighted": sum(GESTURES[k] * v for k, v in gestures.items())},
             **({"stability": self.stability} if self.stability else {}),
             **({"usage": summarize(self.calls, input_budget())} if self.calls is not None else {}),

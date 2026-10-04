@@ -26,7 +26,7 @@ Contrainte permanente : on vise un **petit modèle**. Autre limite permanente : 
 | [E-003](E-003-conseil-valeur.md) | « le conseil des marchands » pris pour une valeur, jamais créé | N | ouverte |
 | [E-004](E-004-depuis-la-chute.md) | « depuis la Chute » donne `odon involved_in la-chute` | H | ouverte |
 | [E-005](E-005-regent-de-brume.md) | « régent de Brume » au lieu de « régent » | S | ouverte |
-| [E-006](E-006-designations-nouvelles.md) | des désignations proposées comme entités nouvelles | N | ouverte |
+| [E-006](E-006-designations-nouvelles.md) | des désignations proposées comme entités nouvelles | N | résolue sur b1 |
 
 | Expérience | Titre | Statut |
 |---|---|---|

@@ -44,5 +44,6 @@ Seule erreur de recoupement dans tous les cas : le Roi Gris (E-002, à l'auteur)
 ## Suites
 
 - Garder A et B comme options (`--prompt-short-forms`, `--short-forms`), sans défaut choisi, jusqu'à un corpus qui les départage : noms de famille employés seuls, surnoms, fonctions, homonymes de prénom.
-- Traiter [E-006](E-006-designations-nouvelles.md) : trois désignations proposées comme entités nouvelles (fausses créations en revue).
+- [E-006](E-006-designations-nouvelles.md) traité ensuite (règle déterministe avec abstention) : entités nouvelles proposées 6 → 3, fausses 4 → 1.
+- Le gold de b1 ne note pas certaines vraies mentions (« le baron » en notes p1 et p3, « la Chute » en p7, « baron de Brume ») : à compléter (classe G) pour que les « en trop » ne mesurent plus que des erreurs.
 - Passer ensuite à C5 (faits entre entités confirmées), dont E-003 attend la vérification.
