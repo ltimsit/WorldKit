@@ -1,6 +1,6 @@
 # E-004 — « depuis la Chute » donne `odon involved_in la-chute`
 
-- **Statut** : rouverte (non reproduit sur Valmont par C5, revient sur Corbelle)
+- **Statut** : résolue sur Corbelle par le critique (X-009) ; non reproduit sur Valmont
 - **Classe** : H (non dit) ; consigne explicite ignorée
 - **Où** : b1, `notes-baron` v1, passage 1 ; extraction monolithique (future couche C5)
 - **Observé avec** : Claude Haiku 4.5, `api-haiku`, prompt version 3, 4 octobre 2026 ; 2 passes sur 2, identiques ([X-001](X-001-b1-haiku-reference.md)). Non observé sous Sonnet 5.
@@ -34,6 +34,7 @@ La règle 10 du prompt cite ce cas mot pour mot : « pas de relation qui n'est p
 
 - **4 octobre 2026, [X-006](X-006-corbelle-chaine.md)** : sur Corbelle, « faisait passer les gens avant la grande crue » donne `jehan-leblond involved_in grande-crue` (C5, entités du gold et de la chaîne) : la consigne tient sur un texte propre, pas sur un texte familier.
 - **4 octobre 2026, [X-008](X-008-consignes-et-question.md)** : consigne stricte (« avant l'incendie » n'est ni un fait ni une relation) : sans effet, `involved_in grande-crue` reste. Candidat suivant : le critique C6.
+- **4 octobre 2026, [X-009](X-009-critique.md)** : le critique C6 met de côté `jehan-leblond involved_in grande-crue` (« repère temporel, pas une implication »).
 
 ## Conclusion
 

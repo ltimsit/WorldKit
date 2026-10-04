@@ -458,6 +458,20 @@ Grille sur les deux corpus, ~33 appels, ~0,044 $. Détail dans [X-008](recherche
 - **Mesure** : une relation hors schéma se compare par sa paire d'entités, pas par l'identifiant proposé (l'auteur le fixera, §6.6).
 - Restent en trop sur Corbelle : relations devinées, repère de temps, jugement vague, et une **rumeur** prise pour un fait (la couche C4, énonciation, n'existe pas encore).
 
+### 11.11 Le critique (X-009)
+
+Une question étroite par fait qui pose une question (pas les supports) : « le passage affirme-t-il ce fait, tel quel et actuellement ? » ; trois verdicts, seul « non soutenu » met de côté (choix 2). 52 appels en deux versions, ~0,042 $. Détail dans [X-009](recherche-ingestion/X-009-critique.md).
+
+| Faits, entités du gold | Corbelle | Corbelle, questions | Valmont |
+|---|---|---|---|
+| sans critique | 0,44 / 0,92 | 0,43 / 1,0 | 0,82 / 0,82 |
+| critique v2 | **0,53 / 0,83** | **0,63 / 0,83** | 0,82 / 0,82 |
+
+- Il met de côté, à juste titre, les relations devinées (E-010), le repère de temps (E-004) et la rumeur ; il ne touche à rien sur Valmont.
+- v2 corrige deux faux rejets de v1 en lui donnant **des informations d'état** (autres noms des entités ; « un secret reste un fait, la notoriété ne te regarde pas »), pas des règles de plus.
+- Reste un faux rejet, trop littéral (« maître de la guilde » n'est pas « membre ») : [E-013](recherche-ingestion/E-013-critique-litteral.md).
+- **Une leçon d'architecture** : écrire des faits et s'abstenir en même temps est trop pour un petit modèle (la consigne stricte échouait, X-008) ; juger un fait contre son passage est une question étroite qu'il tient.
+
 ## 12. Corpus
 
 Les axes de test sont compilés dans [axes-corpus.md](recherche-ingestion/axes-corpus.md) : une quarantaine d'axes identifiés (`AX-S1` fautes sur un nom, `AX-E1` note de travail de l'auteur, `AX-R2` homonymes…), regroupés en huit familles (surface, structure, énonciation, référence, temps, jeu, échelle, plusieurs documents), avec l'attendu et la couche éprouvée. Les corpus déclarent les axes qu'ils couvrent ; les fiches d'écart citent l'axe en cause.
@@ -513,6 +527,7 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 30. **Trois sortes de corpus** (§12) : dérivé (script), ciblé (Claude, pour construire les couches, jamais pour choisir le modèle), auteur (cas réels, plus tard) ; les axes sont compilés dans `axes-corpus.md`.
 31. **Recoupement par score** (§11.9) : pliage pour comparer, indices généraux (RapidFuzz), trois issues à deux seuils, regroupement des nouvelles indépendant de l'ordre ; pas de nettoyage destructif de la source : les corrections sont des annotations proposées à l'auteur.
 32. **Question ciblée par paire et avec relations connues** (§11.10) : déclenchée par une paire d'entités non reliées dans le passage, avec les relations du schéma comme préférence ; la consigne stricte de C5 est écartée.
+33. **Le critique C6 est mis en place** (§11.11) : un fait qui pose une question jugé contre son passage, mis de côté s'il n'est pas soutenu ; il reçoit les autres noms des entités et sait que la notoriété ne le regarde pas.
 
 ## 14. Questions ouvertes
 
@@ -565,7 +580,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 6. **C5, faits entre entités confirmées** (fait, [X-004](recherche-ingestion/X-004-c5-faits.md)) : E-003 résolu de bout en bout, E-004 non reproduit ; E-007 résolu par la question ciblée ([X-005](recherche-ingestion/X-005-question-ciblee.md)) ; reste E-005 (vocabulaire d'attribut, sans modèle).
 7. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
 8. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.
-9. **Corbelle** (fait, mesuré, [X-006](recherche-ingestion/X-006-corbelle-chaine.md)) : le déterministe est durci ([X-007](recherche-ingestion/X-007-recoupement-par-score.md) : recoupement par score, texte barré, contrôles de C5) ; chaîne remesurée ; question ciblée améliorée ([X-008](recherche-ingestion/X-008-consignes-et-question.md)) ; restent les relations devinées et le repère de temps (E-010, E-004 : essayer le critique C6), la rumeur prise pour un fait (couche C4), le silence des notes de travail (question 10). Ensuite les corpus suivants du plan (§12).
+9. **Corbelle** (fait, mesuré, [X-006](recherche-ingestion/X-006-corbelle-chaine.md)) : le déterministe est durci ([X-007](recherche-ingestion/X-007-recoupement-par-score.md) : recoupement par score, texte barré, contrôles de C5) ; chaîne remesurée ; question ciblée améliorée ([X-008](recherche-ingestion/X-008-consignes-et-question.md)) ; relations devinées, repère de temps et rumeur mis de côté par le critique ([X-009](recherche-ingestion/X-009-critique.md)) ; restent le critique trop littéral (E-013), la couche d'énonciation C4 (rumeurs repérées sans modèle, en amont), le silence des notes de travail (question 10). Ensuite les corpus suivants du plan (§12).
 10. Les écarts restants de l'extracteur actuel (E-001 et E-005 par un vocabulaire d'attribut, E-002 par l'annotation), par les remèdes les moins coûteux.
 
 ## 17. Références

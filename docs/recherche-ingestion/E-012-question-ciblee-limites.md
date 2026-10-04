@@ -21,3 +21,4 @@
 ## Essais
 
 - **4 octobre 2026, [X-008](X-008-consignes-et-question.md)** : relations connues données comme préférence et signal par paire d'entités non reliées, à l'échelle du passage. `mother_of` devient `parent_of` ; « elle deteste les bateliers » est trouvé ; rappel des faits de Corbelle 0,50 → 0,92, sans régression sur les questions de Valmont. Reste : la question ignore l'attribution (`vouivre haunts corbelle` tiré d'une rumeur) et propose des jugements vagues (`conspires_with`).
+- **4 octobre 2026, [X-009](X-009-critique.md)** : la rumeur `vouivre haunts corbelle` est mise de côté par le critique (« ouï-dire ») ; `conspires_with` reste (incertain).

@@ -143,3 +143,23 @@ def test_probe_can_be_given_known_relations_as_a_preference_X_008():
                                                                       context.schema)
     assert "Relations connues" not in plain[1] and "sibling_of" in listed[1] and "haunts" not in listed[1]
     assert listed[0].startswith(plain[0])
+
+
+def test_critic_judges_only_what_raises_a_question_and_sets_aside_without_deciding_X_009():
+    """Choix 2 : un fait non soutenu est mis de côté (visible) ; un support n'est jamais jugé."""
+    from worldkit.periphery.facts import Critic
+
+    class Judge(FakeAdapter):
+        def complete(self, system, prompt, schema):
+            self.calls.append((system, prompt, schema))
+            return {"verdict": "not_supported" if "membre de" in prompt else "supported", "reason": "test"}
+    context, state = setup()
+    entities = {w.doc_id: gold_entities(w, VALMONT / "gold", context) for w in windows()}
+    critic_adapter = Judge()
+    report = evaluate_facts(FactFinder(FakeAdapter(), PROFILE), windows(), entities, VALMONT / "gold", context, state,
+                            "gold", critic=Critic(critic_adapter, PROFILE))
+    assert report.summary()["critic"]["not_supported"] == 1  # member_of mis de côté
+    p4 = next(p for p in report.passages if p.doc == "notes-baron" and p.index == 4)
+    assert not any(dict(k).get("relation") == "member_of" for k in p4.found)  # mis de côté : absent des faits
+    assert all("baron" not in p for _, p, _ in critic_adapter.calls)  # « odon title baron » est un support : pas jugé
+    assert "Un fait secret" in critic_adapter.calls[0][0]

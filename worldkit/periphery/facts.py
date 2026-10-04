@@ -78,6 +78,7 @@ class Fact:
     draft: dict[str, Any]
     evidence: str
     passage: int | None
+    phrase: str = ""  # tournure française d'une relation proposée par la question ciblée
 
 
 def _is_a(schema: Any, type_name: str, accepted: list[str]) -> bool:
@@ -320,6 +321,8 @@ class FactReport:
     prompts: dict[str, int] = field(default_factory=dict)  # document → nombre d'entités données
     silent: list[Any] = field(default_factory=list)          # phrases muettes et réponses de la question ciblée
     rejected: list[Any] = field(default_factory=list)        # faits écartés par les contrôles (E-011)
+    judged: list[Any] = field(default_factory=list)          # faits jugés par le critique, avec son verdict (X-009)
+    critic_calls: list[Any] | None = None
     probe_calls: list[Any] | None = None
 
     def summary(self) -> dict[str, Any]:
@@ -338,8 +341,11 @@ class FactReport:
             "unplaced": len(self.unplaced),
             "silent_sentences": len(self.silent),
             "rejected": len(self.rejected),
+            **({"critic": {v: sum(1 for _, j in self.judged if j.get("verdict") == v)
+                           for v in ("supported", "unsure", "not_supported")}} if self.judged else {}),
             **({"usage": summarize(self.calls, input_budget())} if self.calls is not None else {}),
             **({"probe_usage": summarize(self.probe_calls, input_budget())} if self.probe_calls is not None else {}),
+            **({"critic_usage": summarize(self.critic_calls, input_budget())} if self.critic_calls is not None else {}),
         }
 
 
@@ -457,16 +463,101 @@ class RelationProbe:
         system, user = self.prompt(silent, entities, schema)
         silent.answer = self.adapter.complete(system, user, probe_schema())["relations"]
         return [Fact({"op": "add_relation", "from": r["subject"].strip(), "relation": r["relation"].strip(),
-                      "to": r["object"].strip()}, silent.sentence, silent.passage)
+                      "to": r["object"].strip()}, silent.sentence, silent.passage, r.get("phrase", ""))
                 for r in silent.answer if r["subject"].strip() in silent.entities and r["object"].strip() in silent.entities]
+
+
+# ---------------------------------------------------------------------------
+# Critique (C6) : un fait qui pose une question, jugé contre son passage (X-009, E-010, E-004)
+# ---------------------------------------------------------------------------
+
+CRITIC_PROMPT_VERSION = 2
+
+# Catégories générales tirées des axes de test (axes-corpus.md), exemples pris hors des corpus.
+CRITIC_SYSTEM = """Tu vérifies un fait proposé à partir de notes de jeu de rôle (français). Tu ne cherches pas d'autres faits :
+tu dis seulement si le passage affirme celui-ci.
+
+Verdict :
+- supported : le passage affirme ce fait, explicitement, comme un état actuel du monde.
+- not_supported : le fait n'est pas affirmé tel quel. En particulier : déduit d'une proximité ou d'une description
+  (« au bord de », « près de », « traverse ») ; tiré d'un repère de temps (« avant la guerre », « depuis l'incendie ») ;
+  passé révolu (« autrefois ») ; rumeur ou ouï-dire (« on dit que », « paraît que ») ; hypothèse ou idée (« et si ») ;
+  opinion ou jugement vague (« pas fiable », « louche »).
+- unsure : le passage le laisse entendre sans l'affirmer.
+Un fait secret, caché aux joueurs ou réservé à plus tard reste un fait du monde : sa notoriété est une autre
+question, qui ne te concerne pas. Une entité peut être désignée par un de ses autres noms (donnés entre crochets).
+reason : quelques mots.
+"""
+
+
+def critic_schema() -> dict[str, Any]:
+    return {"type": "object", "additionalProperties": False, "required": ["verdict", "reason"],
+            "properties": {"verdict": {"type": "string", "enum": ["supported", "not_supported", "unsure"]},
+                           "reason": {"type": "string"}}}
+
+
+@dataclass
+class Critic:
+    """C6 : une question étroite par fait qui pose une question (pas les supports) ; il **met de côté** ce qu'il juge
+    non soutenu, sans décider (choix 2 du chantier : l'auteur reprend un fait mis de côté en un geste)."""
+
+    adapter: Any
+    profile: Any
+
+    @property
+    def version(self) -> str:
+        return f"critic-{CRITIC_PROMPT_VERSION}:{self.profile.signature}"
+
+    @property
+    def meter(self) -> Any:
+        return getattr(self.adapter, "meter", None)
+
+    def prompt(self, fact: Fact, passage: str, entities: list[Confirmed], schema: Any,
+               other_names: dict[str, tuple[str, ...]] | None = None) -> tuple[str, str]:
+        known = {e.id: e for e in entities}
+
+        def name(eid: str) -> str:
+            if eid not in known:
+                return eid
+            others = [n for n in (other_names or {}).get(eid, ()) if n != known[eid].name]
+            return f"{known[eid].name} ({known[eid].type})" + (f" [{', '.join(others)}]" if others else "")
+
+        d = fact.draft
+        if d["op"] == "add_relation":
+            r = schema.relations.get(d["relation"])
+            label = (r.labels or {}).get("fr", d["relation"]) if r is not None else (fact.phrase or d["relation"])
+            proposed = f"{name(d['from'])} — {label} — {name(d['to'])}"
+        else:
+            attr = d.get("attribute", "")
+            definition = schema.attributes_of(known[d["entity"]].type).get(attr) \
+                if d.get("entity") in known and known[d["entity"]].type in schema.types else None
+            label = (definition.labels or {}).get("fr", attr) if definition is not None else attr
+            proposed = f"{name(d['entity'])} — {label} : {d.get('value')}"
+        return CRITIC_SYSTEM, f"Passage :\n{passage}\n\nFait proposé :\n{proposed}"
+
+    def judge(self, fact: Fact, passage: str, entities: list[Confirmed], schema: Any,
+              other_names: dict[str, tuple[str, ...]] | None = None) -> dict[str, Any]:
+        system, user = self.prompt(fact, passage, entities, schema, other_names)
+        return self.adapter.complete(system, user, critic_schema())
 
 
 def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str, list[Confirmed]], gold_dir: Path,
                    context: ExtractionContext, state: Any, label: str, probe: RelationProbe | None = None,
-                   forms: dict[str, dict[str, set[str]]] | None = None) -> FactReport:
+                   forms: dict[str, dict[str, set[str]]] | None = None, critic: Critic | None = None) -> FactReport:
     """C5 sur chaque fenêtre, à entités données, comparé aux changements du gold qui relèvent de C5. Avec `probe`,
-    chaque phrase muette (deux entités confirmées, aucun fait) reçoit ensuite une question ciblée (E-007)."""
+    chaque phrase muette (deux entités confirmées, aucun fait) reçoit ensuite une question ciblée (E-007). Avec
+    `critic`, chaque fait qui pose une question (pas un support) est jugé contre son passage ; un fait non soutenu est
+    mis de côté (X-009)."""
     oracle = OracleExtractor(Path(gold_dir))
+    # Noms des entités nouvelles à l'échelle du lot : le conseil des marchands est nommé dans notes-baron et cité
+    # dans lieux-de-valmont ; gold et faits trouvés doivent le désigner par le même nom normalisé (T-ING-07).
+    gold_names = _names([d for w in windows for text in w.passage_texts.values()
+                         for d in oracle.extract(w.doc_id, text).drafts])
+    names = {**gold_names, **{e.id.split(":", 1)[1]: name_key(e.name)
+                              for es in entities.values() for e in es if e.id.startswith("new:")}}
+    critic_meter = critic.meter if critic is not None else None
+    first_critic = len(critic_meter.calls) if critic_meter is not None else 0
+    judged: list[tuple[Fact, dict[str, Any]]] = []
     meter = finder.meter
     first_call = len(meter.calls) if meter is not None else 0
     probe_meter = probe.meter if probe is not None else None
@@ -476,29 +567,39 @@ def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str
     def run(window: Window) -> list[Fact]:
         with meter.label(window.doc_id) if meter is not None else nullcontext():
             facts = finder.find(window, entities.get(window.doc_id, []), context.schema, state)
-        if probe is None:
+        if probe is not None:
+            for s in silent_sentences(window, facts, (forms or {}).get(window.doc_id, {}), probe.by_pair):
+                silents.append(s)
+                with probe_meter.label(f"{window.doc_id} p{s.passage}") if probe_meter is not None else nullcontext():
+                    facts += check_facts(probe.ask(s, entities.get(window.doc_id, []), context.schema),
+                                         entities.get(window.doc_id, []), context.schema, state, finder.rejected)
+        if critic is None:
             return facts
-        for s in silent_sentences(window, facts, (forms or {}).get(window.doc_id, {}), probe.by_pair):
-            silents.append(s)
-            with probe_meter.label(f"{window.doc_id} p{s.passage}") if probe_meter is not None else nullcontext():
-                facts += check_facts(probe.ask(s, entities.get(window.doc_id, []), context.schema),
-                                     entities.get(window.doc_id, []), context.schema, state, finder.rejected)
-        return facts
+        kept = []
+        for f in facts:
+            if f.passage is None or is_support(key(f.draft, names), state):
+                kept.append(f)  # le critique ne juge que ce qui pose une question
+                continue
+            with critic_meter.label(f"{window.doc_id} p{f.passage}") if critic_meter is not None else nullcontext():
+                verdict = critic.judge(f, window.passage_texts[f.passage], entities.get(window.doc_id, []),
+                                       context.schema, {e.id: e.names for e in context.entities})
+            judged.append((f, verdict))
+            if verdict.get("verdict") != "not_supported":
+                kept.append(f)
+        return kept
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         found = list(pool.map(run, windows))
-    report = FactReport(finder.version + (f"+{probe.version}" if probe is not None else ""), label, [],
+    report = FactReport(finder.version + (f"+{probe.version}" if probe is not None else "")
+                        + (f"+{critic.version}" if critic is not None else ""), label, [],
                         prompts={w.doc_id: len(entities.get(w.doc_id, [])) for w in windows})
+    report.judged = judged
+    if critic_meter is not None:
+        report.critic_calls = critic_meter.calls[first_critic:]
     report.silent = silents
     report.rejected = list(finder.rejected)
     if probe_meter is not None:
         report.probe_calls = probe_meter.calls[first_probe:]
-    # Noms des entités nouvelles à l'échelle du lot : le conseil des marchands est nommé dans notes-baron et cité
-    # dans lieux-de-valmont ; gold et faits trouvés doivent le désigner par le même nom normalisé (T-ING-07).
-    gold_names = _names([d for w in windows for text in w.passage_texts.values()
-                         for d in oracle.extract(w.doc_id, text).drafts])
-    names = {**gold_names, **{e.id.split(":", 1)[1]: name_key(e.name)
-                              for es in entities.values() for e in es if e.id.startswith("new:")}}
     for window, facts in zip(windows, found):
         expected_by_passage = {i: oracle.extract(window.doc_id, text) for i, text in window.passage_texts.items()}
         report.unplaced += [f for f in facts if f.passage is None]

@@ -283,11 +283,17 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
     if args.probe:
         probe = RelationProbe(ReplayAdapter(args.probe_replay) if args.probe_replay else make_adapter(profile), profile,
                               args.probe_relations, args.probe_pairs)
-    report = evaluate_facts(finder, windows, entities, Path(args.oracle), context, state, args.entities, probe, forms)
+    critic = None
+    if args.critic:
+        from worldkit.periphery.facts import Critic
+        critic = Critic(ReplayAdapter(args.critic_replay) if args.critic_replay else make_adapter(profile), profile)
+    report = evaluate_facts(finder, windows, entities, Path(args.oracle), context, state, args.entities, probe, forms,
+                            critic)
     summary = report.summary()
     print(f"couche : {summary['finder']} ; entités : {args.entities} "
           f"({', '.join(f'{d} {n}' for d, n in report.prompts.items())})")
-    for k in ("facts", "questions", "optional", "unplaced", "silent_sentences", "rejected", "usage", "probe_usage"):
+    for k in ("facts", "questions", "optional", "unplaced", "silent_sentences", "rejected", "critic", "usage",
+              "probe_usage", "critic_usage"):
         if k in summary:
             print(f"  {k} : {summary[k]}")
     for s in report.silent:
@@ -306,6 +312,9 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
         print(f"  preuve introuvable : {f.draft} ({f.evidence!r})")
     for f, reason in report.rejected:
         print(f"  écarté ({reason}) : {f.draft}")
+    for f, verdict in report.judged:
+        if verdict.get("verdict") != "supported":
+            print(f"  critique {verdict.get('verdict')} : {f.draft} ({verdict.get('reason')})")
     if args.out:
         Path(args.out).write_text(_json.dumps({"summary": summary, "entities": {d: [e.__dict__ for e in es]
                                                                                   for d, es in entities.items()},
@@ -938,6 +947,9 @@ def build_parser() -> argparse.ArgumentParser:
     evf.add_argument("--probe", action="store_true",
                      help="question ciblée sur les phrases muettes (deux entités confirmées, aucun fait) : E-007")
     evf.add_argument("--probe-replay", default=None, help="rejoue les réponses tracées de la question ciblée")
+    evf.add_argument("--critic", action="store_true",
+                     help="critique C6 : chaque fait qui pose une question jugé contre son passage (X-009)")
+    evf.add_argument("--critic-replay", default=None, help="rejoue les réponses tracées du critique")
     evf.add_argument("--strict", action="store_true", help="C5, variante stricte : proximité et repères de temps (X-008)")
     evf.add_argument("--probe-relations", action="store_true",
                      help="question ciblée : relations connues données comme préférence (X-008)")

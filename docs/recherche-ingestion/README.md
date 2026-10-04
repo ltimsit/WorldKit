@@ -26,15 +26,16 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [E-001](E-001-cite-portuaire.md) | « la cité portuaire » prise pour une catégorie | S | ouverte |
 | [E-002](E-002-roi-gris.md) | « le Roi Gris » créé au lieu d'un alias d'Aldren II | R, T | ouverte |
 | [E-003](E-003-conseil-valeur.md) | « le conseil des marchands » pris pour une valeur, jamais créé | N | résolue sur b1 (C1, C2, C5) |
-| [E-004](E-004-depuis-la-chute.md) | « depuis la Chute » donne `odon involved_in la-chute` | H | non reproduit par C5 sur Valmont ; **revient** sur Corbelle |
+| [E-004](E-004-depuis-la-chute.md) | « depuis la Chute » donne `odon involved_in la-chute` | H | résolue sur Corbelle par le critique |
 | [E-005](E-005-regent-de-brume.md) | « régent de Brume » au lieu de « régent » | S | ouverte |
 | [E-006](E-006-designations-nouvelles.md) | des désignations proposées comme entités nouvelles | N | résolue sur b1 |
 | [E-007](E-007-hors-schema-omis.md) | une relation hors schéma est omise (« vassal du roi Mervin ») | — | résolue sur b1 |
 | [E-008](E-008-variantes-de-surface.md) | une variante de surface d'un nom devient une entité nouvelle (Corbelle) | R | en cours (8 → 3) |
 | [E-009](E-009-texte-barre.md) | un texte barré est lu comme une mention | — | résolue sur Corbelle |
-| [E-010](E-010-inferences-spatiales.md) | relations inférées d'une proximité (« sur », « près de ») | I | ouverte |
+| [E-010](E-010-inferences-spatiales.md) | relations inférées d'une proximité (« sur », « près de ») | I | résolue sur Corbelle par le critique |
 | [E-011](E-011-controles-c5.md) | faits de C5 qu'un contrôle sans modèle écarterait | S | résolue sur Corbelle |
 | [E-012](E-012-question-ciblee-limites.md) | limites de la question ciblée : synonymes, phrases non muettes | — | en grande partie résolue |
+| [E-013](E-013-critique-litteral.md) | le critique trop littéral met de côté un fait juste | — | ouverte |
 
 | Expérience | Titre | Statut |
 |---|---|---|
@@ -46,6 +47,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [X-006](X-006-corbelle-chaine.md) | La chaîne sur des notes brouillon (Corbelle) | conclue (diagnostic) |
 | [X-007](X-007-recoupement-par-score.md) | Recoupement par score, texte barré, contrôles de C5 (sans modèle) | conclue (première itération) |
 | [X-008](X-008-consignes-et-question.md) | Consigne stricte pour C5 ; question ciblée avec relations connues et signal par paire | conclue |
+| [X-009](X-009-critique.md) | Le critique (C6) : un fait jugé contre son passage | conclue (deux versions) |
 
 Statuts : **ouverte** (observée, non traitée), **en cours** (remède essayé), **résolue** (remède mesuré, sans régression), **acceptée** (on vit avec, avec la raison), **transformée** (devenue une expérience ou une question du chantier).
 
