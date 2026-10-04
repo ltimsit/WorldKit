@@ -1,0 +1,34 @@
+# Gold de Corbelle (voir ../../README.md et l'en-tête de c1-brouillon-corbelle.yaml).
+document: la-sorgue
+version: 1
+batch: c1
+axes: { mode: source, nature: diegetic, voice: author, visibility: unqualified }
+
+passages:
+  - index: 1
+    starts_with: "la sorgue traverse corbelle"
+    test_axes: [AX-S6, AX-S4, AX-E7]
+    outcome: attribution
+    mentions: { "la sorgue": la-sorgue, "corbelle": corbelle, "la vouivre": vouivre }
+    changes: []
+    must_not:
+      - { from: vouivre, note: "« les vieux disent que » : rumeur, aucun fait (R-DEC-03)" }
+    note: "Une seule phrase sans ponctuation (AX-S6). « traverse » : aucune relation du schéma."
+
+  - index: 2
+    starts_with: "y a une écluse au sud"
+    test_axes: [AX-R5, AX-R6, AX-S7]
+    mentions: { "le vieux de l'écluse": "new:vieux-ecluse" }
+    changes:
+      - { op: create_entity, entity: "new:vieux-ecluse", type: Character, optional: true }
+      - { op: set_attribute, entity: "new:vieux-ecluse", attribute: name, value: "le vieux de l'écluse", optional: true }
+    note: "Désigné par une description seule (AX-R5) ; « un vieux bonhomme » est anonyme (AX-R6). La création est facultative : l'auteur décide."
+
+  - index: 3
+    starts_with: "Secret (les joueurs le savent pas)"
+    test_axes: [AX-E8, AX-C3, AX-R1, AX-E1]
+    mentions: { "mère agathe": agathe, "Ostrel": "new:bertrand-ostrel" }
+    changes:
+      - { op: add_relation, from: agathe, relation: parent_of, to: "new:bertrand-ostrel" }
+      - { op: set_visibility, target: "agathe parent_of new:bertrand-ostrel", value: secret }
+    note: "« mère agathe c la mère d'Ostrel » : titre puis lien de parenté. Ostrel est créé dans un autre document du lot (AX-C3). « avant l'acte 3 » : note de travail."

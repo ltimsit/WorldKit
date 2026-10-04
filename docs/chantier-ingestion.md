@@ -424,21 +424,24 @@ Document entier, entités confirmées données, schéma réduit aux types prése
 
 Signal sans modèle (deux entités confirmées, aucun fait) : deux phrases sur b1. Question étroite sans liste de relations, 2 appels, 0,0027 $. « Odon est le vassal du roi Mervin » donne `odon vassal_of mervin` (« est le vassal de ») ; la phrase du Roi Gris (« régnait autrefois ») ne donne rien, comme il faut. Rappel des faits 0,77 → 0,82, questions 0,70 → 0,80. E-007 résolu sur b1. Détail dans [X-005](recherche-ingestion/X-005-question-ciblee.md).
 
-## 12. Corpus à venir
+## 12. Corpus
 
-Chaque nouveau corpus met un levier à l'épreuve ; chacun demande un gold (l'extraction peut en proposer un brouillon, que l'auteur corrige dans l'Atelier, en signalant le biais).
+Les axes de test sont compilés dans [axes-corpus.md](recherche-ingestion/axes-corpus.md) : une quarantaine d'axes identifiés (`AX-S1` fautes sur un nom, `AX-E1` note de travail de l'auteur, `AX-R2` homonymes…), regroupés en huit familles (surface, structure, énonciation, référence, temps, jeu, échelle, plusieurs documents), avec l'attendu et la couche éprouvée. Les corpus déclarent les axes qu'ils couvrent ; les fiches d'écart citent l'axe en cause.
 
-| Axe de variation | Levier testé |
-|---|---|
-| Notes télégraphiques ou prose longue (chronique de 20 pages) | contexte, coréférence |
-| Monde persistant de 300 entités ou plus, homonymes, épithètes | résolution en cascade |
-| Blocs de caractéristiques, tableaux, supplément PDF | parsing, règles |
-| Univers sans schéma, autre genre (SF, contemporain, horreur) | ontologiste, généricité du prompt |
-| Beaucoup de secrets, de rumeurs, de documents *in_world* | couche énonciation |
-| Notes réelles de l'auteur (ratures, « à faire », hors-sujet) | pré-filtrage, précision |
-| Français et anglais mêlés | valeurs, alias |
+**Trois sortes de corpus** (choix 30) :
 
-Le second jet de Valmont, écrit par l'auteur, reste attendu (T-TST-01).
+| Sorte | Qui l'écrit | Sert à |
+|---|---|---|
+| dérivé | un script, à partir d'un corpus existant | robustesse axe par axe, gold réutilisé |
+| ciblé | Claude, petit, quelques axes à la fois | construire et éprouver les couches ; **pas** choisir le modèle (T-TST-01 : optimiste, même famille que le modèle testé) |
+| auteur | l'auteur | la mesure qui compte, sur des cas réels, une fois le modèle établi |
+
+**Ordre retenu** : d'abord des corpus ciblés et dérivés, pour construire un modèle solide ; ensuite les notes réelles de l'auteur. Plan et état des corpus : [axes-corpus.md](recherche-ingestion/axes-corpus.md), « Plan des corpus ».
+
+- **Corbelle** (`corpus/corbelle-v1/`, ciblé, fait) : notes brouillon d'une petite ville, 3 documents, 13 passages, 36 mentions au gold ; fautes, casse, familier, abréviations, notes de travail, hors sujet, idée d'intrigue, correction barrée, homonymes, surnom, entité nouvelle citée d'un document à l'autre avec une faute. Gold sans `outcome`, avec `test_axes` et `silent`. Cohérence vérifiée par `tests/test_corpus_corbelle.py`.
+- **À venir** : Valmont bruité (dérivé), Session, Valmont grossi, Autre genre, Chronique longue ; puis les notes réelles de l'auteur.
+
+Le second jet de Valmont, écrit par l'auteur (T-TST-01), devient le corpus « auteur » : il viendra quand le modèle sera établi.
 
 ## 13. Choix faits
 
@@ -473,6 +476,7 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 27. **Mettre l'architecture à l'épreuve avant de corriger l'extracteur actuel** : l'ordre des remèdes (§4) vaut pour corriger un écart dans une architecture donnée ; quand c'est l'architecture qu'on teste, l'expérience passe d'abord (X-002 avant l'indication de schéma sur E-003).
 28. **Le hors schéma vient d'une question ciblée** sur les phrases muettes (deux entités confirmées, aucun fait), sans liste de relations ; C5 garde sa liste réduite (§6.5, E-007).
 29. **Une relation inconnue nourrit le schéma par décision de l'auteur** : ajouter au schéma, rattacher à une relation existante, ou ignorer ; la tournure est gardée dans les trois cas ; regroupement par tournure dans un lot, synonymes regroupés par l'ontologiste entre lots (§6.6).
+30. **Trois sortes de corpus** (§12) : dérivé (script), ciblé (Claude, pour construire les couches, jamais pour choisir le modèle), auteur (cas réels, plus tard) ; les axes sont compilés dans `axes-corpus.md`.
 
 ## 14. Questions ouvertes
 
@@ -485,6 +489,7 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 7. Les hallucinations (classe H) existent-elles ailleurs que dans b1 ? La Chronique de la Chute (b2, *in_world*) est le meilleur candidat.
 8. C5 par fenêtre ou par passage : la fenêtre donne le contexte, le passage limite ce qu'un fait peut citer ; à mesurer.
 9. Types de C1b : types du schéma du monde, ou familles de la couche haute d'ontologie (question 2) quand le schéma est riche ?
+10. **Note de travail de l'auteur** (« TODO », « à creuser », hors sujet, AX-E1, AX-E2) : le cadre n'a pas de nature pour elle (R-DEC-04 : `diegetic`, `meta_system`, `meta_sheet`, `mixed` désignent toutes une destination). Le gold de Corbelle l'annote par un silence attendu (`silent`). Faut-il une nature, ou un marqueur (`[note]`), ou seulement un signal détecté et une question à l'auteur ?
 
 ## 15. Évolutions du cadre à prévoir
 
@@ -508,6 +513,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 | R-NOT-04 | plafonnement de la notoriété par les références d'une note |
 | R-SCH-05 | couche haute d'ontologie fournie par l'outil |
 | Schéma | indications d'ingestion, ignorées du validateur, empreinte séparée |
+| R-DEC-04 nature d'un passage | peut-être une nature ou un marqueur pour la note de travail de l'auteur (question 10, AX-E1) |
 | R-SCH-06 hors schéma | prolongé : une relation hors schéma proposée porte sa tournure ; trois issues par décision de l'auteur (§6.6) |
 | Cadre de la fondation §1.4 | « extension du schéma » et « inférence de systèmes », préparés, deviennent concernés (ontologiste, §6.6) ; « fenêtre de validité diégétique », préparée, pourrait recevoir ce qu'on jette aujourd'hui (« régnait autrefois ») |
 | T2 | indicateurs par couche (§9), optionnels du gold exclus, classement des écarts |
@@ -523,7 +529,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 6. **C5, faits entre entités confirmées** (fait, [X-004](recherche-ingestion/X-004-c5-faits.md)) : E-003 résolu de bout en bout, E-004 non reproduit ; E-007 résolu par la question ciblée ([X-005](recherche-ingestion/X-005-question-ciblee.md)) ; reste E-005 (vocabulaire d'attribut, sans modèle).
 7. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
 8. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.
-9. **Un second corpus**, au moins un petit, qui départage A et B (noms de famille seuls, surnoms, homonymes) et éprouve les règles de C2 hors de Valmont.
+9. **Corbelle** (fait, corpus ciblé) : mesurer toute la chaîne (C1, C2, C5, question ciblée) et l'extracteur actuel ; départager A et B (dans Corbelle, « Ysolde » n'apparaît jamais en entier : B ne peut pas la trouver). Puis les corpus suivants du plan (§12).
 10. Les écarts restants de l'extracteur actuel (E-001 et E-005 par un vocabulaire d'attribut, E-002 par l'annotation), par les remèdes les moins coûteux.
 
 ## 17. Références

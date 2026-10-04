@@ -1,0 +1,6 @@
+# Lots d'ingestion de Corbelle.
+batches:
+  - id: c1
+    target_branch: reference
+    documents: [c1/brouillon-corbelle.md, c1/la-sorgue.md, c1/persos.md]
+    purpose: "Notes brouillon : fautes, casse, ponctuation, familier, abréviations, notes de travail, hors sujet, idée d'intrigue, correction barrée, homonymes, surnom, entité nouvelle citée d'un document à l'autre (avec une faute)."

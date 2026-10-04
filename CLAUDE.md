@@ -56,6 +56,7 @@ Le corpus de test est `corpus/valmont-v1/` (voir son `README.md`) :
 - `schemas/` et `valmont/` : schémas, vérité structurée, documents par lots, annotations `gold/`, scénarios ;
 - `valmont/walkthroughs/walkthroughs.yaml` : parcours W00–W17, chacun rattaché à un jalon, avec résultats attendus — ce sont les **tests d'acceptation**, exécutables (`worldkit walkthrough run W15`, format au README du corpus §3) ; attendus structurés : W08, W15 ;
 - `valmont/questions.yaml` : questions de compétence par vue ;
+- second corpus, **ciblé** : `corpus/corbelle-v1/` (notes brouillon, voir son `README.md`), cohérence vérifiée par `tests/test_corpus_corbelle.py` ; axes de test et plan des corpus : `docs/recherche-ingestion/axes-corpus.md` (un corpus écrit par Claude sert à construire les couches, jamais à choisir le modèle, T-TST-01) ;
 - `tools/check_corpus.py` : contrôle de cohérence du corpus lui-même (à lancer après toute modification du corpus).
 
 Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'implémentation impose un autre format, propose l'adaptation plutôt que de contourner.

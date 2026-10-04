@@ -17,6 +17,8 @@ Journal de travail du chantier ingestion ([`../chantier-ingestion.md`](../chanti
 
 Contrainte permanente : on vise un **petit modèle**. Autre limite permanente : tant qu'il n'y a qu'un corpus (Valmont, synthétique et arbitraire), un remède qui marche n'est qu'un candidat ; les exemples des prompts sont pris hors de Valmont pour ne pas les régler sur lui. « Prendre un meilleur modèle » n'est pas un remède. Les mesures faites avec Haiku 4.5 portent la mention « substitut » (chantier §8).
 
+Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md).
+
 ## Index
 
 | Fiche | Titre | Classe | Statut |

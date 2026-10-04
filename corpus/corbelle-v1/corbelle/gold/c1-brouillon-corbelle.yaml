@@ -1,0 +1,99 @@
+# Gold de Corbelle (voir ../../README.md). Sans `outcome` : ce corpus mesure les couches (mentions, faits),
+# pas la qualification du noyau. `test_axes` : axes éprouvés (docs/recherche-ingestion/axes-corpus.md).
+# `silent` : le passage ne doit produire ni fait ni entité nouvelle (author_note, off_topic, plot_idea…).
+document: brouillon-corbelle
+version: 1
+batch: c1
+axes: { mode: source, nature: diegetic, voice: author, visibility: unqualified }
+
+passages:
+  - index: 1
+    starts_with: "corbelle c'est la ville sur la sorgue"
+    test_axes: [AX-S4, AX-S7, AX-E3]
+    mentions: { "corbelle": corbelle, "la sorgue": la-sorgue }
+    changes:
+      - { op: set_attribute, entity: corbelle, attribute: category, value: "ville", optional: true }
+    note: "« genre 2000 habitants jsp encore » : hésitation, aucun attribut ; pas de relation « sur la rivière » dans le schéma."
+
+  - index: 2
+    starts_with: "le bourgmestre c Jehan Marcastell"
+    test_axes: [AX-S1, AX-S7, AX-E9, AX-R4]
+    mentions: { "le bourgmestre": jehan-marcastel, "Jehan Marcastell": jehan-marcastel }
+    changes:
+      - { op: set_attribute, entity: jehan-marcastel, attribute: title, value: "bourgmestre" }
+      - { op: add_relation, from: ysolde-marcastel, relation: rules, to: corbelle, optional: true }
+    must_not:
+      - { op: create_entity, note: "« Marcastell » est une faute : Jehan Marcastel, pas une entité nouvelle" }
+    note: "« un type mou » : opinion de l'auteur, pas un fait (AX-E9). « c sa soeur qui decide » : facultatif, la sœur n'est pas nommée."
+
+  - index: 3
+    starts_with: "TODO : trouver un nom pour la taverne"
+    test_axes: [AX-E1]
+    silent: author_note
+    mentions: {}
+    changes: []
+    must_not:
+      - { op: create_entity, note: "note de travail : ni taverne, ni Loutre, ni Héron (clin d'œil à Valmont)" }
+
+  - index: 4
+    starts_with: "Ysolde (la soeur) elle tient"
+    test_axes: [AX-R1, AX-S2, AX-S3, AX-S4, AX-M3]
+    mentions: { "Ysolde": ysolde-marcastel, "pont-aux-anes": pont-aux-anes, "les bateliers": bateliers }
+    changes:
+      - { op: add_relation, from: ysolde-marcastel, relation: hates, to: bateliers }
+      - { op: set_attribute, entity: ysolde-marcastel, attribute: title, value: "apothicaire", optional: true }
+    note: "hates est hors schéma (question ciblée). « apothicairerie » : faute, et le titre n'est qu'inféré."
+
+  - index: 5
+    starts_with: "- Ysolde = soeur de jehan"
+    test_axes: [AX-T2, AX-S8, AX-R2, AX-R4, AX-S5, AX-S4]
+    mentions: { "Ysolde": ysolde-marcastel, "jehan": jehan-marcastel, "le bourgmestre": jehan-marcastel,
+                "le passeur": jehan-leblond, "Mère agathe": agathe, "st fiacre": saint-fiacre }
+    changes:
+      - { op: add_relation, from: ysolde-marcastel, relation: sibling_of, to: jehan-marcastel }
+      - { op: set_attribute, entity: agathe, attribute: title, value: "abbesse" }
+      - { op: add_relation, from: agathe, relation: rules, to: saint-fiacre, optional: true }
+    must_not:
+      - { op: add_relation, to: jehan-leblond, relation: sibling_of, note: "le texte écarte le passeur" }
+    note: "« jehan » est ambigu dans le monde (deux Jehan) ; le texte tranche : le bourgmestre, pas le passeur."
+
+  - index: 6
+    starts_with: "le maitre de la guilde c Bertrand Ostrel"
+    test_axes: [AX-R10, AX-R1, AX-E4, AX-E9]
+    mentions: { "la guilde": bateliers, "Bertrand Ostrel": "new:bertrand-ostrel", "Ostrel": "new:bertrand-ostrel",
+                "l'abbesse": agathe }
+    changes:
+      - { op: create_entity, entity: "new:bertrand-ostrel", type: Character }
+      - { op: set_attribute, entity: "new:bertrand-ostrel", attribute: name, value: "Bertrand Ostrel" }
+      - { op: add_relation, from: "new:bertrand-ostrel", relation: member_of, to: bateliers }
+      - { op: set_attribute, entity: "new:bertrand-ostrel", attribute: title, value: "maître de la guilde", optional: true }
+    must_not:
+      - { to: vouivre, note: "« ~~la vouivre~~ » est barré : corrigé par l'auteur (AX-E4)" }
+    note: "« il magouille avec l'abbesse » : jugement vague, ni relation du schéma ni fait établi."
+
+  - index: 7
+    starts_with: "le passeur (jehan leblond) faisait passer"
+    test_axes: [AX-D1, AX-D2, AX-D4, AX-S4, AX-S5]
+    mentions: { "le passeur": jehan-leblond, "jehan leblond": jehan-leblond, "la grande crue": grande-crue,
+                "la guilde": bateliers }
+    changes:
+      - { op: add_relation, from: jehan-leblond, relation: member_of, to: bateliers }
+    must_not:
+      - { relation: involved_in, note: "« avant la grande crue » est un repère de temps (AX-D4)" }
+
+  - index: 8
+    starts_with: "idée : et si le passeur trahissait"
+    test_axes: [AX-E5]
+    silent: plot_idea
+    mentions: { "le passeur": jehan-leblond, "la guilde": bateliers }
+    changes: []
+    must_not:
+      - { op: create_entity, note: "« la fête des lanternes » n'existe que dans une idée" }
+    note: "Idée d'intrigue : au mieux une piste d'auteur (R-SCN-09), jamais un fait."
+
+  - index: 9
+    starts_with: "acheter des dés"
+    test_axes: [AX-E2]
+    silent: off_topic
+    mentions: {}
+    changes: []
