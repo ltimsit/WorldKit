@@ -472,6 +472,13 @@ Une question étroite par fait qui pose une question (pas les supports) : « le 
 - Reste un faux rejet, trop littéral (« maître de la guilde » n'est pas « membre ») : [E-013](recherche-ingestion/E-013-critique-litteral.md).
 - **Une leçon d'architecture** : écrire des faits et s'abstenir en même temps est trop pour un petit modèle (la consigne stricte échouait, X-008) ; juger un fait contre son passage est une question étroite qu'il tient.
 
+### 11.12 Énonciation sans modèle (X-010)
+
+Voie choisie par l'auteur : **s'adapter au cadre**. Une rumeur ou des paroles rapportées (« on dit que », « les vieux disent », guillemets) donnent une **attribution sans fait** (R-DEC-03 ; rumeurs hors périmètre, cadre de la fondation §1.4) ; une note de travail (« TODO : », « idée : », « et si … ? ») ne produit ni fait ni entité nouvelle. Repérage par marqueurs, sans modèle, après la question ciblée et avant le critique. Détail dans [X-010](recherche-ingestion/X-010-enonciation.md).
+
+- Les deux attributions du gold trouvées, aucun faux positif ; notes de travail reconnues (sauf le hors sujet, sans effet ici).
+- Corbelle (entités du gold) : précision 0,44 → 0,50 sans perte de rappel ; avec le critique : **0,59 / 0,83** (questions 0,71 / 0,83) ; fausses créations 3 → 2. Valmont inchangé.
+
 ## 12. Corpus
 
 Les axes de test sont compilés dans [axes-corpus.md](recherche-ingestion/axes-corpus.md) : une quarantaine d'axes identifiés (`AX-S1` fautes sur un nom, `AX-E1` note de travail de l'auteur, `AX-R2` homonymes…), regroupés en huit familles (surface, structure, énonciation, référence, temps, jeu, échelle, plusieurs documents), avec l'attendu et la couche éprouvée. Les corpus déclarent les axes qu'ils couvrent ; les fiches d'écart citent l'axe en cause.
@@ -528,6 +535,7 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 31. **Recoupement par score** (§11.9) : pliage pour comparer, indices généraux (RapidFuzz), trois issues à deux seuils, regroupement des nouvelles indépendant de l'ordre ; pas de nettoyage destructif de la source : les corrections sont des annotations proposées à l'auteur.
 32. **Question ciblée par paire et avec relations connues** (§11.10) : déclenchée par une paire d'entités non reliées dans le passage, avec les relations du schéma comme préférence ; la consigne stricte de C5 est écartée.
 33. **Le critique C6 est mis en place** (§11.11) : un fait qui pose une question jugé contre son passage, mis de côté s'il n'est pas soutenu ; il reçoit les autres noms des entités et sait que la notoriété ne le regarde pas.
+34. **Énonciation sans modèle** (§11.12) : rumeur → attribution sans fait ; note de travail → ni fait ni entité nouvelle ; voie « s'adapter au cadre » (rumeurs hors périmètre, §1.4).
 
 ## 14. Questions ouvertes
 
@@ -540,7 +548,8 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 7. Les hallucinations (classe H) existent-elles ailleurs que dans b1 ? La Chronique de la Chute (b2, *in_world*) est le meilleur candidat.
 8. C5 par fenêtre ou par passage : la fenêtre donne le contexte, le passage limite ce qu'un fait peut citer ; à mesurer.
 9. Types de C1b : types du schéma du monde, ou familles de la couche haute d'ontologie (question 2) quand le schéma est riche ?
-10. **Note de travail de l'auteur** (« TODO », « à creuser », hors sujet, AX-E1, AX-E2) : le cadre n'a pas de nature pour elle (R-DEC-04 : `diegetic`, `meta_system`, `meta_sheet`, `mixed` désignent toutes une destination). Le gold de Corbelle l'annote par un silence attendu (`silent`). Faut-il une nature, ou un marqueur (`[note]`), ou seulement un signal détecté et une question à l'auteur ?
+10. **Note de travail de l'auteur** (« TODO », « à creuser », hors sujet, AX-E1, AX-E2) : le cadre n'a pas de nature pour elle (R-DEC-04 : `diegetic`, `meta_system`, `meta_sheet`, `mixed` désignent toutes une destination). Le gold de Corbelle l'annote par un silence attendu (`silent`) ; l'énonciation sans modèle la reconnaît par des marqueurs et la tient silencieuse (X-010). Reste à décider s'il faut, en plus, une nature ou un marqueur déclaré (`[note]`), et ce que devient une idée d'intrigue (piste d'auteur proposée, R-SCN-09 ?).
+11. **Rumeurs et croyances : voie 2** (laissée de côté en X-010). Aujourd'hui, une rumeur donne une attribution sans fait, et les rumeurs sont hors périmètre (§1.4). Voie 2 : en faire des **affirmations attribuées** à une source anonyme (« les vieux »), qualifiables vraies, fausses ou non établies comme celles d'un document du monde (R-DOC-06 à R-DOC-08). Il faudrait faire passer « croyances de personnages, rumeurs » de « hors périmètre » à « dans la fondation » (§1.4), définir la source d'une affirmation sans document, et sa notoriété. À rouvrir si les notes réelles de l'auteur montrent que les rumeurs sont une matière importante.
 
 ## 15. Évolutions du cadre à prévoir
 
@@ -565,6 +574,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 | R-SCH-05 | couche haute d'ontologie fournie par l'outil |
 | Schéma | indications d'ingestion, ignorées du validateur, empreinte séparée |
 | R-DEC-04 nature d'un passage | peut-être une nature ou un marqueur pour la note de travail de l'auteur (question 10, AX-E1) |
+| Cadre de la fondation §1.4 (rumeurs) | inchangé pour l'instant : rumeur → attribution sans fait ; la voie 2 (affirmations attribuées) est la question 11 |
 | R-SCH-06 hors schéma | prolongé : une relation hors schéma proposée porte sa tournure ; trois issues par décision de l'auteur (§6.6) |
 | Cadre de la fondation §1.4 | « extension du schéma » et « inférence de systèmes », préparés, deviennent concernés (ontologiste, §6.6) ; « fenêtre de validité diégétique », préparée, pourrait recevoir ce qu'on jette aujourd'hui (« régnait autrefois ») |
 | T2 | indicateurs par couche (§9), optionnels du gold exclus, classement des écarts |
@@ -580,7 +590,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 6. **C5, faits entre entités confirmées** (fait, [X-004](recherche-ingestion/X-004-c5-faits.md)) : E-003 résolu de bout en bout, E-004 non reproduit ; E-007 résolu par la question ciblée ([X-005](recherche-ingestion/X-005-question-ciblee.md)) ; reste E-005 (vocabulaire d'attribut, sans modèle).
 7. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
 8. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.
-9. **Corbelle** (fait, mesuré, [X-006](recherche-ingestion/X-006-corbelle-chaine.md)) : le déterministe est durci ([X-007](recherche-ingestion/X-007-recoupement-par-score.md) : recoupement par score, texte barré, contrôles de C5) ; chaîne remesurée ; question ciblée améliorée ([X-008](recherche-ingestion/X-008-consignes-et-question.md)) ; relations devinées, repère de temps et rumeur mis de côté par le critique ([X-009](recherche-ingestion/X-009-critique.md)) ; restent le critique trop littéral (E-013), la couche d'énonciation C4 (rumeurs repérées sans modèle, en amont), le silence des notes de travail (question 10). Ensuite les corpus suivants du plan (§12).
+9. **Corbelle** (fait, mesuré, [X-006](recherche-ingestion/X-006-corbelle-chaine.md)) : le déterministe est durci ([X-007](recherche-ingestion/X-007-recoupement-par-score.md) : recoupement par score, texte barré, contrôles de C5) ; chaîne remesurée ; question ciblée améliorée ([X-008](recherche-ingestion/X-008-consignes-et-question.md)) ; relations devinées, repère de temps et rumeur mis de côté par le critique ([X-009](recherche-ingestion/X-009-critique.md)) ; énonciation sans modèle ([X-010](recherche-ingestion/X-010-enonciation.md)) : rumeur → attribution, note de travail → silence ; restent le critique trop littéral (E-013), les deux dernières fausses créations (nom commun, surnom), et la nature d'une note de travail dans le cadre (question 10). Ensuite les corpus suivants du plan (§12).
 10. Les écarts restants de l'extracteur actuel (E-001 et E-005 par un vocabulaire d'attribut, E-002 par l'annotation), par les remèdes les moins coûteux.
 
 ## 17. Références

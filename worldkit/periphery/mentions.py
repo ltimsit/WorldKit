@@ -461,9 +461,10 @@ def _gold_mentions(gold_dir: Path, window: Window) -> dict[int, dict[str, str]]:
 
 def evaluate_mentions(finder: MentionFinder | None, documents: list[Path], gold_dir: Path,
                       context: ExtractionContext, state: Any, repeat: int = 1,
-                      with_short_forms: bool = False) -> MentionReport:
+                      with_short_forms: bool = False, with_enunciation: bool = False) -> MentionReport:
     """C1 (C1a, et C1b si `finder`) puis C2 sur chaque document, comparés aux mentions du gold ; avec
-    `with_short_forms`, la variante B ajoute les formes courtes des personnes repérées."""
+    `with_short_forms`, la variante B ajoute les formes courtes des personnes repérées ; avec `with_enunciation`,
+    une note de travail de l'auteur ne propose aucune entité nouvelle (C4, X-010)."""
     windows = [document_window(path) for path in documents]
     meter = finder.meter if finder is not None else None
     first_call = len(meter.calls) if meter is not None else 0
@@ -485,6 +486,11 @@ def evaluate_mentions(finder: MentionFinder | None, documents: list[Path], gold_
         for m in mentions:
             resolver.resolve(m)
         per_window.append(mentions)
+    if with_enunciation:  # silence d'une note de travail : ni idée d'intrigue, ni TODO ne créent d'entité (AX-E1, E5)
+        from .facts import enunciation
+        per_window = [[m for m in ms if not (m.rule == "new" and m.passage is not None
+                                             and enunciation(w.passage_texts.get(m.passage, "")) == "note")]
+                      for w, ms in zip(windows, per_window)]
     resolver.cluster_new([m for ms in per_window for m in ms])  # entités nouvelles du lot (T-ING-07, R-PRI-03)
     for window, runs, mentions in zip(windows, model_runs, per_window):
         if with_short_forms:

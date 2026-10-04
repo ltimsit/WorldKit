@@ -48,6 +48,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [X-007](X-007-recoupement-par-score.md) | Recoupement par score, texte barré, contrôles de C5 (sans modèle) | conclue (première itération) |
 | [X-008](X-008-consignes-et-question.md) | Consigne stricte pour C5 ; question ciblée avec relations connues et signal par paire | conclue |
 | [X-009](X-009-critique.md) | Le critique (C6) : un fait jugé contre son passage | conclue (deux versions) |
+| [X-010](X-010-enonciation.md) | Énonciation sans modèle (C4) : rumeur → attribution, note → silence | conclue (première itération) |
 
 Statuts : **ouverte** (observée, non traitée), **en cours** (remède essayé), **résolue** (remède mesuré, sans régression), **acceptée** (on vit avec, avec la raison), **transformée** (devenue une expérience ou une question du chantier).
 

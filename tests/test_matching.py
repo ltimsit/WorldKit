@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from support import base_world
-from test_corpus_corbelle import corbelle_world, documents
+from test_corpus_corbelle import CORBELLE, corbelle_world, documents
+
+CORBELLE_GOLD = CORBELLE / "gold"
 from worldkit.ingest.batch import extraction_context
 from worldkit.periphery.facts import Confirmed, Fact, check_facts
 from worldkit.periphery.matching import best_matches, decide, fold, similarity
@@ -88,3 +90,36 @@ def test_valmont_resolution_does_not_regress():
     assert r.resolve(Mention("Odon", 0, 1, "Character", "model")).entity == "odon"
     assert r.resolve(Mention("Brume-sur-Mer", 0, 1, "Place", "model")).entity == "brume"
     assert r.resolve(Mention("Le Roi Gris", 0, 1, "Character", "model")).rule == "new"
+
+
+def test_enunciation_without_a_model_X_010():
+    """Rumeur ou paroles rapportées : attribution, sans fait (R-DEC-03 ; rumeurs hors périmètre, §1.4). Note de
+    travail de l'auteur : silence (AX-E1, AX-E5)."""
+    from worldkit.periphery.facts import enunciation
+    assert enunciation("les vieux disent que c'est la vouivre qui la fait deborder") == "attribution"
+    assert enunciation("« Le baron est un traître », murmure-t-on sur les quais.") == "attribution"
+    assert enunciation("TODO : trouver un nom pour la taverne du port.") == "note"
+    assert enunciation("idée : et si le passeur trahissait la guilde ?") == "note"
+    assert enunciation("Jehan Marcastel : bourgmèstre, marié à Clémence (à créer)") is None
+    assert enunciation("Secret (les joueurs le savent pas) : mère agathe c la mère d'Ostrel.") is None  # un secret est un fait
+
+
+def test_a_working_note_creates_no_entity_X_010():
+    """« et si le passeur trahissait la guilde pendant la fête des lanternes ? » : pas d'entité « fête des lanternes »."""
+    from worldkit.periphery.mentions import MentionFinder, evaluate_mentions
+
+    class Fake:
+        def __init__(self):
+            from worldkit.periphery.llm import UsageMeter
+            self.meter = UsageMeter()
+
+        def complete(self, system, prompt, schema):
+            return {"mentions": [{"text": "fête des lanternes", "type": "Event", "confidence": "sure", "reason": ""}]}
+    from worldkit.periphery.llm import Profile
+    world = corbelle_world()
+    state = world.state()
+    context = extraction_context(world, state)
+    finder = MentionFinder(Fake(), Profile("fake", "anthropic-api", "m"))
+    plain = evaluate_mentions(finder, documents(), CORBELLE_GOLD, context, state).summary()["c2"]
+    silent = evaluate_mentions(finder, documents(), CORBELLE_GOLD, context, state, with_enunciation=True).summary()["c2"]
+    assert "fête des lanternes" in plain["false_new"] and "fête des lanternes" not in silent["false_new"]

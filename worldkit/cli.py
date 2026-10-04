@@ -221,7 +221,7 @@ def _run_eval_mentions(world: Any, args: argparse.Namespace) -> int:
         else:
             finder = MentionFinder(make_adapter(profile), profile, args.prompt_short_forms)
     report = evaluate_mentions(finder, paths, Path(args.oracle), extraction_context(world, state), state, args.repeat,
-                               args.short_forms)
+                               args.short_forms, args.enunciation)
     summary = report.summary()
     print(f"couches : {summary['finder']} ; {len(paths)} document(s) ; {summary['gold_mentions']} mention(s) au gold")
     for k in ("c1", "c2", "gestures", "stability", "usage"):
@@ -273,7 +273,7 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
         profile = config.profile(args.profile, "mentions")
         adapter = ReplayAdapter(args.mentions_replay) if args.mentions_replay else make_adapter(profile)
         mentions = evaluate_mentions(MentionFinder(adapter, profile), paths, Path(args.oracle), context, state,
-                                     with_short_forms=args.short_forms)
+                                     with_short_forms=args.short_forms, with_enunciation=args.enunciation)
         found = {w.doc_id: [m for p in mentions.passages if p.doc == w.doc_id for m in p.found] for w in windows}
         entities = {d: chain_entities(ms, context) for d, ms in found.items()}
         forms = {d: chain_forms(ms, entities[d]) for d, ms in found.items()}
@@ -288,11 +288,11 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
         from worldkit.periphery.facts import Critic
         critic = Critic(ReplayAdapter(args.critic_replay) if args.critic_replay else make_adapter(profile), profile)
     report = evaluate_facts(finder, windows, entities, Path(args.oracle), context, state, args.entities, probe, forms,
-                            critic)
+                            critic, args.enunciation)
     summary = report.summary()
     print(f"couche : {summary['finder']} ; entités : {args.entities} "
           f"({', '.join(f'{d} {n}' for d, n in report.prompts.items())})")
-    for k in ("facts", "questions", "optional", "unplaced", "silent_sentences", "rejected", "critic", "usage",
+    for k in ("facts", "questions", "optional", "unplaced", "silent_sentences", "rejected", "enunciation", "critic", "usage",
               "probe_usage", "critic_usage"):
         if k in summary:
             print(f"  {k} : {summary[k]}")
@@ -312,6 +312,8 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
         print(f"  preuve introuvable : {f.draft} ({f.evidence!r})")
     for f, reason in report.rejected:
         print(f"  écarté ({reason}) : {f.draft}")
+    for f, voice in report.withheld:
+        print(f"  retenu ({voice}) : {f.draft}")
     for f, verdict in report.judged:
         if verdict.get("verdict") != "supported":
             print(f"  critique {verdict.get('verdict')} : {f.draft} ({verdict.get('reason')})")
@@ -929,6 +931,8 @@ def build_parser() -> argparse.ArgumentParser:
     evm.add_argument("--replay", default=None, help="dossier de traces : rejoue les réponses, sans appel ni coût")
     evm.add_argument("--prompt-short-forms", action="store_true",
                      help="variante A : consigne de C1b sur les formes courtes (prénom seul, fonction)")
+    evm.add_argument("--enunciation", action="store_true",
+                     help="une note de travail de l'auteur ne propose aucune entité nouvelle (C4, X-010)")
     evm.add_argument("--short-forms", action="store_true",
                      help="variante B : formes courtes des personnes repérées, cherchées sans modèle")
     evm.add_argument("--out", default=None, help="rapport JSON détaillé")
@@ -947,6 +951,8 @@ def build_parser() -> argparse.ArgumentParser:
     evf.add_argument("--probe", action="store_true",
                      help="question ciblée sur les phrases muettes (deux entités confirmées, aucun fait) : E-007")
     evf.add_argument("--probe-replay", default=None, help="rejoue les réponses tracées de la question ciblée")
+    evf.add_argument("--enunciation", action="store_true",
+                     help="énonciation C4 sans modèle : rumeur → attribution sans fait, note de travail → silence (X-010)")
     evf.add_argument("--critic", action="store_true",
                      help="critique C6 : chaque fait qui pose une question jugé contre son passage (X-009)")
     evf.add_argument("--critic-replay", default=None, help="rejoue les réponses tracées du critique")

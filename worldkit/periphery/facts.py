@@ -322,6 +322,9 @@ class FactReport:
     silent: list[Any] = field(default_factory=list)          # phrases muettes et réponses de la question ciblée
     rejected: list[Any] = field(default_factory=list)        # faits écartés par les contrôles (E-011)
     judged: list[Any] = field(default_factory=list)          # faits jugés par le critique, avec son verdict (X-009)
+    withheld: list[Any] = field(default_factory=list)        # faits retenus par l'énonciation (C4), avec la voix
+    voices: dict[Any, Any] = field(default_factory=dict)     # (document, passage) → attribution, note ou None
+    expected_attributions: set[Any] = field(default_factory=set)
     critic_calls: list[Any] | None = None
     probe_calls: list[Any] | None = None
 
@@ -341,6 +344,12 @@ class FactReport:
             "unplaced": len(self.unplaced),
             "silent_sentences": len(self.silent),
             "rejected": len(self.rejected),
+            **({"enunciation": {
+                "attribution_passages": sorted(f"{d} p{i}" for (d, i), v in self.voices.items() if v == "attribution"),
+                "expected_attributions": sorted(f"{d} p{i}" for d, i in self.expected_attributions),
+                "note_passages": sorted(f"{d} p{i}" for (d, i), v in self.voices.items() if v == "note"),
+                "withheld": {v: sum(1 for _, x in self.withheld if x == v) for v in ("attribution", "note")}}}
+               if self.voices else {}),
             **({"critic": {v: sum(1 for _, j in self.judged if j.get("verdict") == v)
                            for v in ("supported", "unsure", "not_supported")}} if self.judged else {}),
             **({"usage": summarize(self.calls, input_budget())} if self.calls is not None else {}),
@@ -541,9 +550,46 @@ class Critic:
         return self.adapter.complete(system, user, critic_schema())
 
 
+# ---------------------------------------------------------------------------
+# Énonciation (C4, sans modèle) : rumeur → attribution sans fait ; note de travail → silence (X-010)
+# ---------------------------------------------------------------------------
+
+import re as _re
+
+# Marqueurs généraux de ouï-dire (R-DEC-03 : une attribution, pas une fausseté ; rumeurs hors périmètre, §1.4).
+RUMOR = _re.compile(
+    r"\b(on (dit|raconte|murmure|prétend|pretend)|murmure-t-on|dit-on|raconte-t-on|para[iî]t(-il)? que|il para[iî]t"
+    r"|la rumeur|les rumeurs|les (vieux|gens|anciens) (disent|racontent|prétendent|pretendent)"
+    r"|selon (la rumeur|les rumeurs|certains)|à ce qu'on dit|a ce qu'on dit)\b", _re.IGNORECASE)
+QUOTED = _re.compile(r"«[^»]+»")
+# Note de travail de l'auteur (AX-E1, AX-E5) : en tête de phrase, ou une idée « et si … ? ».
+NOTE = _re.compile(r"^\s*[-*]?\s*(todo|idée|idee|note|nb|à voir|a voir|à creuser|a creuser)\s*[:!]"
+                   r"|\bet si\b[^?]*\?", _re.IGNORECASE)
+
+
+def enunciation(text: str) -> str | None:
+    """« attribution » (rumeur, paroles rapportées), « note » (note de travail de l'auteur) ou None."""
+    if NOTE.search(text):
+        return "note"
+    if RUMOR.search(text) or QUOTED.search(text):
+        return "attribution"
+    return None
+
+
+def _sentence_of(fact: Fact, passage: str) -> str:
+    """La phrase du passage qui porte le fait : celle qui contient la preuve, sinon la preuve elle-même."""
+    flat = normalize(fact.evidence).casefold().strip(" .")
+    for sentence in _sentences(passage):
+        s = normalize(sentence).casefold().strip(" .")
+        if flat and (flat in s or s in flat) and len(s) >= min(len(flat), 12):
+            return sentence
+    return fact.evidence
+
+
 def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str, list[Confirmed]], gold_dir: Path,
                    context: ExtractionContext, state: Any, label: str, probe: RelationProbe | None = None,
-                   forms: dict[str, dict[str, set[str]]] | None = None, critic: Critic | None = None) -> FactReport:
+                   forms: dict[str, dict[str, set[str]]] | None = None, critic: Critic | None = None,
+                   with_enunciation: bool = False) -> FactReport:
     """C5 sur chaque fenêtre, à entités données, comparé aux changements du gold qui relèvent de C5. Avec `probe`,
     chaque phrase muette (deux entités confirmées, aucun fait) reçoit ensuite une question ciblée (E-007). Avec
     `critic`, chaque fait qui pose une question (pas un support) est jugé contre son passage ; un fait non soutenu est
@@ -558,6 +604,7 @@ def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str
     critic_meter = critic.meter if critic is not None else None
     first_critic = len(critic_meter.calls) if critic_meter is not None else 0
     judged: list[tuple[Fact, dict[str, Any]]] = []
+    withheld: list[tuple[Fact, str]] = []  # faits retenus par l'énonciation (C4) : attribution ou note
     meter = finder.meter
     first_call = len(meter.calls) if meter is not None else 0
     probe_meter = probe.meter if probe is not None else None
@@ -573,6 +620,16 @@ def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str
                 with probe_meter.label(f"{window.doc_id} p{s.passage}") if probe_meter is not None else nullcontext():
                     facts += check_facts(probe.ask(s, entities.get(window.doc_id, []), context.schema),
                                          entities.get(window.doc_id, []), context.schema, state, finder.rejected)
+        if with_enunciation:  # après la question ciblée (ses prompts ne changent pas), avant le critique
+            kept_by_voice = []
+            for f in facts:
+                voice = enunciation(_sentence_of(f, window.passage_texts.get(f.passage, ""))) \
+                    if f.passage is not None else None
+                if voice is None:
+                    kept_by_voice.append(f)
+                else:
+                    withheld.append((f, voice))
+            facts = kept_by_voice
         if critic is None:
             return facts
         kept = []
@@ -594,6 +651,11 @@ def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str
                         + (f"+{critic.version}" if critic is not None else ""), label, [],
                         prompts={w.doc_id: len(entities.get(w.doc_id, [])) for w in windows})
     report.judged = judged
+    report.withheld = withheld
+    if with_enunciation:
+        report.voices = {(w.doc_id, i): enunciation(text) for w in windows for i, text in w.passage_texts.items()}
+        report.expected_attributions = {(w.doc_id, i) for w in windows for i, text in w.passage_texts.items()
+                                        if "attribution" in oracle.extract(w.doc_id, text).flags}
     if critic_meter is not None:
         report.critic_calls = critic_meter.calls[first_critic:]
     report.silent = silents
