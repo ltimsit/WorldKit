@@ -46,7 +46,7 @@ class LLMConfig:
     max_calls_per_run: int = 30  # plafond d'appels au modèle par exécution (I-LLM-01)
 
     def profile(self, name: str | None = None, task: str = "extraction") -> Profile:
-        name = name or self.tasks.get(task)
+        name = name or self.tasks.get(task) or self.tasks.get("extraction")  # une tâche sans profil : celui de l'extraction
         if name is None:
             raise LLMError(f"aucun profil pour la tâche « {task} » : préciser --profile ou tasks.{task}")
         if name not in self.profiles:

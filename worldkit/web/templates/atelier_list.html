@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Atelier{% endblock %}
+{% block content %}
+<h1>Atelier d'ingestion</h1>
+<p class="small muted">Coller un texte, lancer le repérage des entités, garder, corriger ou retirer ce que la couche propose, puis proposer le lot au monde. L'atelier écrit dans le monde (son magasin, hors journal) : c'est le travail de l'auteur.</p>
+{% if error %}<div class="error-banner">{{ error }}</div>{% endif %}
+<h2>Sources ({{ sources|length }})</h2>
+{% if sources %}<table><tr><th>source</th><th>titre</th><th>passages</th><th>à revoir</th><th>décidées</th></tr>
+{% for s in sources %}<tr><td class="mono"><a href="/atelier/{{ s.doc_id }}">{{ s.doc_id }}</a></td><td>{{ s.title or "" }}</td>
+<td>{{ s.passages }}</td><td>{{ s.to_review }}</td><td>{{ s.decided }}</td></tr>{% endfor %}</table>
+{% else %}<p class="muted">Aucune source pour l'instant.</p>{% endif %}
+<h2>Importer une source</h2>
+<form method="post" action="/atelier" hx-boost="false" class="stat">
+  <p><textarea name="text" rows="12" cols="90" placeholder="# Titre&#10;&#10;Premier paragraphe…" required></textarea></p>
+  <p><label>identifiant <input name="doc_id" size="24" placeholder="tiré du titre"></label>
+     <label>nature <select name="nature"><option value="diegetic">diégétique</option><option value="mixed">mixte</option></select></label>
+     <label>voix <select name="voice"><option value="author">auteur</option></select></label>
+     <button>Importer</button></p>
+  <p class="small muted">Un texte avec un en-tête YAML (<code>---</code> … <code>---</code>) garde le sien.</p>
+</form>
+{% endblock %}

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from support import base_world
 from worldkit.atelier import store
 
@@ -199,3 +201,61 @@ def test_nothing_is_proposed_without_an_author_decision_Q3():
     layers.run_mentions(world, "reference", doc.doc_id, FakeFinder([("conseil des marchands", "Faction")]))
     with pytest.raises(BatchError, match="rien à proposer"):
         proposing.propose(world, "reference", doc.doc_id)
+
+
+# --- Étape 5 : opérations du service (T3) ---
+
+def test_atelier_operations_by_the_service(tmp_path):
+    from test_service import make_world
+    from worldkit.service.session import Session
+    s = Session(make_world(tmp_path / "valmont.db"))
+    imported = s.call("atelier.import", {"text": ROI})
+    assert imported.status == "ok" and imported.output["passages"] == 2
+    doc_id = imported.output["doc_id"]
+    pending = s.call("atelier.run", {"doc_id": doc_id, "model": True})
+    assert pending.status == "pending" and pending.output["estimate"]["calls"] == 1  # rien sans confirmation
+    ran = s.call("atelier.run", {"doc_id": doc_id})
+    assert ran.status == "ok"
+    view = s.call("atelier.view", {"doc_id": doc_id}).output
+    hautval = next(a for p in view["passages"] for a in p["annotations"] if a["value"]["text"] == "Hautval")
+    kept = s.call("atelier.annotate", {"doc_id": doc_id, "action": "keep", "ann_id": hautval["id"]})
+    assert kept.status == "ok" and kept.output["written"]
+    nothing = s.call("atelier.propose", {"doc_id": doc_id})
+    assert nothing.status == "refused"  # Hautval est connue : rien de nouveau à proposer
+    assert s.call("atelier.sources", {}).output[0]["decided"] == 1
+
+
+# --- Étape 5 : l'écran /atelier (T4) ---
+
+def test_atelier_screen_import_run_annotate_and_propose(tmp_path):
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    from test_service import make_world
+    from worldkit.web import create_app
+    db = tmp_path / "valmont.db"
+    make_world(db)
+    c = TestClient(create_app(db))
+    assert "Aucune source" in c.get("/atelier").text
+    r = c.post("/atelier", data={"text": ROI, "nature": "diegetic", "voice": "author"})
+    assert r.status_code == 200 and "/atelier/" in str(r.url)
+    doc_url = str(r.url).split("testserver")[1]
+    c.post(doc_url + "/run", data={})
+    page = c.get(doc_url).text
+    assert "Hautval" in page and "ann-known" in page
+    pending = c.post(doc_url + "/run", data={"model": "1"}).text
+    assert "Confirmer et lancer" in pending  # I-LLM-01 : rien sans confirmation
+    # ajout par sélection : « Roi Gris » dans le premier passage, entité nouvelle
+    first = next(p for p in Session_view(db, doc_url)["passages"] if "Roi Gris" in p["text"])
+    start = first["text"].index("Roi Gris")
+    c.post(doc_url + "/annotate", data={"action": "add", "passage": first["index"], "start": start,
+                                         "end": start + len("Roi Gris"), "entity": "new", "type": "Character",
+                                         "scope": "source"})
+    page = c.get(doc_url).text
+    assert page.count("ann-new ann-author") == 2  # les deux occurrences
+    done = c.post(doc_url + "/propose").text
+    assert "proposition(s) dans la file de revue" in done
+
+
+def Session_view(db, doc_url):
+    from worldkit.service.session import Session
+    return Session(db).call("atelier.view", {"doc_id": doc_url.rsplit("/", 1)[1]}).output

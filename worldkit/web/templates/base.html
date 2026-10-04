@@ -22,6 +22,7 @@
     <a href="/bench?{{ q }}" class="{{ 'on' if path.startswith('/bench') }}">Banc</a>
     <a href="/review?{{ qs(ctx) }}" class="{{ 'on' if path.startswith('/review') }}">Revue</a>
     <a href="/acceptance" class="{{ 'on' if path.startswith('/acceptance') }}">Acceptation</a>
+    <a href="/atelier" class="{{ 'on' if path.startswith('/atelier') }}">Atelier</a>
     <a href="/pipeline" class="{{ 'on' if path.startswith('/pipeline') or path.startswith('/runs-diff') or '/artifact/' in path }}">Pipeline</a>
     <a href="/measures" class="{{ 'on' if path.startswith('/measures') }}">Mesures</a>
     <a href="/runs?{{ q }}" class="{{ 'on' if path.startswith('/runs') }}">Exécutions</a>
