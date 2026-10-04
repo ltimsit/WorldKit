@@ -38,4 +38,4 @@ Aucun pour l'instant.
 
 ## Conclusion
 
-À venir. Premier candidat pour éprouver C1, avec et sans pré-annotation (rendement d'une annotation, chantier §9).
+À venir. Premier témoin de [X-002](X-002-c1-c2-fenetre.md) : C1 sur le document entier, sans liste connue, voit le conseil trois fois dans la même fenêtre. Ensuite, avec et sans pré-annotation (rendement d'une annotation, chantier §9).

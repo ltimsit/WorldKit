@@ -62,6 +62,6 @@ Les traces montrent ce que reçoit le modèle : outre le prompt système, la lis
 
 ## Suites
 
-- E-003 est le premier écart à traiter (plus gros coût, cause unique) ; les remèdes vont de l'indication de schéma à une couche C1.
+- E-003 est le premier écart à traiter (plus gros coût, cause unique). Plutôt que de retoucher l'extracteur actuel, on met d'abord à l'épreuve l'architecture visée : [X-002](X-002-c1-c2-fenetre.md) (fenêtre au document, une question par couche ; chantier §6.5, choix 27).
 - E-003 : forme majoritaire établie (2 extractions sur 3) ; la forme minoritaire reste inconnue.
 - Rejouer b1 sous Sonnet avec la mesure actuelle (facultatifs neutres) pour une comparaison juste, si le cache de la mesure du 28 septembre est retrouvé (sinon, coût d'abonnement seulement).

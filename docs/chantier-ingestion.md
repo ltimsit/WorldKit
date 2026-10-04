@@ -1,6 +1,6 @@
 # Chantier : faire évoluer l'ingestion
 
-**Statut :** document de travail, version 0.2 — 4 octobre 2026. Ce n'est pas un cadre : il consigne une réflexion en cours (brainstorm, mesures, choix déjà faits, questions ouvertes) pour qu'on puisse la reprendre. En cas de divergence, les cadres priment. Quand un choix sera acté, il passera dans *cadre-technique.md* (décisions `T-ING`), dans *cadre-interface.md* pour l'Atelier, et dans l'analyse (section 00.xx), et sortira d'ici. Le travail expérimental lui-même (fiches d'écart, expériences) vit dans [`docs/recherche-ingestion/`](recherche-ingestion/README.md).
+**Statut :** document de travail, version 0.3 — 4 octobre 2026. Ce n'est pas un cadre : il consigne une réflexion en cours (brainstorm, mesures, choix déjà faits, questions ouvertes) pour qu'on puisse la reprendre. En cas de divergence, les cadres priment. Quand un choix sera acté, il passera dans *cadre-technique.md* (décisions `T-ING`), dans *cadre-interface.md* pour l'Atelier, et dans l'analyse (section 00.xx), et sortira d'ici. Le travail expérimental lui-même (fiches d'écart, expériences) vit dans [`docs/recherche-ingestion/`](recherche-ingestion/README.md).
 
 ## 1. Orientation
 
@@ -9,6 +9,8 @@
 **Une démarche de recherche.** Le chantier a aussi un but d'apprentissage. On ne court pas après le gold : on avance **par étape**, on observe des écarts précis, on les explique, on les corrige par le remède le moins coûteux, et on mesure (§4). Quand on bute sur un mur, on cherche dans la littérature et on essaie.
 
 **Des couches spécialisées, mises à l'épreuve.** L'hypothèse de travail est qu'une chaîne de couches courtes et spécialisées, qui se communiquent leurs résultats, convient mieux à de petits modèles qu'un appel unique qui fait tout. C'est une hypothèse : chaque couche doit montrer ce qu'elle apporte, et l'architecture sera revue si elle ne tient pas.
+
+**Une fenêtre large, une question étroite.** Ce qui met un petit modèle en difficulté, c'est la *largeur de la tâche*, pas la taille du texte : l'extracteur actuel demande tout (repérer, résoudre, créer, relier, qualifier, sous 13 règles) sur un passage de quelques mots. On inverse : chaque couche reçoit une **fenêtre** de texte aussi large que le budget le permet (le document, sinon une section) et ne répond qu'à **une question** (« quelles entités sont mentionnées ? », puis « que disent les phrases de ces entités confirmées ? »). Le passage reste l'unité de provenance (§6.5).
 
 **L'auteur dans la boucle.** L'attention de l'auteur n'est pas rare : elle est disponible, mais doit être bien employée. Quand une information n'existe que dans sa tête (« le Roi Gris est Aldren II »), on la lui demande plutôt que de multiplier les traitements pour la deviner. L'outil doit rendre cette contribution pratique et intuitive (§7).
 
@@ -85,7 +87,7 @@ flowchart TB
   T["Source annotée<br/>texte + annotations retenues"]
   A["Auteur<br/>sélectionne, annote, garde, retire, corrige"]
   C0["C0 Structure (déterministe)<br/>sections, listes, marqueurs"]
-  C1["C1 Mentions (modèle)<br/>portions, type, score, doutes"]
+  C1["C1 Mentions<br/>noms connus (déterministe) + nouveaux (modèle)"]
   C2["C2 Résolution<br/>déterministe, puis modèle sur liste courte"]
   C3["C3 Coréférence (modèle)<br/>il, le baron, son frère"]
   C4["C4 Énonciation et notoriété<br/>modèle, sur indice"]
@@ -103,7 +105,7 @@ flowchart TB
   T --> N
 ```
 
-Les couches C1 à C6 découpent l'actuelle E4 (Extraction) et absorbent une partie d'E7 (Résolution). E5 à E9 restent au noyau, inchangées dans leur rôle. La liste des couches est elle-même une hypothèse : on en ajoutera, fusionnera ou retirera selon les mesures.
+Les couches C1 à C6 découpent l'actuelle E4 (Extraction) et absorbent une partie d'E7 (Résolution). E5 à E9 restent au noyau, inchangées dans leur rôle. La liste des couches est elle-même une hypothèse : on en ajoutera, fusionnera ou retirera selon les mesures. Le tableau dit *qui écrit où* ; l'ordre dans lequel les couches travaillent est au §6.5.
 
 ### 6.2 Forme d'une annotation
 
@@ -145,9 +147,31 @@ Le journal reste le monde ; l'atelier reste l'établi ; le passage de l'un à l'
 - **Texte et annotations stockés séparément** (annotations déportées), avec une **forme en ligne** exportable et réimportable, pour que l'auteur puisse annoter dans son propre éditeur. L'import d'un texte en ligne produit des annotations d'origine « auteur ».
 - **Syntaxe en ligne** : celle des portions de Pandoc, une seule pour tous les genres, par exemple `[le Roi Gris]{ref=aldren-ii}`, `[cité portuaire]{ignore}`, `[membre du Cercle des Cendres]{secret}`. Les **liens Obsidian** `[[aldren-ii|le Roi Gris]]` sont lus à l'import comme des références, parce que beaucoup de MJ écrivent déjà ainsi. Le détail de la grammaire (clés, valeurs multiples, échappement) reste à écrire au prototype.
 - **Recalage strict, par mots** : quand le texte change, une différence par mots, déterministe, recale les annotations. Une annotation dont la portion est intacte survit et suit le texte ; si un seul mot de sa portion change, elle devient **orpheline**, à revoir, jamais effacée. Corriger « Roi Gris » en « Roi gris » fait une orpheline, revalidée en un geste ; en contrepartie, « le Roi Blanc » ne garde jamais en silence la référence du « Roi Gris ». Les annotations de passage suivent l'alignement des passages (T-ING-10).
-- **Relance ciblée** : le cache par couche est indexé par l'entrée de la couche (passage, annotations amont, empreinte des indications de schéma) ; seules les couches dont l'entrée a changé sont relancées.
+- **Relance ciblée** : le cache par couche est indexé par l'entrée de la couche (fenêtre de texte, annotations amont, empreinte des indications de schéma) ; seules les couches dont l'entrée a changé sont relancées. Modifier une phrase relance la fenêtre qui la contient (un appel), pas tout le document s'il est découpé.
 
 À étudier : jusqu'où une source traitée reste retraitable sans tout refaire, et ce que coûte, en gestes, une modification du texte après la revue.
+
+### 6.5 Enchaînement : des questions étroites sur une fenêtre large
+
+```mermaid
+flowchart LR
+  T["Fenêtre<br/>document ou section, sous le budget (C0)"] --> K["C1a Noms connus<br/>recherche exacte des noms et alias (déterministe)"]
+  T --> M["C1b Mentions nouvelles (modèle)<br/>portion + type, sans liste des entités connues"]
+  K --> R["C2 Recoupement<br/>déterministe, puis liste courte, puis auteur"]
+  M --> R
+  R --> A["Point d'arrêt : l'auteur confirme les entités<br/>(Atelier)"]
+  A --> F["C5 Faits<br/>entre entités confirmées, schéma réduit aux types présents"]
+  F --> V["C4 Notoriété, énonciation<br/>sur indice"]
+  V --> N["Noyau<br/>qualification, propositions"]
+```
+
+- **Fenêtre** : le document entier s'il tient dans le budget d'entrée (§8.2), sinon un découpage **déterministe** par C0 (titres, puis paragraphes, puis taille). Toute la fenêtre vient d'un même document : aucun contexte ne dépend de l'ordre des documents (R-PRI-03).
+- **C1a, noms connus, sans modèle** : les noms et alias de l'état sont cherchés tels quels dans le texte. Le modèle ne reçoit plus la liste des entités connues : son coût ne grandit plus avec le monde.
+- **C1b, mentions nouvelles, par le modèle** : une seule question, « quelles entités sont mentionnées ? », avec pour chacune le texte exact et un type tiré des types du schéma. Le texte exact suffit à retrouver de façon déterministe la portion et son passage (provenance, T-ING-11). Le conseil des marchands, cité dans trois passages d'un même lot, est vu trois fois dans la même fenêtre (E-003).
+- **C2, recoupement** : la cascade du §10.3. Le modèle n'y intervient que sur une vraie ambiguïté, avec une liste courte.
+- **Point d'arrêt** : les entités confirmées (gardées, corrigées, ajoutées par l'auteur) sont l'entrée de C5. C'est le rythme du §7 : on ne demande des faits qu'à propos d'entités établies.
+- **C5, faits** : relations et attributs entre entités confirmées, avec les seules relations du schéma compatibles avec leurs types (§10.2), et peu de consignes (celles de forme et de temps : règles 5, 9, 10 de l'extracteur actuel, ignorées par Haiku quand elles étaient noyées parmi 13, X-001).
+- **C4 et le méta** ne partent que sur indice ; **C3** (coréférence) et **C6** (critique) restent des hypothèses à éprouver quand un écart les réclamera.
 
 ## 7. L'Atelier d'ingestion (interface)
 
@@ -161,7 +185,7 @@ Esquisse d'un espace dédié, à porter dans *cadre-interface.md* quand elle ser
 - **Panneau des annotations de portée large** : notes sur la source entière ou sur un passage, et **questions libres** de l'auteur pour le contexte global.
 - **Enchaînement rapide** : `g` garder, `x` retirer, flèches pour l'annotation suivante, à la manière de Prodigy. Un geste par décision.
 
-**Rythme : l'auteur décide.** Il lance la couche qu'il veut, quand il veut, avec ou sans annotation préalable. Exemple : il colle le texte, lance C1, trouve un faux positif et un manque, pose « ignorer » sur le premier et ajoute le second, relance C1, puis passe à C2 quand il est satisfait. Rien n'impose une passe humaine ; tout la rend possible.
+**Rythme : l'auteur décide.** Il lance la couche qu'il veut, quand il veut, avec ou sans annotation préalable. Exemple : il colle le texte, lance C1, trouve un faux positif et un manque, pose « ignorer » sur le premier et ajoute le second, relance C1, puis passe à C2 quand il est satisfait. Les faits (C5) ne partent qu'une fois les entités confirmées (§6.5). Rien n'impose une passe humaine ; tout la rend possible.
 
 **Lien avec l'existant** : l'Atelier se branche sur le pipeline en étapes (I-PPL-01 à I-PPL-04). Partage avec la revue (`/review`) :
 - **l'Atelier travaille une source** : annotations et faits sur le texte, garder ou retirer ;
@@ -187,7 +211,7 @@ Esquisse d'un espace dédié, à porter dans *cadre-interface.md* quand elle ser
    - Le cache de prompt est une optimisation de coût, jamais une hypothèse de qualité.
    - Les *logprobs* ne sont pas fournis par l'API d'Anthropic, alors que les modèles locaux et certains hébergeurs les donnent. Le **score** doit donc avoir une définition qui s'en passe (score déclaré par le modèle, accord entre plusieurs tirages), puis une variante qui les exploite ; comparer les deux est une expérience.
 3. **Mêmes prompts pour tous les adaptateurs**, rangés avec la couche (versionnés) ; seul l'adaptateur change.
-4. **Enregistrement par appel** (fait) : identifiant du modèle, tokens d'entrée (cache compris) et de sortie, latence, coût, rattachés au passage ; les trois adaptateurs le remontent. Reste à rattacher l'artefact de la couche quand les couches existeront. La comparaison passe par `runs.diff` et `/measures`, étendus par couche.
+4. **Enregistrement par appel** (fait) : identifiant du modèle, tokens d'entrée (cache compris) et de sortie, latence, coût, rattachés au passage ; les trois adaptateurs le remontent. Sur demande (`WORLDKIT_LLM_LOG_DIR`), chaque appel est écrit tel qu'il part, avec sa réponse brute, pour que l'auteur lise les prompts. Reste à rattacher l'artefact de la couche quand les couches existeront. La comparaison passe par `runs.diff` et `/measures`, étendus par couche.
 5. **Biais annoncé** : Haiku est plus capable qu'un modèle de 8 milliards de paramètres. **Aucune conclusion de faisabilité** avant un contrôle croisé sur b1 avec un petit modèle hébergé.
 6. **Coût** : estimation avant chaque mesure, accord de l'auteur (règle du dépôt) ; clé dans `WORLDKIT_ANTHROPIC_API_KEY`.
 
@@ -215,7 +239,7 @@ Mesurer couche par couche, en séparant ce qui revient à la couche de ce qu'ell
 | **Coût** | faisabilité avec un petit modèle | appels, tokens d'entrée et de sortie, latence, par couche |
 | **Écarts par classe** | suivi de la recherche | décompte par classe de la grille, d'une itération à l'autre, lié aux fiches d'écart |
 
-Précision et rappel restent calculés, mais comme colonnes parmi d'autres. Les deux indicateurs qui pilotent les décisions sont les **gestes jusqu'à satisfaction** et le **rendement d'une annotation**. Les changements `optional` du gold sont exclus du rappel ; les supports vrais absents du gold sont classés G, pas comptés comme erreurs.
+Précision et rappel restent calculés, mais comme colonnes parmi d'autres. Les deux indicateurs qui pilotent les décisions sont les **gestes jusqu'à satisfaction** et le **rendement d'une annotation**. Les changements `optional` du gold sont neutres (ni manqués, ni en trop) ; les supports vrais absents du gold sont classés G, pas comptés comme erreurs.
 
 ## 10. Pistes retenues, à étudier
 
@@ -244,14 +268,25 @@ Séparer les écarts qui posent une question en revue de ceux qui sont des suppo
 - **Critique placé après la qualification** : il ne juge que ce qui pose une question, jamais les supports. Il met de côté de façon visible sans décider (choix 2). Son intérêt reste à démontrer : sur b1 il n'aurait rien corrigé.
 - **Exemples tirés du monde** : les annotations gardées et les décisions acceptées servent d'exemples dans le prompt (*few-shot* par récupération). De l'apprentissage sans fine-tuning, à mesurer.
 - **Leviers de revue** : tri par score et dépendances, acceptation en lot des enrichissements soutenus sans collision, phrase source affichée.
-- **Granularité par couche**, dans le profil (`batch: passage | document | n`) : avec `claude-code`, chaque appel a un coût fixe, donc regrouper est avantageux ; avec l'API, seules latence et qualité comptent ; avec un petit modèle, des appels courts et ciblés sont plus fiables.
+- **Granularité par couche** : distinguer la *largeur de la tâche* (étroite pour un petit modèle : une question par couche) de la *taille du contexte* (aussi large que le budget le permet, §6.5). Par défaut, chaque couche travaille par fenêtre ; travailler par passage reste une variante à mesurer, notamment pour C5. Avec `claude-code`, chaque appel a un coût fixe, ce qui favorise aussi les fenêtres larges.
 
 ### 10.3 B — Résolution à l'échelle
 
 - **Index déterministe** des noms, `aliases` et **titres dans l'état courant** : « le baron » désigne l'entité qui porte aujourd'hui ce titre, si elle est unique (indication `identifying: true`).
-- **Cascade** : correspondance exacte, similarité de chaînes compatible avec le type, puis **liste courte** envoyée au modèle avec des **fiches verbalisées** tirées de l'état (« Aldren II, roi, frère de Mervin, père de Corvin »). Classer les candidats par voisinage avec les autres mentions résolues du passage.
+- **Cascade** : correspondance exacte, similarité de chaînes compatible avec le type, puis **liste courte** envoyée au modèle avec des **fiches verbalisées** tirées de l'état (« Aldren II, roi, frère de Mervin, père de Corvin »). Classer les candidats par voisinage avec les autres mentions résolues de la fenêtre.
+- **Qui résout quoi** (sur b1) :
+
+  | Cas | Exemple | Qui le résout |
+  |---|---|---|
+  | nom exact ou alias connu | « Odon », « Brume », « Hautval » | déterministe (C1a) |
+  | variante de surface | « roi Mervin », « Cercle des Cendres » | déterministe : nom normalisé, similarité compatible avec le type |
+  | titre porté aujourd'hui par une seule entité | « le baron » → Odon | déterministe : index des titres |
+  | entité nouvelle | « le conseil des marchands » | déterministe (aucun candidat), confirmée par l'auteur |
+  | savoir absent du texte | « le Roi Gris » → Aldren II | l'auteur, une fois ; l'alias entre dans l'état |
+  | vraie ambiguïté | deux rois possibles | liste courte au modèle, sinon l'auteur |
+
 - **L'apprentissage passe par l'état** : accepter « le Roi Gris = Aldren II » ajoute un alias ; la résolution suivante devient exacte, sans appel.
-- C1 repère les mentions sans recevoir toute la liste des entités : la taille du monde ne pèse plus que sur la liste courte de C2.
+- C1 repère les mentions sans recevoir toute la liste des entités (C1a les trouve sans modèle) : la taille du monde ne pèse plus que sur la liste courte de C2. Les traces de X-001 montrent l'enjeu : chaque appel actuel envoie les 19 entités connues, capacités de système comprises, quel que soit le passage.
 - À tester sur un Valmont grossi (400 entités, homonymes, épithètes) en plus d'un corpus écrit.
 
 ### 10.4 C — Diversité des sources
@@ -300,7 +335,7 @@ Une idée d'intrigue (« le baron pourrait trahir ») peut devenir une piste d'a
 
 ## 11. Mesures faites
 
-Toutes sur le lot b1 de Valmont v1 (12 passages : `lieux-de-valmont`, `notes-baron` v1), Claude Sonnet 5, prompt version 3, avant le changement d'orientation : elles servent de point de départ, pas de référence pour les petits modèles.
+Toutes sur le lot b1 de Valmont v1 (12 passages : `lieux-de-valmont`, `notes-baron` v1), avec l'extracteur actuel (prompt version 3). Les §11.1 et §11.2 (Claude Sonnet 5, avant la réorientation) sont un point de départ ; le §11.3 (Haiku 4.5, substitut d'un petit modèle) est la référence de la cible.
 
 ### 11.1 Qualité (mesure T2)
 
@@ -316,7 +351,7 @@ Précision 0,84, rappel 0,81 ; sur les seuls changements qui posent une question
 
 **Lecture** : aucune hallucination sur b1. Les deux erreurs qui coûtent de la revue sont une valeur hors vocabulaire et une résolution ratée, malgré un monde minuscule : c'est un manque de contexte, pas d'échelle. L'erreur « cité portuaire » est **systématique** (6 appels sur 6). Prudence : 12 passages, une exécution, corpus optimiste (T-TST-01) ; b1 ne contient ni affirmations *in_world* ni méta.
 
-**Défauts de la mesure elle-même** : les changements `optional` du gold comptent comme manqués (sans eux, rappel sur les questions de 0,79 à 0,94) ; les supports vrais absents du gold comptent comme erreurs (corrections prévues, §9).
+**Défauts de la mesure elle-même** : les changements `optional` du gold comptent comme manqués (sans eux, rappel sur les questions de 0,79 à 0,94) ; les supports vrais absents du gold comptent comme erreurs. Les facultatifs sont neutres depuis (§9) ; ces chiffres n'ont pas été recalculés.
 
 ### 11.2 Coût et latence d'un appel `claude -p`
 
@@ -341,7 +376,9 @@ Extracteur actuel inchangé, `api-haiku` (température 0), une passe, 4 octobre 
 - **L'écart dominant est structurel** : « le conseil des marchands » n'est jamais créé comme entité ([E-003](recherche-ingestion/E-003-conseil-valeur.md)) ; une seule cause, 6 manqués et 2 en trop sur trois passages. Premier test naturel d'une couche C1 « mentions ».
 - **Trois consignes explicites ignorées** (règles 5, 9, 10), dont deux citent le cas fautif mot pour mot (E-002, [E-004](recherche-ingestion/E-004-depuis-la-chute.md), [E-005](recherche-ingestion/E-005-regent-de-brume.md)). Un prompt de 13 règles dépasse ce que le modèle plus petit applique.
 - **E-001 n'est pas reproduit** : Haiku infère moins, y compris à tort.
-- Comparaison avec Sonnet à refaire avec la mesure actuelle (facultatifs neutres) ; stabilité à mesurer.
+- **Stabilité** (deux extractions de plus) : 0,875 puis 0,958. E-002, E-004 et E-005 sont reproduits à l'identique ; E-003 deux fois sur trois ; seuls les passages d'E-003 et le support de lieux p5 varient. La température 0 ne rend pas Haiku déterministe.
+- **Ce que reçoit le modèle** (traces) : 3 538 tokens au plus, dont la liste des 19 entités connues à chaque appel, pour 75 caractères de passage en moyenne (49 à 108).
+- Comparaison avec Sonnet à refaire avec la mesure actuelle (facultatifs neutres).
 
 ## 12. Corpus à venir
 
@@ -386,6 +423,10 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 21. **Atelier pour une source, `/review` pour le lot**, mêmes décisions des deux côtés (§7).
 22. **Poids provisoires des gestes** 1-1-2-3, réglables, décomptes bruts publiés (§9).
 23. **Confidentialité par monde**, prévue mais désactivée pendant le développement (§8.3).
+24. **Fenêtre large, question étroite** (§1, §6.5) : chaque couche reçoit le document ou une section sous le budget, et ne répond qu'à une question ; le passage reste l'unité de provenance.
+25. **C1 sans la liste des entités connues** : les noms connus sont trouvés sans modèle (C1a), le modèle ne repère que les mentions nouvelles (C1b).
+26. **Les entités confirmées sont le point d'arrêt avant les faits** : C5 ne travaille qu'entre entités gardées, corrigées ou ajoutées par l'auteur (§6.5, §7).
+27. **Mettre l'architecture à l'épreuve avant de corriger l'extracteur actuel** : l'ordre des remèdes (§4) vaut pour corriger un écart dans une architecture donnée ; quand c'est l'architecture qu'on teste, l'expérience passe d'abord (X-002 avant l'indication de schéma sur E-003).
 
 ## 14. Questions ouvertes
 
@@ -393,9 +434,11 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 2. Couche haute d'ontologie : oui ou non, et quel contenu minimal ?
 3. Notes (`add_note`) et facettes : quel modèle exact, quelles facettes par défaut ? Description canonique : statut, affichage, péremption ?
 4. Fenêtre de validité diégétique : l'extraire, et sous quelle forme ?
-5. Parsing structurel : jusqu'où (listes, tableaux, PDF) ?
+5. Parsing structurel : jusqu'où (listes, tableaux, PDF) ? Découpage des fenêtres par C0 : par titres, puis paragraphes, puis taille ; avec ou sans recouvrement ?
 6. Plan de corpus : lesquels écrire en premier, et qui annote (l'Atelier peut servir d'outil d'annotation du gold) ?
 7. Les hallucinations (classe H) existent-elles ailleurs que dans b1 ? La Chronique de la Chute (b2, *in_world*) est le meilleur candidat.
+8. C5 par fenêtre ou par passage : la fenêtre donne le contexte, le passage limite ce qu'un fait peut citer ; à mesurer.
+9. Types de C1b : types du schéma du monde, ou familles de la couche haute d'ontologie (question 2) quand le schéma est riche ?
 
 ## 15. Évolutions du cadre à prévoir
 
@@ -403,15 +446,16 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 
 | Point du cadre | Évolution probable |
 |---|---|
-| T-ING-09 cache | un cache par couche ; la clé contient l'entrée de la couche (passage, contexte de section, annotations amont, empreinte des indications) ; la version de l'extraction devient la chaîne des versions |
-| T-ING-10 passages | le contexte de section entre dans la clé ; le recalage des annotations s'ajoute à l'alignement par empreinte |
+| T-ING-09 cache | un cache par couche ; la clé contient l'entrée de la couche (fenêtre, annotations amont, empreinte des indications) ; la version de l'extraction devient la chaîne des versions |
+| T-ING-10 passages | le passage reste l'unité de provenance et d'alignement ; la **fenêtre** (document ou section sous le budget, découpée par C0) devient l'unité de travail des couches ; le recalage des annotations s'ajoute à l'alignement par empreinte |
+| T-ING-07 regroupement des créations | prolongé par C2 : une entité nouvelle repérée dans plusieurs fenêtres d'un lot est recoupée avant d'être proposée |
 | T-ING-11 supports | un support porte une portion du texte (l'annotation de fait) |
-| T-ING-17 erreur d'extraction | une erreur par couche ; sort d'un passage dont C1 réussit et C5 échoue |
+| T-ING-17 erreur d'extraction | une erreur par couche et par fenêtre ; sort d'une fenêtre dont C1 réussit et C5 échoue |
 | T-ARC-03 | nouvelles notions : l'annotation et son score, produits de la périphérie, distincts de la qualification du noyau ; l'annotation de l'auteur, décision humaine hors journal |
 | T-STO-02 | le fichier du monde reçoit les tables du magasin d'atelier, hors journal |
 | T-BRA-01 | `branch_id` sur les annotations ; lecture par lignée, sans copie |
 | R-PRI-04 mémoire des décisions | ne retient que des décisions humaines sur des propositions ; l'avis du critique n'en est pas une ; les annotations de l'auteur vivent à part |
-| R-PRI-03 symétrie du lot | tout contexte pris hors du document ne doit pas dépendre de l'ordre des documents |
+| R-PRI-03 symétrie du lot | une fenêtre ne mélange jamais deux documents ; tout contexte pris hors du document (C2 contre l'état) ne doit pas dépendre de l'ordre des documents |
 | I-LLM-01 | un budget par couche ou par appel, en plus du plafond par exécution |
 | I-PIP-01 et pipeline E1 à E12 | E4 découpée en couches C1 à C6, relançables séparément ; E7 en partie absorbée par C2 |
 | Espaces de l'interface | un espace nouveau : l'Atelier (§7) |
@@ -426,11 +470,11 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 
 1. **Outillage de mesure** (fait) : facultatifs du gold neutres ; usage par appel (tokens, coût) dans les trois adaptateurs ; budget d'entrée mesuré (`WORLDKIT_LLM_INPUT_BUDGET`) ; température 0 pour `api-haiku`.
 2. **Profil « petit modèle simulé »** (fait) : `api-haiku`, température 0, sans réflexion ni effort, budget d'entrée mesuré.
-3. **Mesurer b1 avec l'extracteur actuel sous Haiku** (fait, [X-001](recherche-ingestion/X-001-b1-haiku-reference.md)) : fiches E-003 à E-005 ouvertes, E-001 et E-002 complétées. Reste : stabilité (`repeat=2`) et comparaison juste avec Sonnet.
-4. **Traiter les écarts** par les remèdes les moins coûteux, en commençant par E-003 (le plus coûteux) : indication de schéma, puis annotation de l'auteur, puis C1 ; E-001 et E-005 par un vocabulaire d'attribut ; E-002 par l'annotation (alias) ; mesurer chaque essai.
-5. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis **C1 seule** mesurée contre les `mentions` du gold, avec et sans pré-annotation.
-6. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1.
-7. Ensuite : C2 (résolution en cascade), puis C5 (faits à entités données), chacune avec sa fiche d'expérience.
+3. **Mesurer b1 avec l'extracteur actuel sous Haiku** (fait, [X-001](recherche-ingestion/X-001-b1-haiku-reference.md)) : fiches E-003 à E-005 ouvertes, E-001 et E-002 complétées, stabilité mesurée. Reste : comparaison juste avec Sonnet.
+4. **X-002, C1 et C2 sur b1** ([fiche](recherche-ingestion/X-002-c1-c2-fenetre.md)) : fenêtre au document, C1a sans modèle, C1b sans liste connue, C2 déterministe ; mesurés contre les `mentions` du gold, sans nouvelle annotation. E-003 en est le premier témoin.
+5. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
+6. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.
+7. Ensuite : C5 (faits entre entités confirmées), chacune avec sa fiche d'expérience ; les écarts restants (E-001 et E-005 par un vocabulaire d'attribut, E-002 par l'annotation) par les remèdes les moins coûteux.
 
 ## 17. Références
 
