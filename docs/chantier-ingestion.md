@@ -380,6 +380,16 @@ Extracteur actuel inchangé, `api-haiku` (température 0), une passe, 4 octobre 
 - **Ce que reçoit le modèle** (traces) : 3 538 tokens au plus, dont la liste des 19 entités connues à chaque appel, pour 75 caractères de passage en moyenne (49 à 108).
 - Comparaison avec Sonnet à refaire avec la mesure actuelle (facultatifs neutres).
 
+### 11.4 C1 et C2 sur une fenêtre au document (X-002)
+
+Document entier, une seule question au modèle (« quelles entités sont mentionnées ? »), sans liste des entités connues ; recoupement déterministe. b1, Haiku 4.5, deux extractions, 4 appels, 0,0094 $, au plus 951 tokens par appel. Détail dans [X-002](recherche-ingestion/X-002-c1-c2-fenetre.md).
+
+- **Mentions du gold trouvées** : 23 sur 28 (17 sans modèle) ; **bien recoupées** : 22 sur 23, toutes par des règles déterministes ; seule erreur, le Roi Gris (à l'auteur). Stabilité 1,0.
+- **E-003 disparaît au niveau des entités** : le conseil des marchands est repéré dans les trois passages, comme une seule entité nouvelle.
+- **Écart restant** : le modèle relève une forme par entité, pas « Odon » seul ni « le baron » (5 manques). Indispensable pour la provenance.
+- **Correction en cours d'expérience** : les mentions s'imbriquent (« baron de Brume » contient « Brume ») ; la première fusion gardait la plus longue et perdait le nom connu.
+- **Outil** : les réponses tracées se rejouent (`--replay`) ; une couche déterministe se corrige et se remesure sans appel ni coût.
+
 ## 12. Corpus à venir
 
 Chaque nouveau corpus met un levier à l'épreuve ; chacun demande un gold (l'extraction peut en proposer un brouillon, que l'auteur corrige dans l'Atelier, en signalant le biais).
@@ -471,7 +481,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 1. **Outillage de mesure** (fait) : facultatifs du gold neutres ; usage par appel (tokens, coût) dans les trois adaptateurs ; budget d'entrée mesuré (`WORLDKIT_LLM_INPUT_BUDGET`) ; température 0 pour `api-haiku`.
 2. **Profil « petit modèle simulé »** (fait) : `api-haiku`, température 0, sans réflexion ni effort, budget d'entrée mesuré.
 3. **Mesurer b1 avec l'extracteur actuel sous Haiku** (fait, [X-001](recherche-ingestion/X-001-b1-haiku-reference.md)) : fiches E-003 à E-005 ouvertes, E-001 et E-002 complétées, stabilité mesurée. Reste : comparaison juste avec Sonnet.
-4. **X-002, C1 et C2 sur b1** ([fiche](recherche-ingestion/X-002-c1-c2-fenetre.md)) : fenêtre au document, C1a sans modèle, C1b sans liste connue, C2 déterministe ; mesurés contre les `mentions` du gold, sans nouvelle annotation. E-003 en est le premier témoin.
+4. **X-002, C1 et C2 sur b1** (fait, [fiche](recherche-ingestion/X-002-c1-c2-fenetre.md)) : 23 mentions sur 28, 22 bien recoupées sur 23 ; E-003 disparaît au niveau des entités. Reste : les formes courtes (« Odon », « le baron »).
 5. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
 6. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.
 7. Ensuite : C5 (faits entre entités confirmées), chacune avec sa fiche d'expérience ; les écarts restants (E-001 et E-005 par un vocabulaire d'attribut, E-002 par l'annotation) par les remèdes les moins coûteux.

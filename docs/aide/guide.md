@@ -376,7 +376,7 @@ worldkit --db valmont.db eval mentions --batches corpus/valmont-v1/valmont/docs/
 couches : known-only ; 2 document(s) ; 28 mention(s) au gold
 ```
 
-Avec `--profile api-haiku` (sans `--no-model`), le modèle repère en plus les entités nouvelles : deux appels pour b1, un par document.
+Avec `--profile api-haiku` (sans `--no-model`), le modèle repère en plus les entités nouvelles : deux appels pour b1, un par document. Si les appels ont été tracés, `--replay llm-log` relit leurs réponses au lieu de rappeler le modèle : on corrige une couche déterministe et on remesure sans rien payer.
 
 Pour voir exactement ce qui part vers le modèle, désignez un dossier : chaque appel y est écrit en Markdown (prompt système, message, schéma de sortie envoyé, réglages, réponse brute), un fichier par appel, nommé d'après le passage. Le dossier `llm-log/` est ignoré par git.
 

@@ -94,3 +94,30 @@ def test_mentions_measured_against_the_gold_of_b1():
     roi_gris = next(m for p in report.passages for s_, m in p.matched if s_ == "Le Roi Gris")
     assert roi_gris.entity == "new:roi gris"  # savoir absent du texte : à l'auteur (E-002)
     assert s["c2"]["resolved_ok"] == s["c1"]["tp"] - 1 and s["stability"] == {"lieux-de-valmont": 1.0, "notes-baron": 1.0}
+
+
+def test_nested_mentions_keep_the_known_name_inside_a_longer_designation():
+    """« baron de Brume » (modèle) n'efface pas « Brume » (connu) : les mentions s'imbriquent."""
+    from worldkit.periphery.mentions import merge
+    known = [Mention("Brume", 20, 1, "Place", "known", entity="brume")]
+    model = [Mention("baron de Brume", 11, 1, "Character", "model"), Mention("Brume", 20, 1, "Place", "model")]
+    merged = merge(known, model)
+    assert [(m.text, m.source) for m in merged] == [("baron de Brume", "model"), ("Brume", "known")]
+
+
+def test_replay_answers_traced_prompts_without_calling(tmp_path, monkeypatch):
+    """Rejouer les traces : mêmes prompts, mêmes réponses, aucun appel ; un prompt non tracé est une erreur."""
+    import pytest
+    from worldkit.periphery.llm.usage import ReplayAdapter
+    context, state = setup()
+    monkeypatch.setenv("WORLDKIT_LLM_LOG_DIR", str(tmp_path))
+    live = FakeAdapter()
+    for window in map(document_window, B1):  # le faux adaptateur ne trace pas : on trace à sa place
+        system, prompt = MentionFinder(live, PROFILE).prompt(window, context)
+        live.meter.trace("fake", "m", system, prompt, {}, {}, live.complete(system, prompt, {}))
+    first = evaluate_mentions(MentionFinder(live, PROFILE), B1, VALMONT / "gold", context, state).summary()
+    replayed = evaluate_mentions(MentionFinder(ReplayAdapter(tmp_path), PROFILE), B1, VALMONT / "gold",
+                                 context, state).summary()
+    assert (replayed["c1"], replayed["c2"]) == (first["c1"], first["c2"])
+    with pytest.raises(ValueError, match="rejeu"):
+        ReplayAdapter(tmp_path).complete("autre", "prompt", {})

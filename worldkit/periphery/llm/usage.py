@@ -139,3 +139,38 @@ def summarize(calls: list[CallUsage], budget: int | None = None) -> dict[str, An
         "excess_tokens": sum(over),
         "max_excess": max(over, default=0),
     }
+
+
+class ReplayAdapter:
+    """Rejoue des appels tracés (`WORLDKIT_LLM_LOG_DIR`) : pour un prompt identique, rend la réponse enregistrée,
+    sans appel ni coût. Sert à corriger les couches sans modèle et à remesurer gratuitement ; un prompt qui
+    n'a pas été tracé est une erreur (jamais de réponse inventée)."""
+
+    def __init__(self, folder: str | Path) -> None:
+        self.meter = UsageMeter()
+        self._answers: dict[tuple[str, str], list[Any]] = {}
+        for path in sorted(Path(folder).glob("*.md")):
+            text = path.read_text(encoding="utf-8")
+            system = _section(text, "Prompt système")
+            message = _section(text, "Message")
+            raw = json.loads(_section(text, "Réponse brute"))
+            if isinstance(raw, dict) and "content" in raw:  # réponse de l'API Anthropic
+                raw = json.loads(next(b["text"] for b in raw["content"] if b.get("type") == "text"))
+            self._answers.setdefault((system, message), []).append(raw)
+        self._used: dict[tuple[str, str], int] = {}
+
+    def complete(self, system: str, prompt: str, schema: Any) -> Any:
+        key = (system, prompt)
+        answers = self._answers.get(key)
+        if not answers:
+            raise ValueError("rejeu : aucun appel tracé pour ce prompt")
+        n = self._used.get(key, 0)
+        self._used[key] = n + 1
+        return answers[n % len(answers)]
+
+
+def _section(text: str, title: str) -> str:
+    """Contenu du bloc de code qui suit le titre `## title` d'une trace."""
+    after = text.split(f"## {title}\n", 1)[1]
+    body = after.split("````", 1)[1].split("\n", 1)[1]
+    return body.rsplit("\n````", 1)[0] if title == "Réponse brute" else body.split("\n````", 1)[0]

@@ -30,7 +30,7 @@ Attendu (gold) : mentions `{ "Le Roi Gris": aldren-ii, "Hautval": hautval, "la C
 
 ## Essais
 
-Aucun pour l'instant. Premier essai prévu : remède 5 sous sa forme minimale (doute exprimé, candidat proposé), puis remède 4 pour mesurer le rendement de l'annotation.
+- **4 octobre 2026, X-002** : C1 relève « Roi Gris » (Character, confiance `sure`) ; C2 ne trouve aucun candidat et en fait une entité nouvelle. Aucune fausse résolution, mais aucun doute exprimé non plus : le cas reste à l'auteur (remède 4), comme prévu. Premier essai prévu : remède 5 sous sa forme minimale (doute exprimé, candidat proposé), puis remède 4 pour mesurer le rendement de l'annotation.
 
 ## Conclusion
 

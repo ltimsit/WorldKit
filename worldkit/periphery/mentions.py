@@ -164,10 +164,13 @@ class MentionFinder:
 
 
 def merge(known: list[Mention], found: list[Mention]) -> list[Mention]:
-    """C1 : les portions connues priment ; une portion du modèle contenue dans une autre est écartée."""
-    placed = [m for m in found if m.start >= 0]
+    """C1 : toutes les portions connues sont gardées. Une portion du modèle est écartée si elle est contenue dans
+    une portion connue (« Chute » dans « la Chute ») ; elle est gardée si elle en contient une : les mentions
+    s'imbriquent (« baron de Brume » désigne Odon, « Brume » désigne la ville)."""
+    placed = _keep_longest([m for m in found if m.start >= 0])
     unplaced = [m for m in found if m.start < 0]
-    return _keep_longest(known + placed) + unplaced
+    kept = [m for m in placed if not any(k.start <= m.start and m.end <= k.end for k in known)]
+    return sorted(known + kept, key=lambda m: (m.start, -(m.end - m.start))) + unplaced
 
 
 def _compatible(schema: Any, entity_type: str, mention_type: str | None) -> bool:
@@ -261,7 +264,10 @@ def _match(p: PassageMentions) -> None:
         else:
             free.remove(hit)
             p.matched.append((surface, hit))
-    p.extra = free
+    # Une portion qui chevauche une mention appariée et désigne la même entité est la même mention
+    # (« Mervin » dans « roi Mervin ») : ni bonne ni en trop.
+    p.extra = [m for m in free if not any(h.entity is not None and h.entity == m.entity
+                                          and m.start < h.end and h.start < m.end for _, h in p.matched)]
 
 
 @dataclass

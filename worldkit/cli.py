@@ -215,7 +215,11 @@ def _run_eval_mentions(world: Any, args: argparse.Namespace) -> int:
     finder = None
     if not args.no_model:
         profile = load_config(args.llm_config).profile(args.profile, "mentions")
-        finder = MentionFinder(make_adapter(profile), profile)
+        if args.replay:
+            from worldkit.periphery.llm.usage import ReplayAdapter
+            finder = MentionFinder(ReplayAdapter(args.replay), profile)
+        else:
+            finder = MentionFinder(make_adapter(profile), profile)
     report = evaluate_mentions(finder, paths, Path(args.oracle), extraction_context(world, state), state, args.repeat)
     summary = report.summary()
     print(f"couches : {summary['finder']} ; {len(paths)} document(s) ; {summary['gold_mentions']} mention(s) au gold")
@@ -843,6 +847,7 @@ def build_parser() -> argparse.ArgumentParser:
     evm.add_argument("--llm-config", default=None)
     evm.add_argument("--repeat", type=int, default=1, help="2 pour mesurer la stabilité de C1b")
     evm.add_argument("--no-model", action="store_true", help="C1a et C2 seuls, sans appel au modèle")
+    evm.add_argument("--replay", default=None, help="dossier de traces : rejoue les réponses, sans appel ni coût")
     evm.add_argument("--out", default=None, help="rapport JSON détaillé")
 
     review = commands.add_parser("review", help="file de revue des propositions")
