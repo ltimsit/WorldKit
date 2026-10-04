@@ -164,3 +164,38 @@ def test_adding_a_mention_by_selection_covers_its_other_occurrences_Q4():
     assert len(written) == 2
     added = [a for a in layers.effective(world, "reference", doc) if a.by_author]
     assert all(a.value["new"] and a.status == "kept" for a in added)
+
+
+# --- Étape 4 : « Proposer » (Q3, T5) ---
+
+from worldkit.atelier import propose as proposing  # noqa: E402
+
+
+def test_propose_sends_confirmed_new_entities_and_retained_aliases_only_Q3():
+    world = base_world()
+    doc = store.import_source(world, NOTES + "\nLe Roi Gris régnait autrefois.\n")
+    layers.run_mentions(world, "reference", doc.doc_id,
+                        FakeFinder([("conseil des marchands", "Faction"), ("Roi Gris", "Character")]))
+    current = {a.value["text"]: a for a in layers.effective(world, "reference", doc)}
+    gestures.gesture(world, "reference", doc.doc_id, "keep", ann_id=current["conseil des marchands"].ann_id)
+    gestures.gesture(world, "reference", doc.doc_id, "correct", "world", current["Roi Gris"].ann_id, entity="aldren-ii")
+    by_passage = proposing.drafts_of(world, "reference", doc)
+    flat = [d for ds in by_passage.values() for d in ds]
+    assert {"op": "create_entity", "entity": "new:conseil-des-marchands", "type": "Faction"} in flat
+    assert {"op": "add_value", "entity": "aldren-ii", "attribute": "aliases", "value": "Roi Gris"} in flat
+    report = proposing.propose(world, "reference", doc.doc_id)
+    assert report.proposals and report.batch_id.startswith("atelier-")
+    from worldkit.ingest.queue import load
+    pending = load(world)
+    changes = [c.change.op for p in pending for c in p.changes]
+    assert "create_entity" in changes and "add_value" in changes  # dans la file de revue, comme un lot ordinaire
+
+
+def test_nothing_is_proposed_without_an_author_decision_Q3():
+    import pytest
+    from worldkit.ingest.batch import BatchError
+    world = base_world()
+    doc = store.import_source(world, NOTES)
+    layers.run_mentions(world, "reference", doc.doc_id, FakeFinder([("conseil des marchands", "Faction")]))
+    with pytest.raises(BatchError, match="rien à proposer"):
+        proposing.propose(world, "reference", doc.doc_id)
