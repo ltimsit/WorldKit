@@ -1,6 +1,6 @@
 # E-009 — Un texte barré est lu comme une mention
 
-- **Statut** : ouverte
+- **Statut** : résolue sur Corbelle (déterministe)
 - **Classe** : énonciation (AX-E4, correction de l'auteur)
 - **Où** : Corbelle c1, `brouillon-corbelle` p6 ; couche C1a (et C5, qui voit le texte)
 - **Observé avec** : C1a déterministe, 4 octobre 2026 ([X-006](X-006-corbelle-chaine.md)) ; la question ciblée a, elle, ignoré la mention barrée
@@ -16,4 +16,4 @@
 
 ## Essais
 
-Aucun.
+- **4 octobre 2026, [X-007](X-007-recoupement-par-score.md)** : la fenêtre repère `~~…~~` ; C1a n'y cherche pas ; une mention du modèle seulement barrée est écartée. « la vouivre » n'est plus trouvée en p6.

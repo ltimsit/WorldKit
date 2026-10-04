@@ -286,7 +286,7 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
     summary = report.summary()
     print(f"couche : {summary['finder']} ; entités : {args.entities} "
           f"({', '.join(f'{d} {n}' for d, n in report.prompts.items())})")
-    for k in ("facts", "questions", "optional", "unplaced", "silent_sentences", "usage", "probe_usage"):
+    for k in ("facts", "questions", "optional", "unplaced", "silent_sentences", "rejected", "usage", "probe_usage"):
         if k in summary:
             print(f"  {k} : {summary[k]}")
     for s in report.silent:
@@ -303,6 +303,8 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
                 print(f"     en trop {dict(k)}" + ("  (support)" if k in p.supports else ""))
     for f in report.unplaced:
         print(f"  preuve introuvable : {f.draft} ({f.evidence!r})")
+    for f, reason in report.rejected:
+        print(f"  écarté ({reason}) : {f.draft}")
     if args.out:
         Path(args.out).write_text(_json.dumps({"summary": summary, "entities": {d: [e.__dict__ for e in es]
                                                                                   for d, es in entities.items()},

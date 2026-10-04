@@ -109,9 +109,15 @@ class FactFinder:
                 + "\n\nTexte :\n" + window.text)
         return SYSTEM, user
 
-    def find(self, window: Window, entities: list[Confirmed], schema: Any) -> list[Fact]:
+    def find(self, window: Window, entities: list[Confirmed], schema: Any, state: Any = None) -> list[Fact]:
         system, user = self.prompt(window, entities, schema)
         raw = self.adapter.complete(system, user, output_schema())
+        return check_facts(self._facts(raw, window, entities, schema), entities, schema, state, self.rejected)
+
+    def __post_init__(self) -> None:
+        self.rejected: list[tuple[Fact, str]] = []  # écartés par les contrôles sans modèle (E-011), avec la raison
+
+    def _facts(self, raw: dict[str, Any], window: Window, entities: list[Confirmed], schema: Any) -> list[Fact]:
         types = {e.id: e.type for e in entities}
         facts = []
         for f in raw["facts"]:
@@ -128,6 +134,45 @@ class FactFinder:
                          "value": f["value"].strip()}
             facts.append(Fact(draft, f["evidence"], _locate(window, f["evidence"])))
         return facts
+
+
+def check_facts(facts: list[Fact], entities: list[Confirmed], schema: Any, state: Any,
+                rejected: list[tuple[Fact, str]]) -> list[Fact]:
+    """Contrôles sans modèle après C5 (E-011) :
+
+    - une relation du schéma dont les types ne conviennent pas (« rules » vers une Faction) est écartée ;
+    - un alias égal au nom ou à un alias connu de l'entité (« la Sorgue » pour la Sorgue) est écarté ;
+    - une valeur proche de la valeur connue (« bourgmèstre » pour « bourgmestre ») prend la valeur connue : c'est
+      un support, pas une collision.
+    """
+    from rapidfuzz.distance import JaroWinkler
+
+    from .matching import fold
+    types = {e.id: e.type for e in entities}
+    names: dict[str, set[str]] = {e.id: {fold(e.name)} for e in entities}
+    for f in (state.facts.values() if state is not None else ()):
+        if f.kind == "value" and f.name == "aliases" and f.subject in names:
+            names[f.subject].add(fold(str(f.value)))
+    kept = []
+    for fact in facts:
+        d = fact.draft
+        if d["op"] == "add_relation" and d["relation"] in schema.relations:
+            r = schema.relations[d["relation"]]
+            subject, target = types.get(d["from"]), types.get(d["to"])
+            if subject and target and not (_is_a(schema, subject, r.from_) and _is_a(schema, target, r.to)):
+                rejected.append((fact, f"types : {d['relation']} va de {'|'.join(r.from_)} vers {'|'.join(r.to)}"))
+                continue
+        if d["op"] == "add_value" and d.get("attribute") == "aliases" and fold(str(d["value"])) in names.get(d["entity"], ()):
+            rejected.append((fact, "alias égal au nom"))
+            continue
+        if d["op"] == "set_attribute" and state is not None:
+            known = state.facts.get(("attr", d["entity"], d["attribute"]))
+            if known is not None and str(known.value) != d["value"]:
+                a, b = fold(str(known.value)), fold(str(d["value"]))
+                if a == b or JaroWinkler.normalized_similarity(a, b) >= 0.9:
+                    fact.draft = {**d, "value": known.value}  # « bourgmèstre » : la valeur connue
+        kept.append(fact)
+    return kept
 
 
 def _locate(window: Window, evidence: str) -> int | None:
@@ -248,6 +293,7 @@ class FactReport:
     calls: list[Any] | None = None
     prompts: dict[str, int] = field(default_factory=dict)  # document → nombre d'entités données
     silent: list[Any] = field(default_factory=list)          # phrases muettes et réponses de la question ciblée
+    rejected: list[Any] = field(default_factory=list)        # faits écartés par les contrôles (E-011)
     probe_calls: list[Any] | None = None
 
     def summary(self) -> dict[str, Any]:
@@ -265,6 +311,7 @@ class FactReport:
                         f"/{sum(len(p.optional) for p in self.passages)}",
             "unplaced": len(self.unplaced),
             "silent_sentences": len(self.silent),
+            "rejected": len(self.rejected),
             **({"usage": summarize(self.calls, input_budget())} if self.calls is not None else {}),
             **({"probe_usage": summarize(self.probe_calls, input_budget())} if self.probe_calls is not None else {}),
         }
@@ -370,7 +417,7 @@ def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str
 
     def run(window: Window) -> list[Fact]:
         with meter.label(window.doc_id) if meter is not None else nullcontext():
-            facts = finder.find(window, entities.get(window.doc_id, []), context.schema)
+            facts = finder.find(window, entities.get(window.doc_id, []), context.schema, state)
         if probe is None:
             return facts
         for s in silent_sentences(window, facts, (forms or {}).get(window.doc_id, {})):
@@ -384,6 +431,7 @@ def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str
     report = FactReport(finder.version + (f"+{probe.version}" if probe is not None else ""), label, [],
                         prompts={w.doc_id: len(entities.get(w.doc_id, [])) for w in windows})
     report.silent = silents
+    report.rejected = list(finder.rejected)
     if probe_meter is not None:
         report.probe_calls = probe_meter.calls[first_probe:]
     # Noms des entités nouvelles à l'échelle du lot : le conseil des marchands est nommé dans notes-baron et cité

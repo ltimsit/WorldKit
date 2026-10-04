@@ -68,9 +68,13 @@ class Window:
     text: str
     passages: tuple[tuple[int, int, int], ...]  # (index du passage, début, fin)
     passage_texts: dict[int, str] = field(default_factory=dict)
+    struck: tuple[tuple[int, int], ...] = ()     # portions barrées (~~…~~) : corrigées par l'auteur (E-009)
 
     def passage_at(self, position: int) -> int | None:
         return next((i for i, start, end in self.passages if start <= position < end), None)
+
+    def is_struck(self, start: int, end: int) -> bool:
+        return any(s <= start and end <= e for s, e in self.struck)
 
 
 def document_window(path: str | Path) -> Window:
@@ -82,7 +86,9 @@ def document_window(path: str | Path) -> Window:
         text += p.text
         spans.append((p.index, start, len(text)))
         text += "\n\n"
-    return Window(doc.doc_id, text.rstrip(), tuple(spans), {p.index: p.text for p in doc.passages})
+    text = text.rstrip()
+    struck = tuple((m.start(), m.end()) for m in re.finditer(r"~~.+?~~", text, re.DOTALL))
+    return Window(doc.doc_id, text, tuple(spans), {p.index: p.text for p in doc.passages}, struck)
 
 
 @dataclass
@@ -133,6 +139,8 @@ def known_mentions(window: Window, entities: tuple[KnownEntity, ...],
         for name in e.names:
             for form in {name, re.sub(r"^(?:(?:les|le|la)\s+|l['’]\s*)", "", name, flags=re.IGNORECASE)}:
                 for start in _occurrences(window.text, form):
+                    if window.is_struck(start, start + len(form.strip())):
+                        continue  # texte barré : corrigé par l'auteur (E-009)
                     found.append(Mention(window.text[start:start + len(form.strip())], start,
                                          window.passage_at(start), e.type, "known", entity=e.id, rule="exact"))
     types = {e.id: e.type for e in entities}
@@ -218,11 +226,13 @@ class MentionFinder:
             starts: dict[int, str] = {}
             for form in (m["text"].strip(), bare):
                 for start in _occurrences(window.text, form):
-                    starts.setdefault(start, form)
+                    if not window.is_struck(start, start + len(form)):  # E-009
+                        starts.setdefault(start, form)
             for start, form in starts.items():
                 found.append(Mention(window.text[start:start + len(form)], start, window.passage_at(start),
                                      m["type"], "model", m["confidence"], m.get("reason") or ""))
-            if not starts:  # texte réécrit par le modèle : gardé, sans position
+            struck_only = any(_occurrences(window.text, f) for f in (m["text"].strip(), bare))
+            if not starts and not struck_only:  # texte réécrit par le modèle : gardé, sans position
                 found.append(Mention(m["text"], -1, None, m["type"], "model", m["confidence"], m.get("reason") or ""))
         return found
 
@@ -269,8 +279,9 @@ class Resolver:
         found = re.match(r"^(.+?)\s+(?:de|du|des|d['’])\s*(.+)$", key)
         if found is None:
             return None
-        head, tail = found.group(1), found.group(2)
-        named = [e.id for e in self.entities if tail in {name_key(n) for n in e.names}]
+        from .matching import fold
+        head, tail = found.group(1), fold(found.group(2))
+        named = [e.id for e in self.entities if tail in {fold(n) for n in e.names}]
         if len(named) != 1:
             return None
         holders = [h for h in self.titles.get(head, []) if frozenset((h, named[0])) in self.linked]
@@ -279,34 +290,29 @@ class Resolver:
         return None, tuple(sorted(set(holders) | set(named)))
 
     def resolve(self, m: Mention) -> Mention:
+        """Nom exact (forme pliée), titre unique, ressemblance (score, X-007), désignation (E-006) ; sinon doute ou
+        entité nouvelle. Les entités nouvelles d'un lot sont regroupées ensuite (`cluster_new`)."""
+        from .matching import best_matches, decide, fold
         if m.entity is not None:
             return m
-        key = name_key(m.text)
-        exact = [e for e in self.entities if key in {name_key(n) for n in e.names}
-                 and _compatible(self.schema, e.type, m.type)]
+        key = fold(m.text)
+        compatible = [e for e in self.entities if _compatible(self.schema, e.type, m.type)]
+        exact = [e for e in compatible if key in {fold(n) for n in e.names}]
         if len(exact) == 1:
             m.entity, m.rule = exact[0].id, "exact"
             return m
-        holders = self.titles.get(key, [])
+        if len(exact) > 1:
+            m.rule, m.candidates = "ambiguous", tuple(sorted(e.id for e in exact))
+            return m
+        holders = [h for t, hs in self.titles.items() if fold(t) == key for h in hs]
         if len(holders) == 1:
             m.entity, m.rule = holders[0], "title"
             return m
-        contained = [e for e in self.entities if _compatible(self.schema, e.type, m.type) and any(
-            re.search(r"(?<!\w)" + re.escape(name_key(n)) + r"(?!\w)", key) for n in e.names if len(name_key(n)) > 2)]
-        if len(contained) == 1:
-            m.entity, m.rule = contained[0].id, "contains"
+        entity, doubtful = decide(best_matches(m.text, {e.id: list(e.names) for e in compatible}))
+        if entity is not None:
+            m.entity, m.rule = entity, "similar"
             return m
-        part = [e for e in self.entities if _compatible(self.schema, e.type, m.type) and len(key) > 2 and any(
-            re.search(r"(?<!\w)" + re.escape(key) + r"(?!\w)", name_key(n)) for n in e.names)]
-        if not contained and len(part) == 1:
-            m.entity, m.rule = part[0].id, "part"
-            return m
-        candidates = tuple(sorted({e.id for e in exact} | set(holders) | {e.id for e in contained}
-                                  | {e.id for e in part}))
-        if len(candidates) > 1:
-            m.rule, m.candidates = "ambiguous", candidates
-            return m
-        designation = self.designation(key) if not candidates else None
+        designation = self.designation(name_key(m.text))
         if designation is not None:
             entity, hints = designation
             if entity is not None:
@@ -314,8 +320,31 @@ class Resolver:
             else:
                 m.rule, m.candidates = "doubt", hints  # désignation d'une entité connue : à préciser par l'auteur
             return m
-        m.entity, m.rule = f"new:{key}", "new"
+        if doubtful or len(holders) > 1:
+            m.rule, m.candidates = "doubt", tuple(sorted(set(doubtful) | set(holders)))
+            return m
+        m.entity, m.rule = f"new:{name_key(m.text)}", "new"
         return m
+
+    def cluster_new(self, mentions: list[Mention]) -> None:
+        """Regroupe les entités nouvelles du lot qui se ressemblent (« Bertrand Ostrell », « Ostrel » : Bertrand
+        Ostrel), indépendamment de l'ordre des documents (R-PRI-03) : la forme la plus longue d'abord, puis l'ordre
+        alphabétique. Une forme ambiguë entre deux entités nouvelles devient un doute."""
+        from .matching import best_matches, decide, fold
+        news = sorted((m for m in mentions if m.rule == "new"), key=lambda m: (-len(fold(m.text)), fold(m.text)))
+        clusters: dict[str, tuple[str | None, list[str]]] = {}  # identifiant → (type, formes)
+        for m in news:
+            pool = {cid: forms for cid, (t, forms) in clusters.items()
+                    if t is None or m.type is None or _compatible(self.schema, t, m.type)}
+            entity, doubtful = decide(best_matches(m.text, pool))
+            if entity is not None:
+                if entity != m.entity:
+                    m.entity, m.rule = entity, "similar"
+                clusters[entity][1].append(m.text)
+            elif doubtful:
+                m.entity, m.rule, m.candidates = None, "doubt", doubtful
+            else:
+                clusters.setdefault(m.entity, (m.type, []))[1].append(m.text)
 
 
 # ---------------------------------------------------------------------------
@@ -440,10 +469,14 @@ def evaluate_mentions(finder: MentionFinder | None, documents: list[Path], gold_
     resolver = Resolver.from_state(context, state)
     label = (finder.version if finder is not None else "known-only") + ("+short" if with_short_forms else "")
     report = MentionReport(label, [])
+    per_window = []
     for window, runs in zip(windows, model_runs):
         mentions = merge(known_mentions(window, context.entities, resolver.titles), runs[0] if runs else [])
         for m in mentions:
             resolver.resolve(m)
+        per_window.append(mentions)
+    resolver.cluster_new([m for ms in per_window for m in ms])  # entités nouvelles du lot (T-ING-07, R-PRI-03)
+    for window, runs, mentions in zip(windows, model_runs, per_window):
         if with_short_forms:
             mentions = sorted(mentions + short_forms(window, mentions, context.entities, context.schema),
                               key=lambda m: (m.start, -(m.end - m.start)))

@@ -1,6 +1,6 @@
 # E-008 — Une variante de surface d'un nom devient une entité nouvelle
 
-- **Statut** : ouverte
+- **Statut** : en cours (5 fausses créations sur 8 réglées sans modèle)
 - **Classe** : R (recoupement) sur une forme de surface (AX-S1, S3, S4, S5, AX-R1, AX-C3)
 - **Où** : Corbelle c1 ; couche C2 (et C1b pour les noms communs)
 - **Observé avec** : Claude Haiku 4.5 pour C1b, C2 déterministe, 4 octobre 2026 ([X-006](X-006-corbelle-chaine.md)) ; deux passes identiques
@@ -41,4 +41,4 @@ Surnom et noms communs : à traiter à part (surnom donné explicitement : alias
 
 ## Essais
 
-Aucun.
+- **4 octobre 2026, [X-007](X-007-recoupement-par-score.md)** : recoupement par score (pliage, Jaro-Winkler, inclusion de mots, sigle, initiale ; trois issues ; regroupement des nouvelles indépendant de l'ordre). Corbelle : bien recoupées 29 → 34 sur 35, fausses créations 8 → 3 ; Valmont inchangé. Restent « apothicairerie » (nom commun), « fête des lanternes » (idée d'intrigue), « Rouquine » (surnom).

@@ -1,6 +1,6 @@
 # E-011 — Faits de C5 que des contrôles sans modèle écarteraient
 
-- **Statut** : ouverte
+- **Statut** : résolue sur Corbelle (déterministe)
 - **Classe** : S (forme) et types
 - **Où** : Corbelle c1 ; couche C5
 - **Observé avec** : Claude Haiku 4.5, 4 octobre 2026 ([X-006](X-006-corbelle-chaine.md))
@@ -20,4 +20,4 @@
 
 ## Essais
 
-Aucun.
+- **4 octobre 2026, [X-007](X-007-recoupement-par-score.md)** : les trois contrôles sont en place après C5 ; sur Corbelle (entités du gold, rejeu), 3 faits écartés et « bourgmèstre » ramené à « bourgmestre » ; sur Valmont, rien d'écarté.

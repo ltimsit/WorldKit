@@ -30,10 +30,10 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [E-005](E-005-regent-de-brume.md) | « régent de Brume » au lieu de « régent » | S | ouverte |
 | [E-006](E-006-designations-nouvelles.md) | des désignations proposées comme entités nouvelles | N | résolue sur b1 |
 | [E-007](E-007-hors-schema-omis.md) | une relation hors schéma est omise (« vassal du roi Mervin ») | — | résolue sur b1 |
-| [E-008](E-008-variantes-de-surface.md) | une variante de surface d'un nom devient une entité nouvelle (Corbelle) | R | ouverte |
-| [E-009](E-009-texte-barre.md) | un texte barré est lu comme une mention | — | ouverte |
+| [E-008](E-008-variantes-de-surface.md) | une variante de surface d'un nom devient une entité nouvelle (Corbelle) | R | en cours (8 → 3) |
+| [E-009](E-009-texte-barre.md) | un texte barré est lu comme une mention | — | résolue sur Corbelle |
 | [E-010](E-010-inferences-spatiales.md) | relations inférées d'une proximité (« sur », « près de ») | I | ouverte |
-| [E-011](E-011-controles-c5.md) | faits de C5 qu'un contrôle sans modèle écarterait | S | ouverte |
+| [E-011](E-011-controles-c5.md) | faits de C5 qu'un contrôle sans modèle écarterait | S | résolue sur Corbelle |
 | [E-012](E-012-question-ciblee-limites.md) | limites de la question ciblée : synonymes, phrases non muettes | — | ouverte |
 
 | Expérience | Titre | Statut |
@@ -44,6 +44,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [X-004](X-004-c5-faits.md) | C5 : les faits entre entités confirmées (b1) | conclue (première itération) |
 | [X-005](X-005-question-ciblee.md) | Question ciblée sur les phrases muettes (hors schéma) | conclue (première itération) |
 | [X-006](X-006-corbelle-chaine.md) | La chaîne sur des notes brouillon (Corbelle) | conclue (diagnostic) |
+| [X-007](X-007-recoupement-par-score.md) | Recoupement par score, texte barré, contrôles de C5 (sans modèle) | conclue (première itération) |
 
 Statuts : **ouverte** (observée, non traitée), **en cours** (remède essayé), **résolue** (remède mesuré, sans régression), **acceptée** (on vit avec, avec la raison), **transformée** (devenue une expérience ou une question du chantier).
 
