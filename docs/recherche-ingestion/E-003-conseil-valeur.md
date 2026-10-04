@@ -3,7 +3,7 @@
 - **Statut** : ouverte
 - **Classe** : N (granularité : une entité traitée comme une valeur)
 - **Où** : b1, `notes-baron` v1 p3 et p4, `lieux-de-valmont` p2 ; extraction monolithique (futures couches C1 et C5)
-- **Observé avec** : Claude Haiku 4.5, `api-haiku`, prompt version 3, 4 octobre 2026 ; première passe ([X-001](X-001-b1-haiku-reference.md)) ; **instable** : stabilité 0,5 sur notes p3 et 0,0 sur notes p4 entre deux passes (contenu de la deuxième passe non conservé par la mesure d'alors). Non observé sous Sonnet 5.
+- **Observé avec** : Claude Haiku 4.5, `api-haiku`, prompt version 3, 4 octobre 2026 ; première passe ([X-001](X-001-b1-haiku-reference.md)) ; même forme sur la troisième extraction (2 sur 3) ; la deuxième différait sur p3 et p4, sans que son contenu soit conservé. Non observé sous Sonnet 5.
 - **Coût en revue** : fort. Deux fausses valeurs à refuser (`brume.ruler`, hors schéma ; `odon.title = membre du conseil des marchands`), puis l'entité, son nom et quatre relations à saisir à la main.
 
 ## Observation

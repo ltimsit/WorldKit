@@ -56,8 +56,12 @@ Attention : la colonne Sonnet compte les facultatifs comme manqués (mesure d'av
 
 `--repeat 2` : la première extraction est relue du cache, la seconde rappelle le modèle (12 appels, 0,0515 $). Stabilité moyenne **0,875** : 10 passages identiques (1,0), deux instables, **notes p3 (0,5) et notes p4 (0,0)**, précisément ceux d'E-003. E-002, E-004 et E-005 sont donc reproduits à l'identique ; E-001 reste absent. La mesure ne gardait pas alors le contenu de la seconde extraction : elle le garde désormais (« 1re seule », « 2e seule »).
 
+Troisième extraction (même jour, 12 appels, 0,0512 $, variante conservée et appels tracés) : stabilité **0,958**. notes p3 et p4 sont cette fois **identiques** à la première passe (le conseil reste une valeur) ; seul lieux p5 varie (`cendrelande.category = plaines` trouvé, un support). Sur trois extractions, E-003 a donc pris deux fois la même forme, une fois une forme inconnue. La température 0 ne rend pas Haiku déterministe.
+
+Les traces montrent ce que reçoit le modèle : outre le prompt système, la liste des **19 entités connues** de l'état, y compris les capacités de système (`system-a:bite`), à chaque appel, quel que soit le passage.
+
 ## Suites
 
 - E-003 est le premier écart à traiter (plus gros coût, cause unique) ; les remèdes vont de l'indication de schéma à une couche C1.
-- Relire la variante de notes p3 et p4 (une passe de plus, environ 0,05 $) : E-003 est-il instable sur la forme seulement, ou le conseil devient-il parfois une entité ?
+- E-003 : forme majoritaire établie (2 extractions sur 3) ; la forme minoritaire reste inconnue.
 - Rejouer b1 sous Sonnet avec la mesure actuelle (facultatifs neutres) pour une comparaison juste, si le cache de la mesure du 28 septembre est retrouvé (sinon, coût d'abonnement seulement).
