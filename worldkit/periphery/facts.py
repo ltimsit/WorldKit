@@ -135,10 +135,17 @@ def _locate(window: Window, evidence: str) -> int | None:
     target = normalize(evidence).casefold().strip(" .")
     if not target:
         return None
-    for index, text in window.passage_texts.items():
-        if target in normalize(text).casefold():
+    texts = {i: normalize(t).casefold() for i, t in window.passage_texts.items()}
+    for index, text in texts.items():
+        if target in text:
             return index
-    return None
+    # Preuve à cheval sur deux passages (le modèle recopie deux paragraphes) : le passage qui en contient
+    # le plus long morceau (découpé aux lignes et aux phrases).
+    import re
+    pieces = [p.strip(" .-") for p in re.split(r"\n|(?<=[.!?])\s+", evidence) if len(p.strip(" .-")) > 10]
+    best = max(((len(normalize(p)), i) for p in pieces for i, text in texts.items()
+                if normalize(p).casefold() in text), default=None)
+    return best[1] if best else None
 
 
 # ---------------------------------------------------------------------------

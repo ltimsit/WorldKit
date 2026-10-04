@@ -424,6 +424,22 @@ Document entier, entités confirmées données, schéma réduit aux types prése
 
 Signal sans modèle (deux entités confirmées, aucun fait) : deux phrases sur b1. Question étroite sans liste de relations, 2 appels, 0,0027 $. « Odon est le vassal du roi Mervin » donne `odon vassal_of mervin` (« est le vassal de ») ; la phrase du Roi Gris (« régnait autrefois ») ne donne rien, comme il faut. Rappel des faits 0,77 → 0,82, questions 0,70 → 0,80. E-007 résolu sur b1. Détail dans [X-005](recherche-ingestion/X-005-question-ciblee.md).
 
+### 11.8 La chaîne sur des notes brouillon (Corbelle, X-006)
+
+Corpus ciblé Corbelle (fautes, familier, abréviations, notes de travail), ~32 appels, ~0,10 $. Détail dans [X-006](recherche-ingestion/X-006-corbelle-chaine.md).
+
+| | Valmont b1 | Corbelle c1 |
+|---|---|---|
+| Extracteur actuel : précision / rappel | 0,65 / 0,59 | 0,28 / 0,65 |
+| C1 avec Haiku : mentions trouvées | 28 / 28 | 35 / 36 |
+| C2 : fausses créations | 1 | 8 |
+| C5 et question, entités du gold : précision / rappel | 0,88 / 0,82 | 0,22 / 0,42 |
+
+- **Le repérage tient** ; **le recoupement est le maillon faible** sur du texte réel : fautes, accents, abréviations, sigles et initiales deviennent des entités nouvelles ([E-008](recherche-ingestion/E-008-variantes-de-surface.md)), qui contaminent C5.
+- **C5 infère des relations de proximité** (« sur », « près de », « traverse » : [E-010](recherche-ingestion/E-010-inferences-spatiales.md)) et **E-004 revient** (« avant la grande crue ») ; une partie se filtre sans modèle ([E-011](recherche-ingestion/E-011-controles-c5.md)).
+- **La question ciblée** invente des synonymes de relations existantes et manque un hors schéma dans une phrase non muette ([E-012](recherche-ingestion/E-012-question-ciblee-limites.md)) ; **le texte barré** est lu ([E-009](recherche-ingestion/E-009-texte-barre.md)).
+- **Variante A écartée sur Corbelle** (plus de bruit) ; **variante B** inopérante quand le nom complet n'apparaît pas.
+
 ## 12. Corpus
 
 Les axes de test sont compilés dans [axes-corpus.md](recherche-ingestion/axes-corpus.md) : une quarantaine d'axes identifiés (`AX-S1` fautes sur un nom, `AX-E1` note de travail de l'auteur, `AX-R2` homonymes…), regroupés en huit familles (surface, structure, énonciation, référence, temps, jeu, échelle, plusieurs documents), avec l'attendu et la couche éprouvée. Les corpus déclarent les axes qu'ils couvrent ; les fiches d'écart citent l'axe en cause.
@@ -529,7 +545,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 6. **C5, faits entre entités confirmées** (fait, [X-004](recherche-ingestion/X-004-c5-faits.md)) : E-003 résolu de bout en bout, E-004 non reproduit ; E-007 résolu par la question ciblée ([X-005](recherche-ingestion/X-005-question-ciblee.md)) ; reste E-005 (vocabulaire d'attribut, sans modèle).
 7. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
 8. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.
-9. **Corbelle** (fait, corpus ciblé) : mesurer toute la chaîne (C1, C2, C5, question ciblée) et l'extracteur actuel ; départager A et B (dans Corbelle, « Ysolde » n'apparaît jamais en entier : B ne peut pas la trouver). Puis les corpus suivants du plan (§12).
+9. **Corbelle** (fait, mesuré, [X-006](recherche-ingestion/X-006-corbelle-chaine.md)) : durcir d'abord le déterministe, par rejeu gratuit : C2 tolérant aux variantes de surface (E-008), texte barré (E-009), contrôles de C5 (E-011) ; puis les remèdes qui touchent au modèle : question ciblée (E-012), inférences de proximité et de temps (E-010, E-004) ; puis le silence des notes de travail (question 10). Ensuite les corpus suivants du plan (§12).
 10. Les écarts restants de l'extracteur actuel (E-001 et E-005 par un vocabulaire d'attribut, E-002 par l'annotation), par les remèdes les moins coûteux.
 
 ## 17. Références

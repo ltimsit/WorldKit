@@ -1,6 +1,6 @@
 # E-004 — « depuis la Chute » donne `odon involved_in la-chute`
 
-- **Statut** : non reproduit par C5 (X-004)
+- **Statut** : rouverte (non reproduit sur Valmont par C5, revient sur Corbelle)
 - **Classe** : H (non dit) ; consigne explicite ignorée
 - **Où** : b1, `notes-baron` v1, passage 1 ; extraction monolithique (future couche C5)
 - **Observé avec** : Claude Haiku 4.5, `api-haiku`, prompt version 3, 4 octobre 2026 ; 2 passes sur 2, identiques ([X-001](X-001-b1-haiku-reference.md)). Non observé sous Sonnet 5.
@@ -31,6 +31,8 @@ La règle 10 du prompt cite ce cas mot pour mot : « pas de relation qui n'est p
 
 - L'écart est reproduit à l'identique sur deux passes de l'extracteur actuel (stabilité 1,0 sur ce passage).
 - **4 octobre 2026, X-004** : C5 (document entier, cinq consignes, dont « un repère de temps n'est pas une relation ») ne le produit pas, avec les entités du gold comme avec celles de la chaîne ; il rend au contraire « Il gouverne la cité portuaire » par `odon rules brume`, juste. Une passe.
+
+- **4 octobre 2026, [X-006](X-006-corbelle-chaine.md)** : sur Corbelle, « faisait passer les gens avant la grande crue » donne `jehan-leblond involved_in grande-crue` (C5, entités du gold et de la chaîne) : la consigne tient sur un texte propre, pas sur un texte familier.
 
 ## Conclusion
 
