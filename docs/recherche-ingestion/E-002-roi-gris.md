@@ -1,7 +1,7 @@
 # E-002 — « le Roi Gris » créé au lieu d'un alias d'Aldren II
 
 - **Statut** : ouverte
-- **Classe** : R (résolution)
+- **Classe** : R (résolution) ; T sous Haiku (« régnait autrefois » pris pour un fait actuel)
 - **Où** : b1, `lieux-de-valmont`, passage 4 ; extraction monolithique (futures couches C1 et C2)
 - **Observé avec** : Claude Sonnet 5, `claude-code`, prompt version 3, 28 septembre 2026 ; Claude Haiku 4.5, `api-haiku`, 4 octobre 2026, 1 passe ([X-001](X-001-b1-haiku-reference.md)), aggravé : en plus de la création, `roi-gris rules hautval` et `title = roi`, alors que la règle 5 (« régnait autrefois » n'est pas un fait actuel) cite ce cas
 - **Coût en revue** : une fausse création (entité « Roi Gris »), et le doublon qui s'ensuit si elle est acceptée
