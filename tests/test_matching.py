@@ -53,7 +53,7 @@ def test_new_entities_of_a_batch_are_grouped_whatever_the_order():
         r, _ = corbelle_resolver()
         mentions = [r.resolve(Mention(t, 0, 1, "Character", "model")) for t in order]
         r.cluster_new(mentions)
-        assert len({m.entity for m in mentions}) == 1, order
+        assert {m.entity for m in mentions} == {"new:bertrand ostrel"}, order  # la forme centrale, pas la fautive
 
 
 def test_struck_text_is_not_a_mention_E_009():

@@ -38,6 +38,20 @@ Règles qui ont tranché sur Corbelle : nom exact 12, titre 6, **ressemblance 13
 
 Non mesurés par rejeu : la chaîne complète de Corbelle (les entités ont changé, donc les prompts de C5 aussi) et la question ciblée sur Corbelle (les phrases muettes ont changé) ; il faut de nouveaux appels.
 
+## Remesure de Corbelle (nouveaux appels)
+
+14 appels, ~0,016 $ (C5 rejoué pour les entités du gold, question ciblée et C5 de la chaîne en direct). Traces : `llm-log/c-x007-gold/`, `llm-log/c-x007-chain/`.
+
+| C5 et question ciblée | Avant (X-006) | Après |
+|---|---|---|
+| Entités du gold : précision / rappel | 0,22 / 0,42 | 0,29 / 0,50 |
+| Entités de la chaîne : précision / rappel | 0,18 / 0,33 | **0,27 / 0,50** |
+
+Le recoupement par score rend la chaîne aussi bonne que les entités du gold (même rappel) : les erreurs restantes sont celles de C5 et de la question ciblée, plus celles du recoupement. Effets de bord observés :
+
+- **Nom de référence d'un groupe d'entités nouvelles** : la forme la plus longue était retenue, ici « Bertrand Ostrell », la forme fautive ; corrigé après la mesure : la forme la plus proche de toutes les autres (« Bertrand Ostrel »). Ce défaut a coûté, dans cette mesure, le fait `member_of` d'Ostrel deux fois (compté manquant). À remesurer avec la prochaine expérience.
+- **Une phrase devient muette parce qu'un contrôle a écarté son fait** : « le maitre de la guilde c Bertrand Ostrel » (`rules` écarté pour ses types) reçoit la question ciblée, qui propose `bateliers led_by ostrel` (« est dirigée par »), un synonyme inversé de `member_of` : E-012.
+
 ## Lecture
 
 1. **Un score général remplace les règles au cas par cas** et règle 5 fausses créations sur 8 sans régression sur Valmont. Les 3 restantes sont hors de portée d'une ressemblance de noms : un nom commun (C1b), une idée d'intrigue (silence, question 10), un surnom (alias à proposer).

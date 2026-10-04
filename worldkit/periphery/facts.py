@@ -235,7 +235,10 @@ def chain_entities(mentions: list[Any], context: ExtractionContext) -> list[Conf
         if m.entity in known and known[m.entity].names:
             out.setdefault(m.entity, Confirmed(m.entity, known[m.entity].type, known[m.entity].names[0]))
         elif m.entity.startswith("new:") and m.type:
-            out.setdefault(m.entity, Confirmed(m.entity, m.type, m.text))
+            # le nom donné est la forme de référence du groupe (celle qui a fait l'identifiant), si elle est citée
+            reference = next((x.text for x in mentions if x.entity == m.entity
+                              and f"new:{name_key(x.text)}" == m.entity), m.text)
+            out.setdefault(m.entity, Confirmed(m.entity, m.type, reference))
     return sorted(out.values(), key=lambda e: e.id)
 
 

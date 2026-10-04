@@ -345,6 +345,16 @@ class Resolver:
                 m.entity, m.rule, m.candidates = None, "doubt", doubtful
             else:
                 clusters.setdefault(m.entity, (m.type, []))[1].append(m.text)
+        # Nom de référence d'un groupe : la forme la plus proche de toutes les autres (« Bertrand Ostrel » entre
+        # « Bertrand Ostrell » et « Ostrel »), pas la plus longue, qui peut porter une faute.
+        from .matching import similarity
+        renamed = {}
+        for cid, (_, forms) in clusters.items():
+            best = max(sorted(set(forms)), key=lambda f: (sum(similarity(f, o) for o in forms), len(f)))
+            renamed[cid] = f"new:{name_key(best)}"
+        for m in mentions:
+            if m.entity in renamed:
+                m.entity = renamed[m.entity]
 
 
 # ---------------------------------------------------------------------------
