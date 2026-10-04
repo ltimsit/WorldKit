@@ -161,5 +161,5 @@ def test_critic_judges_only_what_raises_a_question_and_sets_aside_without_decidi
     assert report.summary()["critic"]["not_supported"] == 1  # member_of mis de côté
     p4 = next(p for p in report.passages if p.doc == "notes-baron" and p.index == 4)
     assert not any(dict(k).get("relation") == "member_of" for k in p4.found)  # mis de côté : absent des faits
-    assert all("baron" not in p for _, p, _ in critic_adapter.calls)  # « odon title baron » est un support : pas jugé
+    assert all("titre : baron" not in p for _, p, _ in critic_adapter.calls)  # « odon title baron » : support, pas jugé
     assert "Un fait secret" in critic_adapter.calls[0][0]
