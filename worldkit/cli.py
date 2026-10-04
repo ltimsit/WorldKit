@@ -251,6 +251,58 @@ def _run_eval_mentions(world: Any, args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
+    """X-004 : C5 (faits entre entités confirmées), entités du gold ou de la chaîne C1 puis C2."""
+    import json as _json
+    from worldkit.ingest.batch import batch_documents, extraction_context
+    from worldkit.periphery.facts import FactFinder, chain_entities, evaluate_facts, gold_entities
+    from worldkit.periphery.llm import load_config, make_adapter
+    from worldkit.periphery.llm.usage import ReplayAdapter
+    from worldkit.periphery.mentions import MentionFinder, document_window, evaluate_mentions
+    paths = [p for b in args.batch for p in batch_documents(args.batches, b)]
+    state = world.state()
+    context = extraction_context(world, state)
+    config = load_config(args.llm_config)
+    windows = [document_window(p) for p in paths]
+    if args.entities == "gold":
+        entities = {w.doc_id: gold_entities(w, Path(args.oracle), context) for w in windows}
+    else:
+        profile = config.profile(args.profile, "mentions")
+        adapter = ReplayAdapter(args.mentions_replay) if args.mentions_replay else make_adapter(profile)
+        mentions = evaluate_mentions(MentionFinder(adapter, profile), paths, Path(args.oracle), context, state,
+                                     with_short_forms=args.short_forms)
+        entities = {w.doc_id: chain_entities([m for p in mentions.passages if p.doc == w.doc_id for m in p.found],
+                                             context) for w in windows}
+    profile = config.profile(args.profile, "facts")
+    finder = FactFinder(ReplayAdapter(args.replay) if args.replay else make_adapter(profile), profile)
+    report = evaluate_facts(finder, windows, entities, Path(args.oracle), context, state, args.entities)
+    summary = report.summary()
+    print(f"couche : {summary['finder']} ; entités : {args.entities} "
+          f"({', '.join(f'{d} {n}' for d, n in report.prompts.items())})")
+    for k in ("facts", "questions", "optional", "unplaced", "usage"):
+        print(f"  {k} : {summary[k]}")
+    for p in report.passages:
+        missing, extra = p.expected - p.found, p.scored - p.expected
+        if missing or extra:
+            print(f"  -- {p.doc} p{p.index}")
+            for k in sorted(missing, key=repr):
+                print(f"     manque  {dict(k)}")
+            for k in sorted(extra, key=repr):
+                print(f"     en trop {dict(k)}" + ("  (support)" if k in p.supports else ""))
+    for f in report.unplaced:
+        print(f"  preuve introuvable : {f.draft} ({f.evidence!r})")
+    if args.out:
+        Path(args.out).write_text(_json.dumps({"summary": summary, "entities": {d: [e.__dict__ for e in es]
+                                                                                  for d, es in entities.items()},
+                                               "passages": [{"doc": p.doc, "passage": p.index,
+                                                             "expected": sorted(map(str, p.expected)),
+                                                             "found": sorted(map(str, p.found))}
+                                                            for p in report.passages]},
+                                              ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"rapport écrit : {args.out}")
+    return 0
+
+
 def _indices(parts: list[str] | None) -> list[int] | None:
     """« 0,1 », « 0 1 » ou « 0, 1 » : PowerShell passe 0,1 non entre guillemets comme deux arguments."""
     if not parts:
@@ -590,6 +642,8 @@ def _run_world(args: argparse.Namespace) -> int:
         if args.command == "ingest":
             return _run_ingest(world, args)
         if args.command == "eval":
+            if args.eval_command == "facts":
+                return _run_eval_facts(world, args)
             return _run_eval_mentions(world, args) if args.eval_command == "mentions" else _run_eval(world, args)
         if args.command == "review":
             return _run_review(world, args)
@@ -854,6 +908,19 @@ def build_parser() -> argparse.ArgumentParser:
     evm.add_argument("--short-forms", action="store_true",
                      help="variante B : formes courtes des personnes repérées, cherchées sans modèle")
     evm.add_argument("--out", default=None, help="rapport JSON détaillé")
+
+    evf = ev_cmds.add_parser("facts", help="C5 : faits entre entités confirmées (X-004)")
+    evf.add_argument("--batches", required=True)
+    evf.add_argument("--oracle", required=True, help="dossier gold/")
+    evf.add_argument("--batch", action="append", required=True, help="lot à mesurer (répétable)")
+    evf.add_argument("--profile", default=None)
+    evf.add_argument("--llm-config", default=None)
+    evf.add_argument("--entities", choices=["gold", "chain"], default="gold",
+                     help="entités confirmées : celles du gold, ou celles de C1 puis C2")
+    evf.add_argument("--mentions-replay", default=None, help="chaîne : rejoue les réponses de C1 tracées")
+    evf.add_argument("--short-forms", action="store_true", help="chaîne : formes courtes sans modèle (variante B)")
+    evf.add_argument("--replay", default=None, help="rejoue les réponses de C5 tracées, sans appel ni coût")
+    evf.add_argument("--out", default=None, help="rapport JSON détaillé")
 
     review = commands.add_parser("review", help="file de revue des propositions")
     review_cmds = review.add_subparsers(dest="review_command", required=True)

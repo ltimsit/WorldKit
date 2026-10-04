@@ -29,7 +29,7 @@ La règle 9 du prompt cite ce cas mot pour mot : « sous leur forme la plus cour
 
 ## Essais
 
-Aucun.
+- **4 octobre 2026, X-004** : persiste dans C5, malgré une consigne de forme courte réduite à cinq règles (exemple pris hors de Valmont). Argument de plus pour le remède déterministe (vocabulaire d'attribut).
 
 ## Conclusion
 

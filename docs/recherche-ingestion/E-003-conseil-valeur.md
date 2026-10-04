@@ -1,6 +1,6 @@
 # E-003 — « le conseil des marchands » pris pour une valeur, jamais créé comme entité
 
-- **Statut** : en cours
+- **Statut** : résolue sur b1 (chaîne C1, C2, C5)
 - **Classe** : N (granularité : une entité traitée comme une valeur)
 - **Où** : b1, `notes-baron` v1 p3 et p4, `lieux-de-valmont` p2 ; extraction monolithique (futures couches C1 et C5)
 - **Observé avec** : Claude Haiku 4.5, `api-haiku`, prompt version 3, 4 octobre 2026 ; première passe ([X-001](X-001-b1-haiku-reference.md)) ; même forme sur la troisième extraction (2 sur 3) ; la deuxième différait sur p3 et p4, sans que son contenu soit conservé. Non observé sous Sonnet 5.
@@ -35,7 +35,8 @@ Le même nom apparaît dans trois passages et n'est reconnu comme entité dans a
 ## Essais
 
 - **4 octobre 2026, X-002** : C1 sur le document entier, une seule question, sans liste des entités connues (Haiku 4.5). Le conseil des marchands est repéré dans les trois passages, typé Faction, et recoupé comme une seule entité nouvelle pour le lot. Stable sur deux extractions. L'écart disparaît **au niveau des entités** ; il reste à vérifier que C5, à entités données, produit les relations attendues (`rules`, `member_of`, `based_in`).
+- **4 octobre 2026, X-004** : C5 à entités données extrait les quatre relations attendues : le conseil gouverne Brume (p3), Odon en est membre (p4), il siège à Brume (p4) et à Hautval (lieux p2). Même résultat avec les entités du gold et celles de la chaîne. Une passe.
 
 ## Conclusion
 
-À venir. Premier témoin de [X-002](X-002-c1-c2-fenetre.md) : C1 sur le document entier, sans liste connue, voit le conseil trois fois dans la même fenêtre. Ensuite, avec et sans pré-annotation (rendement d'une annotation, chantier §9).
+Résolu sur b1 par l'architecture (fenêtre au document, une question par couche), sans indication de schéma ni annotation. Limites : un seul corpus, une passe pour C5. Premier témoin de [X-002](X-002-c1-c2-fenetre.md) : C1 sur le document entier, sans liste connue, voit le conseil trois fois dans la même fenêtre. Ensuite, avec et sans pré-annotation (rendement d'une annotation, chantier §9).

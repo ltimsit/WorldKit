@@ -1,6 +1,6 @@
 # E-004 — « depuis la Chute » donne `odon involved_in la-chute`
 
-- **Statut** : ouverte
+- **Statut** : non reproduit par C5 (X-004)
 - **Classe** : H (non dit) ; consigne explicite ignorée
 - **Où** : b1, `notes-baron` v1, passage 1 ; extraction monolithique (future couche C5)
 - **Observé avec** : Claude Haiku 4.5, `api-haiku`, prompt version 3, 4 octobre 2026 ; 2 passes sur 2, identiques ([X-001](X-001-b1-haiku-reference.md)). Non observé sous Sonnet 5.
@@ -10,7 +10,7 @@
 
 Passage : « Odon de Brume est le baron de Brume. Il gouverne la cité portuaire depuis la Chute. »
 
-Sortie : `add_relation odon involved_in la-chute`, en plus des faits attendus (`title = baron`, `rules brume`). `involved_in` n'est pas dans le schéma.
+Sortie : `add_relation odon involved_in la-chute`, en plus des faits attendus (`title = baron`, `rules brume`). `involved_in` est bien dans le schéma de Valmont (« impliqué dans ») : le fait est conforme, simplement non dit.
 
 La règle 10 du prompt cite ce cas mot pour mot : « pas de relation qui n'est pas dite (« depuis la Chute » ne dit pas que quelqu'un y a participé) ».
 
@@ -22,14 +22,15 @@ La règle 10 du prompt cite ce cas mot pour mot : « pas de relation qui n'est p
 ## Remèdes envisagés
 
 1. *Mesure* : aucun.
-2. *Déterministe* : `involved_in` est hors schéma, donc déjà signalé (T-ING-13). On pourrait mettre de côté les relations hors schéma vers un `Event` cité seulement comme repère de temps, mais c'est une heuristique fragile.
+2. *Déterministe* : rien de sûr ; `involved_in` est une relation du schéma, le noyau n'a aucune raison de la signaler. Mettre de côté une relation vers un `Event` cité seulement comme repère de temps serait une heuristique fragile.
 3. *Consigne* : déplacer la règle vers la couche qui en a besoin (C5), dans un prompt court ; mesurer si elle est alors respectée.
 4. *Humain* : « ignorer » sur la proposition ; rien de réutilisable.
 5. *Couche* : C5 à entités données reçoit « la Chute » marquée comme repère temporel (C1 ou C0) ; ou le critique C6 juge la relation contre sa preuve (« depuis la Chute » ne soutient pas `involved_in`).
 
 ## Essais
 
-Aucun. L'écart est reproduit à l'identique sur deux passes (stabilité 1,0 sur ce passage).
+- L'écart est reproduit à l'identique sur deux passes de l'extracteur actuel (stabilité 1,0 sur ce passage).
+- **4 octobre 2026, X-004** : C5 (document entier, cinq consignes, dont « un repère de temps n'est pas une relation ») ne le produit pas, avec les entités du gold comme avec celles de la chaîne ; il rend au contraire « Il gouverne la cité portuaire » par `odon rules brume`, juste. Une passe.
 
 ## Conclusion
 

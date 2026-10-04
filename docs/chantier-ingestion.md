@@ -398,6 +398,15 @@ Document entier, une seule question au modèle (« quelles entités sont mention
 - **Défaut déterministe corrigé** : une mention rendue avec son article (« le conseil des marchands ») est aussi cherchée sans lui (« au conseil des marchands »).
 - **Un seul corpus** : ces résultats sont des candidats, pas des règles (§12).
 
+### 11.6 C5, les faits entre entités confirmées (X-004)
+
+Document entier, entités confirmées données, schéma réduit aux types présents, cinq consignes, preuve citée. b1, Haiku 4.5, 4 appels, 0,0148 $, au plus 1 184 tokens par appel. Précision 0,87 à 0,93, rappel 0,77 ; sur les questions, 0,88 et 0,70 (périmètre de C5 : ni création, ni nom, ni notoriété). Même rappel avec les entités du gold et celles de la chaîne : **aucune erreur héritée de l'amont** sur b1. Détail dans [X-004](recherche-ingestion/X-004-c5-faits.md).
+
+- **E-003 résolu de bout en bout** : les quatre relations du conseil des marchands sont extraites.
+- **E-004 non reproduit** ; « Il gouverne la cité portuaire » est compris sans couche de coréférence.
+- **Restent** : E-005 (forme courte, à traiter sans modèle) et **E-007** : la relation hors schéma « vassal de » est omise ; la liste réduite des relations cadre trop la réponse. Question de conception ouverte (§14).
+- **Défaut de mesure corrigé** : le nom d'une entité nouvelle se lit à l'échelle du lot.
+
 ## 12. Corpus à venir
 
 Chaque nouveau corpus met un levier à l'épreuve ; chacun demande un gold (l'extraction peut en proposer un brouillon, que l'auteur corrige dans l'Atelier, en signalant le biais).
@@ -457,6 +466,7 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 7. Les hallucinations (classe H) existent-elles ailleurs que dans b1 ? La Chronique de la Chute (b2, *in_world*) est le meilleur candidat.
 8. C5 par fenêtre ou par passage : la fenêtre donne le contexte, le passage limite ce qu'un fait peut citer ; à mesurer.
 9. Types de C1b : types du schéma du monde, ou familles de la couche haute d'ontologie (question 2) quand le schéma est riche ?
+10. Hors schéma (E-007) : C5 reçoit les relations compatibles, ce qui cadre la réponse ; le hors schéma doit-il venir de C5 (consigne, champ dédié) ou d'une question ciblée sur les phrases qui citent deux entités confirmées sans produire de fait ?
 
 ## 15. Évolutions du cadre à prévoir
 
@@ -491,7 +501,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 3. **Mesurer b1 avec l'extracteur actuel sous Haiku** (fait, [X-001](recherche-ingestion/X-001-b1-haiku-reference.md)) : fiches E-003 à E-005 ouvertes, E-001 et E-002 complétées, stabilité mesurée. Reste : comparaison juste avec Sonnet.
 4. **X-002, C1 et C2 sur b1** (fait, [fiche](recherche-ingestion/X-002-c1-c2-fenetre.md)) : 23 mentions sur 28, 22 bien recoupées sur 23 ; E-003 disparaît au niveau des entités. Formes courtes ensuite traitées (fait, [X-003](recherche-ingestion/X-003-formes-courtes.md)) : 28 sur 28 avec A ou B, non tranché.
 5. **E-006** (fait) : désignations rattachées ou mises en doute, jamais créées ; fausses créations 4 → 1. Reste à compléter le gold de b1 (vraies mentions non notées, classe G).
-6. **C5, faits entre entités confirmées** : vérifier que les relations du conseil des marchands suivent (E-003).
+6. **C5, faits entre entités confirmées** (fait, [X-004](recherche-ingestion/X-004-c5-faits.md)) : E-003 résolu de bout en bout, E-004 non reproduit ; restent E-005 et E-007.
 7. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
 8. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.
 9. **Un second corpus**, au moins un petit, qui départage A et B (noms de famille seuls, surnoms, homonymes) et éprouve les règles de C2 hors de Valmont.
