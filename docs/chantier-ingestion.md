@@ -479,6 +479,16 @@ Voie choisie par l'auteur : **s'adapter au cadre**. Une rumeur ou des paroles ra
 - Les deux attributions du gold trouvées, aucun faux positif ; notes de travail reconnues (sauf le hors sujet, sans effet ici).
 - Corbelle (entités du gold) : précision 0,44 → 0,50 sans perte de rappel ; avec le critique : **0,59 / 0,83** (questions 0,71 / 0,83) ; fausses créations 3 → 2. Valmont inchangé.
 
+### 11.13 Texte non vu et chaîne complète (X-011)
+
+Valmont b1 bruité par script (deux niveaux) et chaîne complète de Corbelle, ~65 appels, ~0,08 $. Détail dans [X-011](recherche-ingestion/X-011-bruit-et-chaine-reelle.md).
+
+- **Le recoupement par score et l'énonciation tiennent sur un texte non vu** : 25 sur 27 et 21 sur 23 mentions bien recoupées ; aucune fausse création due à une faute sur un nom connu ; la rumeur trouvée partout, sans faux positif.
+- **Faits** : 0,85 / 0,65 au niveau léger ; au niveau fort, la mesure comptait mal une entité nouvelle connue seulement par son sigle (« CdM ») : corrigé (une entité nouvelle se compare par ses mentions, pas par son nom), à remesurer.
+- **Corbelle, chaîne complète** : 0,44 / 0,58 contre 0,59 / 0,83 avec les entités du gold : propagation d'une fausse entité (« apothicairerie ») et **variabilité de C5 d'une passe à l'autre**.
+- Corrigé : une désignation dont le nom connu porte une faute (« port de Burme ») est un doute, plus une création.
+- Pistes : chercher sans modèle les noms connus *ressemblants* dans le texte ; écarter les noms communs repérés comme entités ; mesurer C5 sur plusieurs passes.
+
 ## 12. Corpus
 
 Les axes de test sont compilés dans [axes-corpus.md](recherche-ingestion/axes-corpus.md) : une quarantaine d'axes identifiés (`AX-S1` fautes sur un nom, `AX-E1` note de travail de l'auteur, `AX-R2` homonymes…), regroupés en huit familles (surface, structure, énonciation, référence, temps, jeu, échelle, plusieurs documents), avec l'attendu et la couche éprouvée. Les corpus déclarent les axes qu'ils couvrent ; les fiches d'écart citent l'axe en cause.
@@ -494,7 +504,8 @@ Les axes de test sont compilés dans [axes-corpus.md](recherche-ingestion/axes-c
 **Ordre retenu** : d'abord des corpus ciblés et dérivés, pour construire un modèle solide ; ensuite les notes réelles de l'auteur. Plan et état des corpus : [axes-corpus.md](recherche-ingestion/axes-corpus.md), « Plan des corpus ».
 
 - **Corbelle** (`corpus/corbelle-v1/`, ciblé, fait) : notes brouillon d'une petite ville, 3 documents, 13 passages, 36 mentions au gold ; fautes, casse, familier, abréviations, notes de travail, hors sujet, idée d'intrigue, correction barrée, homonymes, surnom, entité nouvelle citée d'un document à l'autre avec une faute. Gold sans `outcome`, avec `test_axes` et `silent`. Cohérence vérifiée par `tests/test_corpus_corbelle.py`.
-- **À venir** : Valmont bruité (dérivé), Session, Valmont grossi, Autre genre, Chronique longue ; puis les notes réelles de l'auteur.
+- **Valmont bruité** (`corpus/valmont-bruite-v1/`, dérivé, fait) : b1 perturbé par script à deux niveaux, gold recalé ; mesuré en X-011.
+- **À venir** : Session, Valmont grossi, Autre genre, Chronique longue ; puis les notes réelles de l'auteur.
 
 Le second jet de Valmont, écrit par l'auteur (T-TST-01), devient le corpus « auteur » : il viendra quand le modèle sera établi.
 

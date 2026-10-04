@@ -123,3 +123,12 @@ def test_a_working_note_creates_no_entity_X_010():
     plain = evaluate_mentions(finder, documents(), CORBELLE_GOLD, context, state).summary()["c2"]
     silent = evaluate_mentions(finder, documents(), CORBELLE_GOLD, context, state, with_enunciation=True).summary()["c2"]
     assert "fête des lanternes" in plain["false_new"] and "fête des lanternes" not in silent["false_new"]
+
+
+def test_a_designation_with_a_misspelled_known_name_is_a_doubt_not_a_creation_X_011():
+    """« port de Burme » (Brume mal écrit) : un doute avec l'indice, jamais une entité nouvelle."""
+    world = base_world()
+    state = world.state()
+    r = Resolver.from_state(extraction_context(world, state), state)
+    m = r.resolve(Mention("port de Burme", 0, 1, "Place", "model"))
+    assert m.entity is None and m.rule == "doubt" and "brume" in m.candidates

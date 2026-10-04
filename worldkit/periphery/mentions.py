@@ -279,9 +279,12 @@ class Resolver:
         found = re.match(r"^(.+?)\s+(?:de|du|des|d['’])\s*(.+)$", key)
         if found is None:
             return None
-        from .matching import fold
+        from .matching import best_matches, decide, fold
         head, tail = found.group(1), fold(found.group(2))
         named = [e.id for e in self.entities if tail in {fold(n) for n in e.names}]
+        if not named:  # « port de Burme », « royaume de vaalmont » : le nom connu peut porter une faute (X-011)
+            entity, _ = decide(best_matches(tail, {e.id: list(e.names) for e in self.entities}))
+            named = [entity] if entity else []
         if len(named) != 1:
             return None
         holders = [h for h in self.titles.get(head, []) if frozenset((h, named[0])) in self.linked]

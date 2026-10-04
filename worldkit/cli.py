@@ -269,12 +269,15 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
     if args.entities == "gold":
         entities = {w.doc_id: gold_entities(w, Path(args.oracle), context) for w in windows}
         forms = {w.doc_id: gold_forms(w, Path(args.oracle), entities[w.doc_id]) for w in windows}
+        new_aliases = {}
     else:
         profile = config.profile(args.profile, "mentions")
         adapter = ReplayAdapter(args.mentions_replay) if args.mentions_replay else make_adapter(profile)
         mentions = evaluate_mentions(MentionFinder(adapter, profile), paths, Path(args.oracle), context, state,
                                      with_short_forms=args.short_forms, with_enunciation=args.enunciation)
         found = {w.doc_id: [m for p in mentions.passages if p.doc == w.doc_id for m in p.found] for w in windows}
+        new_aliases = {m.entity: p.gold[s] for p in mentions.passages for s, m in p.matched
+                       if m.entity and m.entity.startswith("new:") and p.gold[s].startswith("new:")}
         entities = {d: chain_entities(ms, context) for d, ms in found.items()}
         forms = {d: chain_forms(ms, entities[d]) for d, ms in found.items()}
     profile = config.profile(args.profile, "facts")
@@ -288,7 +291,7 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
         from worldkit.periphery.facts import Critic
         critic = Critic(ReplayAdapter(args.critic_replay) if args.critic_replay else make_adapter(profile), profile)
     report = evaluate_facts(finder, windows, entities, Path(args.oracle), context, state, args.entities, probe, forms,
-                            critic, args.enunciation)
+                            critic, args.enunciation, new_aliases)
     summary = report.summary()
     print(f"couche : {summary['finder']} ; entités : {args.entities} "
           f"({', '.join(f'{d} {n}' for d, n in report.prompts.items())})")

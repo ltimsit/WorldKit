@@ -111,7 +111,7 @@ Couches : C0 découpage, C1a noms connus, C1b repérage par le modèle, C2 recou
 |---|---|---|---|
 | Valmont v1 | ciblé (premier jet) | règles du cadre ; AX-R4, AX-R8, AX-D1, AX-D4, AX-E7, AX-E8, AX-C1 à C4 | fait |
 | **Corbelle, brouillon** (`corpus/corbelle-v1/`) | ciblé | AX-S1 à S8, AX-T1, T2, T6, AX-E1 à E5, E9, AX-R1 à R6, R10, AX-D1 à D4 | fait, mesuré ([X-006](X-006-corbelle-chaine.md)) |
-| **Valmont bruité** | dérivé (script) | AX-S1, S3, S4, S5, S6 à taux réglable | prévu |
+| **Valmont bruité** (`corpus/valmont-bruite-v1/`) | dérivé (script) | AX-S1, S3, S4, S5, S6 à deux niveaux | fait, mesuré ([X-011](X-011-bruit-et-chaine-reelle.md)) |
 | Session | ciblé | AX-J1 à J4, AX-D, AX-E5 | prévu |
 | Valmont grossi | dérivé (généré) | AX-M1, AX-R2 | prévu |
 | Autre genre | ciblé | AX-M2 à M4 | prévu |

@@ -175,7 +175,7 @@ def check_facts(facts: list[Fact], entities: list[Confirmed], schema: Any, state
             if subject and target and not (_is_a(schema, subject, r.from_) and _is_a(schema, target, r.to)):
                 rejected.append((fact, f"types : {d['relation']} va de {'|'.join(r.from_)} vers {'|'.join(r.to)}"))
                 continue
-        if d["op"] == "add_value" and d.get("attribute") == "aliases" and fold(str(d["value"])) in names.get(d["entity"], ()):
+        if d["op"] in ("add_value", "set_attribute") and d.get("attribute") == "aliases"                 and fold(str(d["value"])) in names.get(d["entity"], ()):
             rejected.append((fact, "alias égal au nom"))
             continue
         if d["op"] == "set_attribute" and state is not None:
@@ -589,7 +589,7 @@ def _sentence_of(fact: Fact, passage: str) -> str:
 def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str, list[Confirmed]], gold_dir: Path,
                    context: ExtractionContext, state: Any, label: str, probe: RelationProbe | None = None,
                    forms: dict[str, dict[str, set[str]]] | None = None, critic: Critic | None = None,
-                   with_enunciation: bool = False) -> FactReport:
+                   with_enunciation: bool = False, new_aliases: dict[str, str] | None = None) -> FactReport:
     """C5 sur chaque fenêtre, à entités données, comparé aux changements du gold qui relèvent de C5. Avec `probe`,
     chaque phrase muette (deux entités confirmées, aucun fait) reçoit ensuite une question ciblée (E-007). Avec
     `critic`, chaque fait qui pose une question (pas un support) est jugé contre son passage ; un fait non soutenu est
@@ -601,6 +601,12 @@ def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str
                          for d in oracle.extract(w.doc_id, text).drafts])
     names = {**gold_names, **{e.id.split(":", 1)[1]: name_key(e.name)
                               for es in entities.values() for e in es if e.id.startswith("new:")}}
+    # Une entité nouvelle de la chaîne est rapprochée de celle du gold par les mentions qu'elles recouvrent, pas par
+    # son nom (« CdM » ou « conseil des marchands » : l'auteur fixera le nom) ; mesure seulement.
+    renamed = new_aliases or {}
+
+    def rename(d: dict[str, Any]) -> dict[str, Any]:
+        return {k: (renamed.get(v, v) if k in ("entity", "from", "to") else v) for k, v in d.items()}
     critic_meter = critic.meter if critic is not None else None
     first_critic = len(critic_meter.calls) if critic_meter is not None else 0
     judged: list[tuple[Fact, dict[str, Any]]] = []
@@ -670,7 +676,7 @@ def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str
                         if i in ex.optional and _in_scope(d)}
             expected = {_key(d, gold_names, context.schema) for d in ex.drafts if _in_scope(d)} - optional
             p = PassageFacts(window.doc_id, index, expected,
-                             {_key(f.draft, names, context.schema) for f in facts if f.passage == index},
+                             {_key(rename(f.draft), names, context.schema) for f in facts if f.passage == index},
                              optional)
             p.supports = {k for k in p.expected | p.found if is_support(k, state)}
             report.passages.append(p)
