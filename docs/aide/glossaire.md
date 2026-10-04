@@ -125,4 +125,7 @@ Un signalement (`Issue`) porte un code, une sévérité, un message et la règle
 | Facultatifs | `optional` | Changements du gold marqués `optional: true` (vrais, mais qu'on ne reproche pas d'oublier) : neutres dans la mesure, ni manqués ni en trop. Décompte « trouvés / attendus » (`1/4`). |
 | Supports | `supports` | Changements qui ne font que confirmer un fait déjà présent ; comptés à part : la précision « questions » les exclut. |
 | Erreur d'attribution | `attribution_error` | Affirmation rattachée au mauvais énonciateur. |
+| Usage | `usage` | Appels au modèle d'une mesure, au total et par passage : nombre d'appels, tokens en entrée (tout le prompt, cache compris) et en sortie, tokens lus du cache, coût en dollars (« — » si le profil n'a pas de prix). |
+| Budget d'entrée | `budget` | Tokens d'entrée permis par appel pour simuler un petit modèle : 4 000 par défaut, réglable par `WORLDKIT_LLM_INPUT_BUDGET` (`off` : aucun). Un dépassement est signalé et mesuré, jamais refusé. |
+| Au-delà du budget | `over_budget` | Nombre d'appels dont l'entrée dépasse le budget ; `excess_tokens` : tokens de trop au total ; `max_excess` : le plus grand dépassement d'un appel. |
 | Stabilité | `stability` | Accord entre plusieurs extractions répétées d'un même passage (0 à 1) ; mesure le hasard du modèle. |

@@ -192,7 +192,8 @@ def test_ollama_adapter_against_a_fake_server():
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
             received.update(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
-            body = json.dumps({"message": {"content": '{"ok": true}'}}).encode()
+            body = json.dumps({"message": {"content": '{"ok": true}'}, "prompt_eval_count": 812,
+                               "eval_count": 40}).encode()
             self.send_response(200)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -207,6 +208,8 @@ def test_ollama_adapter_against_a_fake_server():
         adapter = OllamaAdapter("qwen2.5:7b", base_url=f"http://127.0.0.1:{server.server_port}")
         assert adapter.complete("s", "p", {"type": "object"}) == {"ok": True}
         assert received["format"] == {"type": "object"} and received["messages"][0]["role"] == "system"
+        [call] = adapter.meter.calls
+        assert (call.input_tokens, call.output_tokens, call.cost) == (812, 40, 0.0)
     finally:
         server.shutdown()
 
@@ -214,6 +217,97 @@ def test_ollama_adapter_against_a_fake_server():
 def test_ollama_unreachable_is_an_llm_error():
     with pytest.raises(LLMError):
         OllamaAdapter("m", base_url="http://127.0.0.1:9", timeout=2).complete("s", "p", {})
+
+
+# --- Usage des appels et budget d'entrée (T-LLM-01 ; chantier ingestion §8.2) ---
+
+
+def _api_response(input_tokens=1000, read=3000, write=0, output=200):
+    usage = SimpleNamespace(input_tokens=input_tokens, cache_read_input_tokens=read,
+                            cache_creation_input_tokens=write, output_tokens=output)
+    return SimpleNamespace(stop_reason="end_turn", usage=usage,
+                           content=[SimpleNamespace(type="text", text='{"ok": true}')])
+
+
+def test_anthropic_api_adapter_records_usage_and_cost():
+    adapter = AnthropicApiAdapter("claude-haiku-4-5", price={"input": 1.0, "output": 5.0},
+                                  client=SimpleNamespace(messages=SimpleNamespace(create=lambda **_: _api_response())))
+    adapter.complete("s", "p", {})
+    [call] = adapter.meter.calls
+    assert (call.input_tokens, call.cache_read_tokens, call.output_tokens) == (4000, 3000, 200)  # tout le prompt
+    assert call.cost == pytest.approx((1000 * 1.0 + 3000 * 0.1 + 200 * 5.0) / 1e6)  # lecture du cache à 0,1
+
+
+def test_temperature_is_sent_only_when_the_profile_gives_it():
+    seen = []
+    client = SimpleNamespace(messages=SimpleNamespace(create=lambda **kw: seen.append(kw) or _api_response()))
+    AnthropicApiAdapter("claude-sonnet-5", client=client).complete("s", "p", {})  # Sonnet 5 refuse temperature
+    AnthropicApiAdapter("claude-haiku-4-5", client=client, temperature=0.0).complete("s", "p", {})
+    assert "temperature" not in seen[0] and seen[1]["temperature"] == 0.0
+    profile = load_config(None).profile("api-haiku")
+    adapter = adapters.make_adapter(profile)
+    assert adapter.temperature == 0.0 and adapter.price == {"input": 1.0, "output": 5.0}
+    assert profile.signature.endswith(":t0")  # l'échantillonnage entre dans la version de l'extracteur (cache)
+
+
+def test_haiku_refuses_effort_before_any_call():
+    def create(**_):
+        raise AssertionError("aucun appel ne doit partir")
+    adapter = AnthropicApiAdapter("claude-haiku-4-5", "low", client=SimpleNamespace(messages=SimpleNamespace(create=create)))
+    with pytest.raises(LLMError, match="effort"):
+        adapter.complete("s", "p", {})
+
+
+def test_claude_code_adapter_records_usage(tmp_path):
+    fake = tmp_path / "fake_claude.py"
+    fake.write_text("import json\nprint(json.dumps({'is_error': False, 'structured_output': {'ok': True}, "
+                    "'total_cost_usd': 0.0042, 'usage': {'input_tokens': 9, 'cache_read_input_tokens': 4880, "
+                    "'cache_creation_input_tokens': 0, 'output_tokens': 372}}))\n", encoding="utf-8")
+    adapter = ClaudeCodeAdapter("m", command=[sys.executable, str(fake)])
+    adapter.complete("s", "p", {})
+    [call] = adapter.meter.calls
+    assert (call.input_tokens, call.output_tokens, call.cost) == (4889, 372, 0.0042)
+
+
+def test_input_budget_defaults_to_4000_and_is_set_by_environment(monkeypatch):
+    from worldkit.periphery.llm import input_budget
+    monkeypatch.delenv("WORLDKIT_LLM_INPUT_BUDGET", raising=False)
+    assert input_budget() == 4000
+    monkeypatch.setenv("WORLDKIT_LLM_INPUT_BUDGET", "8000")
+    assert input_budget() == 8000
+    monkeypatch.setenv("WORLDKIT_LLM_INPUT_BUDGET", "off")
+    assert input_budget() is None
+
+
+class MeteredAdapter(FakeAdapter):
+    """Comme FakeAdapter, et note un appel dont l'entrée vaut `tokens`."""
+
+    def __init__(self, answers, tokens):
+        super().__init__(answers)
+        from worldkit.periphery.llm import UsageMeter
+        self.meter, self.tokens = UsageMeter(), tokens
+
+    def complete(self, system, prompt, schema):
+        from worldkit.periphery.llm import CallUsage
+        self.meter.record(CallUsage("fake", self.tokens, 50, cost=0.001))
+        return super().complete(system, prompt, schema)
+
+
+def test_measure_reports_usage_and_budget_excess_per_passage(monkeypatch, caplog):
+    """Le dépassement du budget d'entrée n'est pas refusé : signalé une fois, et mesuré (chantier §8.2)."""
+    monkeypatch.setenv("WORLDKIT_LLM_INPUT_BUDGET", "4000")
+    world = base_world()
+    with caplog.at_level("WARNING", logger="worldkit.llm"):
+        report = evaluate(LLMExtractor(MeteredAdapter(NOTES, 4889), PROFILE), OracleExtractor(VALMONT / "gold"),
+                          VALMONT / "gold", B1, extraction_context(world, world.state()))
+    usage, n = report.summary()["usage"], len(report.passages)
+    assert (usage["calls"], usage["over_budget"], usage["max_excess"]) == (n, n, 889)
+    assert usage["excess_tokens"] == 889 * n and usage["cost"] == pytest.approx(0.001 * n)
+    assert all(r.usage["calls"] == 1 for r in report.passages)  # chaque appel rattaché à son passage
+    assert sum("budget d'entrée" in m for m in caplog.messages) == 1
+    oracle = OracleExtractor(VALMONT / "gold")
+    assert "usage" not in evaluate(oracle, oracle, VALMONT / "gold", B1,
+                                   extraction_context(world, world.state())).summary()
 
 
 # --- Extracteur LLM ---

@@ -8,6 +8,9 @@ La périphérie ne décide rien : la sortie est ensuite validée par le noyau (T
 | `claude-code` | abonnement Claude, via `claude -p` (Claude Code en mode non interactif) | usage personnel |
 | `anthropic-api` | clé d'API dans `WORLDKIT_ANTHROPIC_API_KEY` (SDK officiel `anthropic`, sorties structurées) | facturé à l'usage |
 | `ollama` | modèle local (`http://localhost:11434`) | rien ne quitte la machine |
+
+Chaque adaptateur note l'usage de ses appels (tokens, durée, coût) dans `meter` (`usage.py`) : la mesure T2
+en tire le coût et l'écart au budget d'entrée qui simule un petit modèle (chantier ingestion §8.2).
 """
 
 from __future__ import annotations
@@ -18,11 +21,14 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
+
+from .usage import CallUsage, UsageMeter, cost_of
 
 
 class LLMError(RuntimeError):
@@ -45,7 +51,9 @@ class Profile:
 
     @property
     def signature(self) -> str:
-        return f"{self.adapter}:{self.model}" + (f":{self.effort}" if self.effort else "")
+        temperature = self.options.get("temperature")  # l'échantillonnage change la sortie : il entre dans le cache
+        return f"{self.adapter}:{self.model}" + (f":{self.effort}" if self.effort else "") \
+            + (f":t{temperature}" if temperature is not None else "")
 
 
 # ---------------------------------------------------------------------------
@@ -98,9 +106,11 @@ class ClaudeCodeAdapter:
     command: list[str] | None = None
     effort: str | None = None
     timeout: float = 300.0
+    meter: UsageMeter = field(default_factory=UsageMeter)
 
     def complete(self, system: str, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         executable = self.command or find_claude_code()
+        start = time.perf_counter()
         with tempfile.TemporaryDirectory(prefix="worldkit-claude-") as neutral:
             prompt_file = Path(neutral) / "system.txt"
             prompt_file.write_text(system, encoding="utf-8")
@@ -125,6 +135,12 @@ class ClaudeCodeAdapter:
         if result.get("is_error") or not isinstance(result.get("structured_output"), dict):
             raise LLMError(f"claude -p : pas de sortie structurée ({result.get('subtype')}, "
                            f"{str(result.get('result'))[:200]})")
+        u = result.get("usage") or {}
+        read, write = int(u.get("cache_read_input_tokens") or 0), int(u.get("cache_creation_input_tokens") or 0)
+        cost = result.get("total_cost_usd")  # coût équivalent à l'API, estimé par Claude Code (l'abonnement ne facture pas)
+        self.meter.record(CallUsage(self.model, int(u.get("input_tokens") or 0) + read + write,
+                                    int(u.get("output_tokens") or 0), read, write, time.perf_counter() - start,
+                                    float(cost) if cost is not None else None))
         return result["structured_output"]
 
 
@@ -146,14 +162,23 @@ def api_key() -> str:
 
 @dataclass
 class AnthropicApiAdapter:
-    """SDK officiel, sorties structurées (`output_config.format`) ; prompt système mis en cache."""
+    """SDK officiel, sorties structurées (`output_config.format`) ; prompt système mis en cache.
+
+    `temperature` n'est envoyée que si le profil la donne : Haiku 4.5 l'accepte, Sonnet 5 la refuse (400).
+    `effort` est refusé par Haiku 4.5 : l'erreur est levée avant l'appel. `price` (dollars par million de tokens,
+    `{input, output}`) donne le coût de chaque appel."""
 
     model: str
     effort: str | None = None
     client: Any = None
     max_tokens: int = 16000
+    temperature: float | None = None
+    price: dict[str, Any] | None = None
+    meter: UsageMeter = field(default_factory=UsageMeter)
 
     def complete(self, system: str, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
+        if self.effort and self.model.startswith("claude-haiku-4-5"):
+            raise LLMError(f"{self.model} n'accepte pas « effort » : le retirer du profil")
         client = self.client
         if client is None:
             try:
@@ -164,13 +189,21 @@ class AnthropicApiAdapter:
         output_config: dict[str, Any] = {"format": {"type": "json_schema", "schema": schema}}
         if self.effort:
             output_config["effort"] = self.effort
+        sampling = {"temperature": self.temperature} if self.temperature is not None else {}
+        start = time.perf_counter()
         try:
             response = client.messages.create(
                 model=self.model, max_tokens=self.max_tokens,
                 system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
-                messages=[{"role": "user", "content": prompt}], output_config=output_config)
+                messages=[{"role": "user", "content": prompt}], output_config=output_config, **sampling)
         except Exception as e:  # erreurs typées du SDK : réseau, 4xx, 5xx (déjà relancées par le SDK)
             raise LLMError(f"API Anthropic : {e}") from e
+        u = getattr(response, "usage", None)
+        if u is not None:
+            read, write = getattr(u, "cache_read_input_tokens", 0) or 0, getattr(u, "cache_creation_input_tokens", 0) or 0
+            total, out = (u.input_tokens or 0) + read + write, u.output_tokens or 0
+            self.meter.record(CallUsage(self.model, total, out, read, write, time.perf_counter() - start,
+                                        cost_of(self.price, total, out, read, write)))
         if response.stop_reason in ("refusal", "max_tokens"):
             raise LLMError(f"API Anthropic : réponse interrompue ({response.stop_reason})")
         text = next((b.text for b in response.content if b.type == "text"), None)
@@ -193,6 +226,7 @@ class OllamaAdapter:
     model: str
     base_url: str = "http://localhost:11434"
     timeout: float = 600.0
+    meter: UsageMeter = field(default_factory=UsageMeter)
 
     def complete(self, system: str, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         body = json.dumps({"model": self.model, "stream": False, "format": schema, "options": {"temperature": 0},
@@ -200,11 +234,15 @@ class OllamaAdapter:
                                         {"role": "user", "content": prompt}]}).encode("utf-8")
         request = urllib.request.Request(f"{self.base_url.rstrip('/')}/api/chat", data=body,
                                          headers={"Content-Type": "application/json"})
+        start = time.perf_counter()
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
             raise LLMError(f"Ollama ({self.base_url}) : {e}") from e
+        self.meter.record(CallUsage(self.model, int(payload.get("prompt_eval_count") or 0),
+                                    int(payload.get("eval_count") or 0), seconds=time.perf_counter() - start,
+                                    cost=0.0))  # local : rien n'est facturé
         try:
             return json.loads(payload["message"]["content"])
         except (KeyError, TypeError, json.JSONDecodeError) as e:
@@ -218,7 +256,10 @@ def make_adapter(profile: Profile) -> LLMAdapter:
     if profile.adapter == "claude-code":
         return ClaudeCodeAdapter(profile.model, command=profile.options.get("command"), effort=profile.effort)
     if profile.adapter == "anthropic-api":
-        return AnthropicApiAdapter(profile.model, profile.effort)
+        temperature = profile.options.get("temperature")
+        return AnthropicApiAdapter(profile.model, profile.effort,
+                                   temperature=float(temperature) if temperature is not None else None,
+                                   price=profile.options.get("price"))
     if profile.adapter == "ollama":
         return OllamaAdapter(profile.model, profile.options.get("base_url", "http://localhost:11434"))
     raise LLMError(f"adaptateur inconnu : {profile.adapter} (attendu : {', '.join(sorted(ADAPTERS))})")

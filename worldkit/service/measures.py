@@ -114,7 +114,8 @@ def eval_run(ctx: Context, p: EvalParams) -> Output:
                          "found": sorted(readable(k) for k in r.found), "expected": sorted(readable(k) for k in r.expected),
                          "supports": sorted(readable(k) for k in r.supports), "traps": r.traps,
                          "attribution_ok": r.attribution_ok, "claims": [r.claims_found, r.claims_expected],
-                         "stability": r.stability, "error": r.error, "seconds": round(r.seconds, 1)})
+                         "stability": r.stability, "error": r.error, "seconds": round(r.seconds, 1),
+                         "usage": r.usage})
     value = {"extractor": report.extractor, "model": model, "batches": batches, "repeat": p.repeat,
              "summary": summary, "passages": passages, "estimate": estimate}
     issues = [Issue(IssueCode.EDIT_RULE, f"{x['doc']} p{x['index']} : piège tombé ({t})", "T-TST-01", Severity.WARNING)
@@ -126,7 +127,9 @@ def eval_run(ctx: Context, p: EvalParams) -> Output:
                                   "questions_precision": summary["questions"]["precision"],
                                   "questions_recall": summary["questions"]["recall"],
                                   "traps": summary["traps_fallen"], "passages": summary["passages"],
-                                  "calls": calls})
+                                  "calls": calls,
+                                  **({k: summary["usage"][k] for k in ("input_tokens", "cost", "over_budget")}
+                                     if "usage" in summary else {})})
 
 
 class HistoryParams(Params):
@@ -147,7 +150,8 @@ def eval_history(ctx: Context, p: HistoryParams) -> Output:
                      "model": o.get("model"), "batches": o.get("batches"), "repeat": o.get("repeat"),
                      "precision": s.get("precision"), "recall": s.get("recall"), "questions": s.get("questions"),
                      "traps": s.get("traps_fallen"), "errors": s.get("errors"), "stability": s.get("stability"),
-                     "seconds": s.get("seconds"), "passages": s.get("passages"), "calls": (o.get("estimate") or {}).get("calls")})
+                     "seconds": s.get("seconds"), "passages": s.get("passages"), "calls": (o.get("estimate") or {}).get("calls"),
+                     "usage": s.get("usage")})
     return Output(rows, [], {"measures": len(rows)})
 
 

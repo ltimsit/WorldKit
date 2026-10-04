@@ -358,6 +358,14 @@ worldkit --db valmont.db call eval.run --param "batch=[b4]" --param profile=sonn
 
 À l'écran : **Mesures** — historique, détail par opération et par passage (manqués, en trop, pièges), et comparaison de deux mesures jusqu'au passage, pour choisir entre deux modèles.
 
+Les changements **facultatifs** du gold (`optional: true`) ne comptent ni comme manqués ni comme en trop : la mesure les décompte à part (« facultatifs trouvés 1/4 »).
+
+Une mesure avec un modèle rend aussi son **usage** : appels, tokens en entrée et en sortie, coût (profils `api-haiku` et `api-sonnet`, qui portent un prix), et l'écart au **budget d'entrée** qui simule un petit modèle (4 000 tokens par appel). Un appel qui le dépasse n'est pas refusé : il est signalé, et compté (`over_budget`, `excess_tokens`). Pour changer le budget le temps d'une session :
+
+```powershell sans-test
+$env:WORLDKIT_LLM_INPUT_BUDGET = "8000"   # « off » : aucun budget
+```
+
 ## 11. Vérifier après un changement de code
 
 Les **parcours d'acceptation** W00 à W17 du corpus rejouent des scénarios d'usage complets, chacun dans un monde neuf, avec leurs prérequis :

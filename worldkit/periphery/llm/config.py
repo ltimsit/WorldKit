@@ -5,7 +5,7 @@ Fichier YAML (par défaut `worldkit-llm.yaml` dans le dossier courant), par exem
     profiles:
       haiku:     { adapter: claude-code, model: claude-haiku-4-5 }
       sonnet:    { adapter: claude-code, model: claude-sonnet-5 }
-      api-haiku: { adapter: anthropic-api, model: claude-haiku-4-5 }
+      api-haiku: { adapter: anthropic-api, model: claude-haiku-4-5, temperature: 0, price: { input: 1.0, output: 5.0 } }
       local:     { adapter: ollama, model: qwen2.5:7b }
     tasks:
       extraction: haiku
@@ -30,8 +30,9 @@ DEFAULT: dict[str, Any] = {
     "profiles": {
         "haiku": {"adapter": "claude-code", "model": "claude-haiku-4-5"},
         "sonnet": {"adapter": "claude-code", "model": "claude-sonnet-5"},
-        "api-haiku": {"adapter": "anthropic-api", "model": "claude-haiku-4-5"},
-        "api-sonnet": {"adapter": "anthropic-api", "model": "claude-sonnet-5"},
+        "api-haiku": {"adapter": "anthropic-api", "model": "claude-haiku-4-5", "temperature": 0,
+                      "price": {"input": 1.0, "output": 5.0}},
+        "api-sonnet": {"adapter": "anthropic-api", "model": "claude-sonnet-5", "price": {"input": 2.0, "output": 10.0}},
         "local": {"adapter": "ollama", "model": "qwen2.5:7b"},
     },
     "tasks": {"extraction": "haiku"},

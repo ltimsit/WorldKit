@@ -181,13 +181,13 @@ Esquisse d'un espace dédié, à porter dans *cadre-interface.md* quand elle ser
 1. **Contraintes simulées**, inscrites dans le profil et vérifiées à l'appel :
    - un **budget d'entrée de 4 000 tokens par appel**, réglable par une variable d'environnement (`WORLDKIT_LLM_INPUT_BUDGET`). Un dépassement **n'est pas refusé** : il est signalé (avertissement) et **mesuré** (tokens au-delà du budget, par appel et par couche), pour suivre l'écart d'une itération à l'autre. L'appel actuel (environ 4 900 tokens) le dépasse : c'est le premier écart à réduire ;
    - une seule tâche par appel, un petit schéma de sortie ;
-   - pas de réflexion étendue, effort bas (à vérifier que Haiku 4.5 accepte le paramètre `effort`), température 0 (l'adaptateur `anthropic-api` ne la fixe pas aujourd'hui).
+   - pas de réflexion étendue : Haiku 4.5 ne réfléchit pas par défaut et **refuse le paramètre `effort`** (refusé avant l'appel) ; température 0 dans le profil `api-haiku` (option `temperature`, envoyée seulement si donnée : Sonnet 5 la refuse).
 2. **Rien de propre à Anthropic dans la conception.**
    - La sortie structurée a un équivalent local (grammaire d'ollama ou de llama.cpp, `format` de l'adaptateur `ollama`).
    - Le cache de prompt est une optimisation de coût, jamais une hypothèse de qualité.
    - Les *logprobs* ne sont pas fournis par l'API d'Anthropic, alors que les modèles locaux et certains hébergeurs les donnent. Le **score** doit donc avoir une définition qui s'en passe (score déclaré par le modèle, accord entre plusieurs tirages), puis une variante qui les exploite ; comparer les deux est une expérience.
 3. **Mêmes prompts pour tous les adaptateurs**, rangés avec la couche (versionnés) ; seul l'adaptateur change.
-4. **Enregistrement par appel** : identifiant du modèle, tokens d'entrée et de sortie, latence, coût, artefact de la couche. Aujourd'hui l'adaptateur `anthropic-api` ne remonte pas l'usage : à ajouter. La comparaison passe par `runs.diff` et `/measures`, étendus par couche.
+4. **Enregistrement par appel** (fait) : identifiant du modèle, tokens d'entrée (cache compris) et de sortie, latence, coût, rattachés au passage ; les trois adaptateurs le remontent. Reste à rattacher l'artefact de la couche quand les couches existeront. La comparaison passe par `runs.diff` et `/measures`, étendus par couche.
 5. **Biais annoncé** : Haiku est plus capable qu'un modèle de 8 milliards de paramètres. **Aucune conclusion de faisabilité** avant un contrôle croisé sur b1 avec un petit modèle hébergé.
 6. **Coût** : estimation avant chaque mesure, accord de l'auteur (règle du dépôt) ; clé dans `WORLDKIT_ANTHROPIC_API_KEY`.
 
@@ -415,7 +415,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 
 ## 16. Prochaines étapes
 
-1. **Outillage de mesure** : corriger T2 (optionnels exclus du rappel) ; faire remonter l'usage par appel dans `anthropic-api` ; fixer la température à 0.
+1. **Outillage de mesure** (fait) : facultatifs du gold neutres ; usage par appel (tokens, coût) dans les trois adaptateurs ; budget d'entrée mesuré (`WORLDKIT_LLM_INPUT_BUDGET`) ; température 0 pour `api-haiku`.
 2. **Profil « petit modèle simulé »** pour Haiku 4.5 (budget d'entrée, effort, une tâche par appel) ; estimer le coût d'une mesure de b1 et demander l'accord.
 3. **Mesurer b1 avec l'extracteur actuel sous Haiku** : point de départ de la cible ; ouvrir une fiche par écart qui coûte de la revue.
 4. **Traiter E-001 et E-002** par les remèdes les moins coûteux (vocabulaire du schéma ; alias par annotation de l'auteur) et mesurer.

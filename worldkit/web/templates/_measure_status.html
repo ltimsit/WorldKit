@@ -9,6 +9,7 @@
 <tr><td>global</td><td>{{ b.bar(s.precision) }}</td><td>{{ b.bar(s.recall, "#1b7f3b") }}</td></tr>
 <tr><td>questions (hors supports)</td><td>{{ b.bar(s.questions.precision) }}</td><td>{{ b.bar(s.questions.recall, "#1b7f3b") }}</td></tr></table>
 <p class="small">pièges tombés {{ s.traps_fallen }} · erreurs d'attribution {{ s.attribution_errors }} · affirmations {{ s.claims }} · changements revendiqués {{ s.claimed_changes }} · facultatifs trouvés {{ s.optional if s.optional is defined else "—" }} · stabilité {{ s.stability if s.stability is not none else "—" }} · erreurs {{ s.errors }}</p>
+{% if s.usage %}{% set u = s.usage %}<p class="small">usage : {{ u.calls }} appel(s) · {{ u.input_tokens }} tokens en entrée (au plus {{ u.max_input_tokens }} par appel, dont {{ u.cache_read_tokens }} lus du cache) · {{ u.output_tokens }} en sortie · coût {{ "%.4f $"|format(u.cost) if u.cost is not none else "—" }} · budget d'entrée {{ u.budget if u.budget else "aucun" }}{% if u.budget %} : {{ u.over_budget }} appel(s) au-delà, {{ u.excess_tokens }} tokens de trop (au plus {{ u.max_excess }}){% endif %}</p>{% endif %}
 <h2>Par opération</h2>
 <table><tr><th>opération</th><th>précision</th><th>rappel</th><th>vp</th><th>fp</th><th>fn</th></tr>
 {% for op, v in s.per_op.items() %}<tr><td class="mono">{{ op }}</td><td>{{ b.bar(v.precision) }}</td><td>{{ b.bar(v.recall, "#1b7f3b") }}</td><td>{{ v.tp }}</td><td>{{ v.fp }}</td><td>{{ v.fn }}</td></tr>{% endfor %}</table>
