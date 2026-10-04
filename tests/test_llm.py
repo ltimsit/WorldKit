@@ -442,6 +442,21 @@ def test_optional_gold_changes_are_neutral_T_ING_19():
     assert report.summary()["optional"] == "1/4"
 
 
+def test_stability_keeps_what_the_second_extraction_found():
+    """Une stabilité inférieure à 1 ne suffit pas : la mesure garde la variante pour la lire (chantier §9)."""
+    world = base_world()
+
+    class Alternating(FakeAdapter):
+        def complete(self, system, prompt, schema):
+            answer = super().complete(system, prompt, schema)
+            seen = sum(1 for _, p in self.calls if p == prompt)  # deuxième extraction du même passage
+            return {**answer, "changes": []} if "Odon de Brume est le baron" in prompt and seen > 1 else answer
+    report = evaluate(LLMExtractor(Alternating(NOTES), PROFILE), OracleExtractor(VALMONT / "gold"), VALMONT / "gold",
+                      B1, extraction_context(world, world.state()), repeat=2)
+    p1 = next(r for r in report.passages if r.doc == "notes-baron" and r.index == 1)
+    assert p1.found and p1.variant == set() and p1.stability == 0.0
+
+
 def test_batch_merges_new_entities_by_type_and_name_T_ING_07():
     """Deux passages extraits isolément créent chacun « le conseil » sous deux étiquettes : une seule entité."""
     world = base_world()

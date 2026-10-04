@@ -15,9 +15,9 @@
 {% for op, v in s.per_op.items() %}<tr><td class="mono">{{ op }}</td><td>{{ b.bar(v.precision) }}</td><td>{{ b.bar(v.recall, "#1b7f3b") }}</td><td>{{ v.tp }}</td><td>{{ v.fp }}</td><td>{{ v.fn }}</td></tr>{% endfor %}</table>
 <h2>Par passage (écarts seulement)</h2>
 <table><tr><th>passage</th><th>manqués</th><th>en trop</th><th>pièges</th><th>erreur</th></tr>
-{% for p in o.passages if p.missed or p.extra or p.traps or p.error or not p.attribution_ok %}<tr><td>{{ p.doc }} p{{ p.index }}</td>
+{% for p in o.passages if p.missed or p.extra or p.traps or p.error or not p.attribution_ok or p.second_only or p.first_only %}<tr><td>{{ p.doc }} p{{ p.index }}</td>
 <td class="small mono">{% for x in p.missed %}<span class="sev-error">− {{ x }}</span><br>{% endfor %}</td>
 <td class="small mono">{% for x in p.extra %}<span class="sev-warning">+ {{ x }}</span><br>{% endfor %}</td>
-<td class="small">{{ p.traps|join(", ") }}{{ " attribution manquée" if not p.attribution_ok }}</td><td class="small">{{ p.error or "" }}</td></tr>{% else %}<tr><td colspan="5" class="s-ok">aucun écart</td></tr>{% endfor %}</table>
+<td class="small">{{ p.traps|join(", ") }}{{ " attribution manquée" if not p.attribution_ok }}{% for x in p.first_only %}<br><span class="mono">1re seule : {{ x }}</span>{% endfor %}{% for x in p.second_only %}<br><span class="mono">2e seule : {{ x }}</span>{% endfor %}</td><td class="small">{{ p.error or "" }}</td></tr>{% else %}<tr><td colspan="5" class="s-ok">aucun écart</td></tr>{% endfor %}</table>
 {% endif %}{% endif %}
 </div>

@@ -128,4 +128,4 @@ Un signalement (`Issue`) porte un code, une sévérité, un message et la règle
 | Usage | `usage` | Appels au modèle d'une mesure, au total et par passage : nombre d'appels, tokens en entrée (tout le prompt, cache compris) et en sortie, tokens lus du cache, coût en dollars (« — » si le profil n'a pas de prix). |
 | Budget d'entrée | `budget` | Tokens d'entrée permis par appel pour simuler un petit modèle : 4 000 par défaut, réglable par `WORLDKIT_LLM_INPUT_BUDGET` (`off` : aucun). Un dépassement est signalé et mesuré, jamais refusé. |
 | Au-delà du budget | `over_budget` | Nombre d'appels dont l'entrée dépasse le budget ; `excess_tokens` : tokens de trop au total ; `max_excess` : le plus grand dépassement d'un appel. |
-| Stabilité | `stability` | Accord entre plusieurs extractions répétées d'un même passage (0 à 1) ; mesure le hasard du modèle. |
+| Stabilité | `stability` | Accord entre plusieurs extractions répétées d'un même passage (0 à 1) ; mesure le hasard du modèle. Quand elle est inférieure à 1, le détail montre ce que chaque extraction a trouvé seule (« 1re seule », « 2e seule », `variant`). |

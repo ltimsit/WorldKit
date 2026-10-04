@@ -117,6 +117,7 @@ class PassageResult:
     claimed_matched: int = 0
     claimed_expected: int = 0
     stability: float | None = None
+    variant: set[tuple[Any, ...]] | None = None  # changements de la deuxième extraction (stabilité)
     error: str | None = None
     seconds: float = 0.0
     supports: set[tuple[Any, ...]] = field(default_factory=set)  # attendus ou trouvés qui répètent l'état
@@ -326,6 +327,7 @@ def _measure(extractor: Extractor, batch: _Batch, context: ExtractionContext, re
         r.claimed_expected, r.claimed_matched = len(expected_claimed), len(expected_claimed & found_claimed)
         if len(runs) > 1:
             other = {key(d, names) for d in runs[1].drafts}
+            r.variant = other
             union = found | other
             r.stability = len(found & other) / len(union) if union else 1.0
         results.append(r)

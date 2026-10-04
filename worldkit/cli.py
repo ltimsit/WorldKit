@@ -173,7 +173,8 @@ def _run_eval(world: Any, args: argparse.Namespace) -> int:
         print(f"  {op:16} précision {m['precision']:.2f}  rappel {m['recall']:.2f}  (vp {m['tp']}, fp {m['fp']}, fn {m['fn']})")
     for r in report.passages:
         missing, extra = r.expected - r.found, r.extra
-        if missing or extra or r.traps or r.error or not r.attribution_ok:
+        unstable = r.variant is not None and r.variant != r.found
+        if missing or extra or r.traps or r.error or not r.attribution_ok or unstable:
             print(f"  -- {r.doc} p{r.index}" + (f" : ERREUR {r.error[:120]}" if r.error else ""))
             for k in sorted(missing, key=repr):
                 print(f"     manque  {dict(k)}")
@@ -183,10 +184,16 @@ def _run_eval(world: Any, args: argparse.Namespace) -> int:
                 print(f"     piège   {t}")
             if not r.attribution_ok:
                 print("     attribution mal détectée")
+            if unstable:
+                for k in sorted(r.found - r.variant, key=repr):
+                    print(f"     1re seule {dict(k)}")
+                for k in sorted(r.variant - r.found, key=repr):
+                    print(f"     2e seule  {dict(k)}")
     if args.out:
         Path(args.out).write_text(_json.dumps({"summary": summary, "passages": [
             {"doc": r.doc, "passage": r.index, "expected": sorted(map(str, r.expected)),
              "found": sorted(map(str, r.found)), "traps": r.traps, "error": r.error, "stability": r.stability,
+             "variant": sorted(map(str, r.variant)) if r.variant is not None else None,
              "seconds": round(r.seconds, 1)}
             for r in report.passages]}, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"rapport écrit : {args.out}")

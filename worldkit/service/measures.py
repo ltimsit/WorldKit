@@ -115,6 +115,8 @@ def eval_run(ctx: Context, p: EvalParams) -> Output:
                          "supports": sorted(readable(k) for k in r.supports), "traps": r.traps,
                          "attribution_ok": r.attribution_ok, "claims": [r.claims_found, r.claims_expected],
                          "stability": r.stability, "error": r.error, "seconds": round(r.seconds, 1),
+                         "first_only": sorted(readable(k) for k in r.found - (r.variant or r.found)),
+                         "second_only": sorted(readable(k) for k in (r.variant or r.found) - r.found),
                          "usage": r.usage})
     value = {"extractor": report.extractor, "model": model, "batches": batches, "repeat": p.repeat,
              "summary": summary, "passages": passages, "estimate": estimate}
