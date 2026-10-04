@@ -204,6 +204,48 @@ def _run_eval(world: Any, args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_eval_mentions(world: Any, args: argparse.Namespace) -> int:
+    """X-002 : C1 (noms connus, puis mentions par le modèle sur le document entier) et C2 (recoupement)."""
+    import json as _json
+    from worldkit.ingest.batch import batch_documents, extraction_context
+    from worldkit.periphery.llm import load_config, make_adapter
+    from worldkit.periphery.mentions import MentionFinder, evaluate_mentions
+    paths = [p for b in args.batch for p in batch_documents(args.batches, b)]
+    state = world.state()
+    finder = None
+    if not args.no_model:
+        profile = load_config(args.llm_config).profile(args.profile, "mentions")
+        finder = MentionFinder(make_adapter(profile), profile)
+    report = evaluate_mentions(finder, paths, Path(args.oracle), extraction_context(world, state), state, args.repeat)
+    summary = report.summary()
+    print(f"couches : {summary['finder']} ; {len(paths)} document(s) ; {summary['gold_mentions']} mention(s) au gold")
+    for k in ("c1", "c2", "gestures", "stability", "usage"):
+        if k in summary:
+            print(f"  {k} : {summary[k]}")
+    for p in report.passages:
+        wrong = [(s, m) for s, m in p.matched if not p.resolved_ok(s, m)]
+        if p.missed or p.extra or wrong:
+            print(f"  -- {p.doc} p{p.index}")
+            for s in p.missed:
+                print(f"     manque    {s} ({p.gold[s]})")
+            for m in p.extra:
+                print(f"     en trop   {m.text} ({m.type}, {m.source}, {m.entity or m.rule})")
+            for s, m in wrong:
+                print(f"     recoupé   {m.text} -> {m.entity or m.rule} {list(m.candidates) or ''} (gold : {p.gold[s]})")
+    for m in report.unplaced:
+        print(f"  introuvable dans le texte : {m.text} ({m.type})")
+    if args.out:
+        Path(args.out).write_text(_json.dumps({"summary": summary, "passages": [
+            {"doc": p.doc, "passage": p.index, "gold": p.gold,
+             "found": [{"text": m.text, "type": m.type, "source": m.source, "confidence": m.confidence,
+                        "reason": m.reason, "entity": m.entity, "rule": m.rule, "candidates": list(m.candidates)}
+                       for m in p.found],
+             "missed": p.missed, "extra": [m.text for m in p.extra]} for p in report.passages]},
+            ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"rapport écrit : {args.out}")
+    return 0
+
+
 def _indices(parts: list[str] | None) -> list[int] | None:
     """« 0,1 », « 0 1 » ou « 0, 1 » : PowerShell passe 0,1 non entre guillemets comme deux arguments."""
     if not parts:
@@ -543,7 +585,7 @@ def _run_world(args: argparse.Namespace) -> int:
         if args.command == "ingest":
             return _run_ingest(world, args)
         if args.command == "eval":
-            return _run_eval(world, args)
+            return _run_eval_mentions(world, args) if args.eval_command == "mentions" else _run_eval(world, args)
         if args.command == "review":
             return _run_review(world, args)
         if args.command == "edit":
@@ -792,6 +834,16 @@ def build_parser() -> argparse.ArgumentParser:
     evx.add_argument("--repeat", type=int, default=1, help="2 pour mesurer la stabilité (deux appels par passage)")
     evx.add_argument("--out", default=None, help="rapport JSON détaillé")
     evx.add_argument("--no-cache", action="store_true", help="rappeler le modèle même pour un passage déjà extrait")
+
+    evm = ev_cmds.add_parser("mentions", help="C1 et C2 : repérer les entités d'un document, les recouper (X-002)")
+    evm.add_argument("--batches", required=True)
+    evm.add_argument("--oracle", required=True, help="dossier gold/ (mentions par passage)")
+    evm.add_argument("--batch", action="append", required=True, help="lot à mesurer (répétable)")
+    evm.add_argument("--profile", default=None)
+    evm.add_argument("--llm-config", default=None)
+    evm.add_argument("--repeat", type=int, default=1, help="2 pour mesurer la stabilité de C1b")
+    evm.add_argument("--no-model", action="store_true", help="C1a et C2 seuls, sans appel au modèle")
+    evm.add_argument("--out", default=None, help="rapport JSON détaillé")
 
     review = commands.add_parser("review", help="file de revue des propositions")
     review_cmds = review.add_subparsers(dest="review_command", required=True)

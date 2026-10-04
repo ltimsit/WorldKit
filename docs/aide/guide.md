@@ -366,6 +366,18 @@ Une mesure avec un modèle rend aussi son **usage** : appels, tokens en entrée 
 $env:WORLDKIT_LLM_INPUT_BUDGET = "8000"   # « off » : aucun budget
 ```
 
+Les **couches** de l'ingestion se mesurent aussi une à une. `eval mentions` repère les entités de chaque document entier (C1), puis les recoupe avec le monde (C2), et compare aux mentions du gold. Sans modèle, on voit ce que les noms déjà connus suffisent à trouver :
+
+```powershell
+worldkit --db valmont.db eval mentions --batches corpus/valmont-v1/valmont/docs/batches.yaml --oracle corpus/valmont-v1/valmont/gold --batch b1 --no-model
+```
+
+```text sortie
+couches : known-only ; 2 document(s) ; 28 mention(s) au gold
+```
+
+Avec `--profile api-haiku` (sans `--no-model`), le modèle repère en plus les entités nouvelles : deux appels pour b1, un par document.
+
 Pour voir exactement ce qui part vers le modèle, désignez un dossier : chaque appel y est écrit en Markdown (prompt système, message, schéma de sortie envoyé, réglages, réponse brute), un fichier par appel, nommé d'après le passage. Le dossier `llm-log/` est ignoré par git.
 
 ```powershell sans-test

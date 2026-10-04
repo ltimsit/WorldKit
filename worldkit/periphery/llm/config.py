@@ -24,7 +24,7 @@ import yaml
 from .adapters import ADAPTERS, LLMError, Profile
 
 DEFAULT_PATH = "worldkit-llm.yaml"
-TASKS = ("extraction",)
+TASKS = ("extraction", "mentions")
 
 DEFAULT: dict[str, Any] = {
     "profiles": {
