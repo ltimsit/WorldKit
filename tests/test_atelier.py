@@ -109,3 +109,58 @@ def test_relaunch_respects_the_author_and_the_atelier_rules_T3():
     values = mention_values(world, doc)
     assert (2, "conseil des marchands", None) in values  # la décision de l'auteur reste, la couche ne la refait pas
     assert not any(t == "Brume" for _, t, _ in values)
+
+
+# --- Étape 3 : gestes et portées (Q4) ---
+
+from worldkit.atelier import gestures  # noqa: E402
+
+ROI = """# Lieux
+
+Le Roi Gris régnait autrefois depuis Hautval.
+
+On chante encore le Roi Gris dans les tavernes de Brume.
+"""
+
+
+def test_correcting_one_occurrence_corrects_the_whole_source_by_default_Q4():
+    world = base_world()
+    doc = store.import_source(world, ROI)
+    layers.run_mentions(world, "reference", doc.doc_id, FakeFinder([("Roi Gris", "Character")]))
+    first = next(a for a in layers.effective(world, "reference", doc) if a.value["text"] == "Roi Gris")
+    written = gestures.gesture(world, "reference", doc.doc_id, "correct", ann_id=first.ann_id, entity="aldren-ii")
+    assert len(written) == 2  # les deux occurrences
+    assert {e for _, t, e in mention_values(world, doc) if t == "Roi Gris"} == {"aldren-ii"}
+
+
+def test_an_occurrence_scope_touches_only_that_annotation_Q4():
+    world = base_world()
+    doc = store.import_source(world, ROI)
+    layers.run_mentions(world, "reference", doc.doc_id, FakeFinder([("Roi Gris", "Character")]))
+    first = next(a for a in layers.effective(world, "reference", doc) if a.value["text"] == "Roi Gris")
+    gestures.gesture(world, "reference", doc.doc_id, "correct", "occurrence", first.ann_id, entity="aldren-ii")
+    assert sorted(e or "" for _, t, e in mention_values(world, doc) if t == "Roi Gris") == ["aldren-ii", "new:roi gris"]
+
+
+def test_a_negative_world_gesture_becomes_an_atelier_rule_for_future_sources_Q4():
+    """« les veilleurs de nuit ne sont pas les Veilleurs », retenu : la source suivante ne les rattache plus."""
+    world = base_world()
+    one = store.import_source(world, "# Une\n\nLes veilleurs de nuit de Hautval allument des feux.\n")
+    layers.run_mentions(world, "reference", one.doc_id)
+    wrong = next(a for a in layers.effective(world, "reference", one) if a.value["entity"] == "veilleurs")
+    gestures.gesture(world, "reference", one.doc_id, "ignore", "world", wrong.ann_id)
+    two = store.import_source(world, "# Deux\n\nLes veilleurs de nuit dorment le jour.\n")
+    layers.run_mentions(world, "reference", two.doc_id)
+    assert not any(e == "veilleurs" for _, _, e in mention_values(world, two))
+
+
+def test_adding_a_mention_by_selection_covers_its_other_occurrences_Q4():
+    world = base_world()
+    doc = store.import_source(world, NOTES.replace("Brume dans les faits.", "Brume. Le conseil des marchands siège à Hautval."))
+    passage = next(p for p in doc.passages if "conseil" in p.text)
+    start = passage.text.index("conseil des marchands")
+    written = gestures.gesture(world, "reference", doc.doc_id, "add", passage=passage.index, start=start,
+                               end=start + len("conseil des marchands"), entity="new", type_="Faction")
+    assert len(written) == 2
+    added = [a for a in layers.effective(world, "reference", doc) if a.by_author]
+    assert all(a.value["new"] and a.status == "kept" for a in added)
