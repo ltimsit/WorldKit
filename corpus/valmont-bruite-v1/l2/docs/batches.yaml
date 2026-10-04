@@ -1,0 +1,8 @@
+batches:
+- id: l2-b1
+  target_branch: reference
+  documents:
+  - b1/notes-baron.v1.md
+  - b1/lieux-de-valmont.md
+  purpose: 'Valmont b1 bruité, niveau l2 : {''typo'': 0.35, ''lower'': 0.6, ''accent'':
+    0.8, ''abbrev'': 1.0, ''acronym'': 1.0, ''punct'': 0.8}'

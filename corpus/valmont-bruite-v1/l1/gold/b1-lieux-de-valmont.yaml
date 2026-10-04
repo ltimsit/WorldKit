@@ -1,0 +1,156 @@
+# Gold dérivé automatiquement (corpus/tools/derive_noisy.py) : ne pas modifier à la main.
+document: lieux-de-valmont
+version: 1
+batch: l1-b1
+axes:
+  mode: source
+  nature: diegetic
+  voice: author
+  visibility: unqualified
+passages:
+- index: 1
+  starts_with: brume que les anciens appellen
+  mentions:
+    brume: brume
+    brume-sur-mer: brume
+    vaalmont: valmont
+  changes:
+  - op: add_value
+    entity: brume
+    attribute: aliases
+    value: Brume-sur-Mer
+    outcome: enrichment
+  - op: set_attribute
+    entity: brume
+    attribute: category
+    value: port
+    outcome: support
+  - op: add_relation
+    from: brume
+    relation: located_in
+    to: valmont
+    outcome: support
+  must_not:
+  - op: create_entity
+    entity: new:brume-sur-mer
+    note: 'piège de résolution : un alias, pas un nouveau lieu'
+  derived_from: Brume, que les anciens appellent encore Brume-sur-Mer
+- index: 2
+  starts_with: Hautval la capitale, domine la
+  mentions:
+    Hautval: hautval
+    conseil des marchands: new:conseil-marchands
+  changes:
+  - op: set_attribute
+    entity: hautval
+    attribute: category
+    value: capitale
+    outcome: support
+  - op: add_relation
+    from: new:conseil-marchands
+    relation: based_in
+    to: hautval
+    outcome: batch_conflict
+    conflicts_with: notes-baron p4 (based_in brume)
+  note: 'Le conseil est aussi mentionné dans notes-baron (même lot) : une seule entité nouvelle après regroupement au niveau
+    du lot (T-ING-07).'
+  derived_from: Hautval, la capitale, domine la vallée
+- index: 3
+  starts_with: La taverne du héron, sur le po
+  mentions:
+    taverne du héron: new:taverne-du-heron
+    Brme: brume
+  changes:
+  - op: create_entity
+    entity: new:taverne-du-heron
+    type: Place
+    outcome: enrichment
+  - op: set_attribute
+    entity: new:taverne-du-heron
+    attribute: name
+    value: la taverne du Héron
+    outcome: enrichment
+  - op: set_attribute
+    entity: new:taverne-du-heron
+    attribute: category
+    value: taverne
+    outcome: enrichment
+    optional: true
+  - op: add_relation
+    from: new:taverne-du-heron
+    relation: located_in
+    to: brume
+    outcome: enrichment
+  - op: create_entity
+    entity: new:contrebandiers
+    type: Faction
+    outcome: enrichment
+    optional: true
+  - op: set_attribute
+    entity: new:contrebandiers
+    attribute: name
+    value: les contrebandiers
+    outcome: enrichment
+    optional: true
+  - op: add_relation
+    from: new:contrebandiers
+    relation: based_in
+    to: new:taverne-du-heron
+    outcome: enrichment
+    optional: true
+  note: 'Tout reste non qualifié (pas de notoriété déclarée) : invisible dans le wiki joueur (R-NOT-03).'
+  derived_from: La taverne du Héron, sur le port de Brume
+- index: 4
+  starts_with: Le Roi gris regnait autrefois
+  mentions:
+    Le Roi gris: aldren-ii
+    Hautval: hautval
+    la Chhute: la-chute
+  changes:
+  - op: add_value
+    entity: aldren-ii
+    attribute: aliases
+    value: le Roi Gris
+    outcome: enrichment
+  must_not:
+  - op: create_entity
+    entity: new:roi-gris
+    note: piège de résolution (doublon), voir W16
+  - op: add_relation
+    from: aldren-ii
+    relation: rules
+    to: hautval
+    note: 'passé révolu : le temps diégétique est hors fondation'
+  derived_from: Le Roi Gris régnait autrefois depuis Hautval
+- index: 5
+  starts_with: Au-delà des collines s'étenden
+  mentions:
+    Cendrelande: cendrelande
+    loup de cendre: loup-de-cendre
+  changes:
+  - op: set_attribute
+    entity: cendrelande
+    attribute: category
+    value: plaines
+    outcome: support
+  - op: add_relation
+    from: loup-de-cendre
+    relation: haunts
+    to: cendrelande
+    outcome: support
+  must_not:
+  - op: create_entity
+    entity: new:collines
+    note: lieu générique, pas une entité (voir W16, delete_entity)
+  derived_from: Au-delà des collines s'étendent les plaines de Cendrelande
+derived:
+  from: valmont-v1/b1-lieux-de-valmont.yaml
+  level: l1
+  rates:
+    typo: 0.15
+    lower: 0.25
+    accent: 0.3
+    abbrev: 0.5
+    acronym: 0.5
+    punct: 0.3
+  seed: 20261004
