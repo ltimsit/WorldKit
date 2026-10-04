@@ -45,6 +45,12 @@ Règles :
 4. confidence : sure, likely ou doubt. Avec doubt, explique en quelques mots dans reason ; sinon reason est vide.
 """
 
+# Variante A (X-003) : exemple volontairement pris hors de Valmont, pour ne pas régler le prompt sur le corpus.
+SHORT_FORMS_RULE = """5. Relève aussi chaque forme plus courte ou chaque désignation d'une entité déjà relevée, à chaque fois
+   qu'elle est employée : un prénom seul (« Marianne » pour « Marianne Ostrel »), une fonction (« le capitaine »).
+   Une entrée par forme, même si l'entité est déjà relevée sous une autre forme.
+"""
+
 
 def output_schema(types: list[str]) -> dict[str, Any]:
     return {"type": "object", "additionalProperties": False, "required": ["mentions"], "properties": {
@@ -118,8 +124,10 @@ def _keep_longest(mentions: list[Mention]) -> list[Mention]:
     return sorted(kept, key=lambda m: m.start)
 
 
-def known_mentions(window: Window, entities: tuple[KnownEntity, ...]) -> list[Mention]:
-    """C1a : les noms et alias connus, trouvés tels quels (sans modèle)."""
+def known_mentions(window: Window, entities: tuple[KnownEntity, ...],
+                   titles: dict[str, list[str]] | None = None) -> list[Mention]:
+    """C1a : les noms et alias connus, trouvés tels quels (sans modèle) ; et « le <titre> » quand ce titre est
+    porté aujourd'hui par une seule entité (« le baron » : Odon). Un titre partagé (« le roi ») n'est pas cherché."""
     found = []
     for e in entities:
         for name in e.names:
@@ -127,7 +135,52 @@ def known_mentions(window: Window, entities: tuple[KnownEntity, ...]) -> list[Me
                 for start in _occurrences(window.text, form):
                     found.append(Mention(window.text[start:start + len(form.strip())], start,
                                          window.passage_at(start), e.type, "known", entity=e.id, rule="exact"))
+    types = {e.id: e.type for e in entities}
+    for title, holders in (titles or {}).items():
+        if len(holders) != 1:
+            continue
+        for form in (f"le {title}", f"la {title}", f"l'{title}", f"l’{title}"):
+            for start in _occurrences(window.text, form):
+                found.append(Mention(window.text[start:start + len(form)], start, window.passage_at(start),
+                                     types.get(holders[0]), "known", entity=holders[0], rule="title"))
     return _keep_longest(found)
+
+
+STOPWORDS = {"de", "du", "des", "la", "le", "les", "l", "d", "et", "von", "van", "of", "the"}
+
+
+def short_forms(window: Window, mentions: list[Mention], entities: tuple[KnownEntity, ...], schema: Any,
+                person_types: tuple[str, ...] = ("Character",)) -> list[Mention]:
+    """Variante B (sans modèle) : les mots d'un nom de personne repérée (« Odon » dans « Odon de Brume ») sont
+    cherchés dans la fenêtre, sauf un mot qui est lui-même un nom connu (« Brume ») ou qui appartient au nom de
+    plusieurs personnes. Recherche sensible à la casse : un mot à majuscule. Heuristique : `person_types` dépend
+    du schéma du monde (ici le schéma de Valmont)."""
+    def is_person(t: str | None) -> bool:
+        return t is not None and any(t in schema.types and schema.is_subtype(t, p) for p in person_types)
+
+    known_keys = {name_key(n) for e in entities for n in e.names}
+    people: dict[str, str] = {}  # identifiant → nom de référence
+    for e in entities:
+        if is_person(e.type) and e.names:
+            people[e.id] = e.names[0]
+    for m in mentions:
+        if m.entity and is_person(m.type) and m.entity not in people:
+            people[m.entity] = m.text
+    words: dict[str, set[str]] = {}
+    for eid, name in people.items():
+        for w in re.findall(r"[^\W\d_][\w’'-]*", name):
+            if len(w) >= 3 and w[0].isupper() and w.casefold() not in STOPWORDS and name_key(w) not in known_keys:
+                words.setdefault(w, set()).add(eid)
+    found = []
+    for w, owners in words.items():
+        if len(owners) != 1 or not any(m.entity in owners for m in mentions):
+            continue  # mot partagé, ou personne absente de la fenêtre
+        eid = next(iter(owners))
+        for start in (m.start() for m in re.finditer(r"(?<![\w-])" + re.escape(w) + r"(?![\w-])", window.text)):
+            if not any(k.start <= start and start + len(w) <= k.end for k in mentions):
+                found.append(Mention(w, start, window.passage_at(start), next(
+                    (m.type for m in mentions if m.entity == eid), None), "short", entity=eid, rule="short"))
+    return found
 
 
 @dataclass
@@ -136,10 +189,15 @@ class MentionFinder:
 
     adapter: Any
     profile: Any
+    short_forms: bool = False  # variante A : une consigne de plus sur les formes courtes
 
     @property
     def version(self) -> str:
-        return f"mentions-{PROMPT_VERSION}:{self.profile.signature}"
+        return f"mentions-{PROMPT_VERSION}{'+sf' if self.short_forms else ''}:{self.profile.signature}"
+
+    @property
+    def system(self) -> str:
+        return SYSTEM + SHORT_FORMS_RULE if self.short_forms else SYSTEM
 
     @property
     def meter(self) -> Any:
@@ -148,17 +206,23 @@ class MentionFinder:
     def prompt(self, window: Window, context: ExtractionContext) -> tuple[str, str]:
         schema = context.schema
         lines = [f"- {name} : {(schema.types[name].labels or {}).get('fr', name)}" for name in sorted(schema.types)]
-        return SYSTEM, "Types du monde :\n" + "\n".join(lines) + "\n\nTexte :\n" + window.text
+        return self.system, "Types du monde :\n" + "\n".join(lines) + "\n\nTexte :\n" + window.text
 
     def find(self, window: Window, context: ExtractionContext) -> list[Mention]:
         system, user = self.prompt(window, context)
         raw = self.adapter.complete(system, user, output_schema(sorted(context.schema.types)))
         found = []
         for m in raw["mentions"]:
-            for start in _occurrences(window.text, m["text"]):
-                found.append(Mention(window.text[start:start + len(m["text"].strip())], start, window.passage_at(start),
+            # La forme sans article initial aussi : « le conseil des marchands » se lit « au conseil des marchands »
+            bare = re.sub(r"^(?:(?:les|le|la)\s+|l['’]\s*)", "", m["text"].strip(), flags=re.IGNORECASE)
+            starts: dict[int, str] = {}
+            for form in (m["text"].strip(), bare):
+                for start in _occurrences(window.text, form):
+                    starts.setdefault(start, form)
+            for start, form in starts.items():
+                found.append(Mention(window.text[start:start + len(form)], start, window.passage_at(start),
                                      m["type"], "model", m["confidence"], m.get("reason") or ""))
-            if not _occurrences(window.text, m["text"]):  # texte réécrit par le modèle : gardé, sans position
+            if not starts:  # texte réécrit par le modèle : gardé, sans position
                 found.append(Mention(m["text"], -1, None, m["type"], "model", m["confidence"], m.get("reason") or ""))
         return found
 
@@ -322,8 +386,10 @@ def _gold_mentions(gold_dir: Path, window: Window) -> dict[int, dict[str, str]]:
 
 
 def evaluate_mentions(finder: MentionFinder | None, documents: list[Path], gold_dir: Path,
-                      context: ExtractionContext, state: Any, repeat: int = 1) -> MentionReport:
-    """C1 (C1a, et C1b si `finder`) puis C2 sur chaque document, comparés aux mentions du gold."""
+                      context: ExtractionContext, state: Any, repeat: int = 1,
+                      with_short_forms: bool = False) -> MentionReport:
+    """C1 (C1a, et C1b si `finder`) puis C2 sur chaque document, comparés aux mentions du gold ; avec
+    `with_short_forms`, la variante B ajoute les formes courtes des personnes repérées."""
     windows = [document_window(path) for path in documents]
     meter = finder.meter if finder is not None else None
     first_call = len(meter.calls) if meter is not None else 0
@@ -337,11 +403,15 @@ def evaluate_mentions(finder: MentionFinder | None, documents: list[Path], gold_
     with ThreadPoolExecutor(max_workers=4) as pool:
         model_runs = list(pool.map(run, windows))
     resolver = Resolver.from_state(context, state)
-    report = MentionReport(finder.version if finder is not None else "known-only", [])
+    label = (finder.version if finder is not None else "known-only") + ("+short" if with_short_forms else "")
+    report = MentionReport(label, [])
     for window, runs in zip(windows, model_runs):
-        mentions = merge(known_mentions(window, context.entities), runs[0] if runs else [])
+        mentions = merge(known_mentions(window, context.entities, resolver.titles), runs[0] if runs else [])
         for m in mentions:
             resolver.resolve(m)
+        if with_short_forms:
+            mentions = sorted(mentions + short_forms(window, mentions, context.entities, context.schema),
+                              key=lambda m: (m.start, -(m.end - m.start)))
         report.unplaced += [m for m in mentions if m.start < 0]  # texte réécrit par le modèle, introuvable
         for index, expected in sorted(_gold_mentions(gold_dir, window).items()):
             p = PassageMentions(window.doc_id, index, expected, [m for m in mentions if m.passage == index])

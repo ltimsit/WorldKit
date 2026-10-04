@@ -217,10 +217,11 @@ def _run_eval_mentions(world: Any, args: argparse.Namespace) -> int:
         profile = load_config(args.llm_config).profile(args.profile, "mentions")
         if args.replay:
             from worldkit.periphery.llm.usage import ReplayAdapter
-            finder = MentionFinder(ReplayAdapter(args.replay), profile)
+            finder = MentionFinder(ReplayAdapter(args.replay), profile, args.prompt_short_forms)
         else:
-            finder = MentionFinder(make_adapter(profile), profile)
-    report = evaluate_mentions(finder, paths, Path(args.oracle), extraction_context(world, state), state, args.repeat)
+            finder = MentionFinder(make_adapter(profile), profile, args.prompt_short_forms)
+    report = evaluate_mentions(finder, paths, Path(args.oracle), extraction_context(world, state), state, args.repeat,
+                               args.short_forms)
     summary = report.summary()
     print(f"couches : {summary['finder']} ; {len(paths)} document(s) ; {summary['gold_mentions']} mention(s) au gold")
     for k in ("c1", "c2", "gestures", "stability", "usage"):
@@ -848,6 +849,10 @@ def build_parser() -> argparse.ArgumentParser:
     evm.add_argument("--repeat", type=int, default=1, help="2 pour mesurer la stabilité de C1b")
     evm.add_argument("--no-model", action="store_true", help="C1a et C2 seuls, sans appel au modèle")
     evm.add_argument("--replay", default=None, help="dossier de traces : rejoue les réponses, sans appel ni coût")
+    evm.add_argument("--prompt-short-forms", action="store_true",
+                     help="variante A : consigne de C1b sur les formes courtes (prénom seul, fonction)")
+    evm.add_argument("--short-forms", action="store_true",
+                     help="variante B : formes courtes des personnes repérées, cherchées sans modèle")
     evm.add_argument("--out", default=None, help="rapport JSON détaillé")
 
     review = commands.add_parser("review", help="file de revue des propositions")

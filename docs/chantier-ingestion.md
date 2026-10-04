@@ -390,6 +390,14 @@ Document entier, une seule question au modèle (« quelles entités sont mention
 - **Correction en cours d'expérience** : les mentions s'imbriquent (« baron de Brume » contient « Brume ») ; la première fusion gardait la plus longue et perdait le nom connu.
 - **Outil** : les réponses tracées se rejouent (`--replay`) ; une couche déterministe se corrige et se remesure sans appel ni coût.
 
+### 11.5 Formes courtes : consigne ou règle (X-003)
+
+« Odon » seul et « le baron » manquaient. Trois remèdes, remesurés par rejeu : titres uniques cherchés par C1a (sans modèle, gardé d'office, s'abstient sur un titre partagé) ; variante A, une consigne de plus à C1b (exemple pris hors de Valmont) ; variante B, les mots d'un nom de personne cherchés sans modèle. **A et B font jeu égal sur b1** : 28 mentions du gold sur 28, 27 bien recoupées, gestes simulés de 43 à 35. Non tranché : b1 ne contient ni nom de famille employé seul, ni surnom, ni homonyme de prénom ; les deux restent des options. Détail dans [X-003](recherche-ingestion/X-003-formes-courtes.md).
+
+- **Nouvel écart coûteux** : trois désignations (« baron de Brume », « régent de Brume », « royaume de Valmont ») recoupées comme entités nouvelles, donc trois fausses créations en revue ([E-006](recherche-ingestion/E-006-designations-nouvelles.md)).
+- **Défaut déterministe corrigé** : une mention rendue avec son article (« le conseil des marchands ») est aussi cherchée sans lui (« au conseil des marchands »).
+- **Un seul corpus** : ces résultats sont des candidats, pas des règles (§12).
+
 ## 12. Corpus à venir
 
 Chaque nouveau corpus met un levier à l'épreuve ; chacun demande un gold (l'extraction peut en proposer un brouillon, que l'auteur corrige dans l'Atelier, en signalant le biais).
@@ -481,10 +489,13 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 1. **Outillage de mesure** (fait) : facultatifs du gold neutres ; usage par appel (tokens, coût) dans les trois adaptateurs ; budget d'entrée mesuré (`WORLDKIT_LLM_INPUT_BUDGET`) ; température 0 pour `api-haiku`.
 2. **Profil « petit modèle simulé »** (fait) : `api-haiku`, température 0, sans réflexion ni effort, budget d'entrée mesuré.
 3. **Mesurer b1 avec l'extracteur actuel sous Haiku** (fait, [X-001](recherche-ingestion/X-001-b1-haiku-reference.md)) : fiches E-003 à E-005 ouvertes, E-001 et E-002 complétées, stabilité mesurée. Reste : comparaison juste avec Sonnet.
-4. **X-002, C1 et C2 sur b1** (fait, [fiche](recherche-ingestion/X-002-c1-c2-fenetre.md)) : 23 mentions sur 28, 22 bien recoupées sur 23 ; E-003 disparaît au niveau des entités. Reste : les formes courtes (« Odon », « le baron »).
-5. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
-6. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.
-7. Ensuite : C5 (faits entre entités confirmées), chacune avec sa fiche d'expérience ; les écarts restants (E-001 et E-005 par un vocabulaire d'attribut, E-002 par l'annotation) par les remèdes les moins coûteux.
+4. **X-002, C1 et C2 sur b1** (fait, [fiche](recherche-ingestion/X-002-c1-c2-fenetre.md)) : 23 mentions sur 28, 22 bien recoupées sur 23 ; E-003 disparaît au niveau des entités. Formes courtes ensuite traitées (fait, [X-003](recherche-ingestion/X-003-formes-courtes.md)) : 28 sur 28 avec A ou B, non tranché.
+5. **E-006** : désignations recoupées comme entités nouvelles ; remède déterministe avec abstention, mesuré par rejeu.
+6. **C5, faits entre entités confirmées** : vérifier que les relations du conseil des marchands suivent (E-003).
+7. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
+8. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.
+9. **Un second corpus**, au moins un petit, qui départage A et B (noms de famille seuls, surnoms, homonymes) et éprouve les règles de C2 hors de Valmont.
+10. Les écarts restants de l'extracteur actuel (E-001 et E-005 par un vocabulaire d'attribut, E-002 par l'annotation), par les remèdes les moins coûteux.
 
 ## 17. Références
 

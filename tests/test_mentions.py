@@ -84,7 +84,7 @@ def test_mention_finder_asks_one_question_without_known_entities():
 def test_mentions_measured_against_the_gold_of_b1():
     context, state = setup()
     baseline = evaluate_mentions(None, B1, VALMONT / "gold", context, state).summary()
-    assert (baseline["c1"]["tp"], baseline["c1"]["fn"], baseline["c2"]["accuracy"]) == (17, 11, 1.0)
+    assert (baseline["c1"]["tp"], baseline["c1"]["fn"], baseline["c2"]["accuracy"]) == (18, 10, 1.0)  # « le baron » par le titre
     report = evaluate_mentions(MentionFinder(FakeAdapter(), PROFILE), B1, VALMONT / "gold", context, state, repeat=2)
     s = report.summary()
     assert s["c1"]["fn"] == 0 and s["c1"]["recall"] == 1.0
@@ -121,3 +121,32 @@ def test_replay_answers_traced_prompts_without_calling(tmp_path, monkeypatch):
     assert (replayed["c1"], replayed["c2"]) == (first["c1"], first["c2"])
     with pytest.raises(ValueError, match="rejeu"):
         ReplayAdapter(tmp_path).complete("autre", "prompt", {})
+
+
+def test_a_title_held_by_one_entity_is_searched_a_shared_title_is_not():
+    """« le baron » (Odon seul) est cherché sans modèle ; « le roi » (Aldren II et Mervin) ne l'est pas."""
+    context, state = setup()
+    titles = Resolver.from_state(context, state).titles
+    window = next(document_window(p) for p in B1 if "notes-baron" in str(p))
+    found = [m for m in known_mentions(window, context.entities, titles) if m.rule == "title"]
+    assert found and {m.entity for m in found} == {"odon"}
+    assert "roi" in titles and len(titles["roi"]) == 2
+
+
+def test_short_forms_variant_B_finds_first_names_without_a_model():
+    """Variante B : « Odon » tiré d'« Odon de Brume » ; « Brume », nom connu d'un lieu, n'est jamais une forme courte."""
+    from worldkit.periphery.mentions import short_forms
+    context, state = setup()
+    window = next(document_window(p) for p in B1 if "notes-baron" in str(p))
+    mentions = known_mentions(window, context.entities, Resolver.from_state(context, state).titles)
+    extra = short_forms(window, mentions, context.entities, context.schema)
+    assert {m.text for m in extra} == {"Odon"} and {m.entity for m in extra} == {"odon"}
+    assert len(extra) == 4  # passages 2, 4, 5 et 7
+
+
+def test_prompt_variant_A_adds_one_rule_with_an_example_outside_the_corpus():
+    context, _ = setup()
+    plain, variant = (MentionFinder(None, PROFILE, flag) for flag in (False, True))
+    system, _ = variant.prompt(document_window(B1[0]), context)
+    assert system.startswith(plain.system) and "Marianne" in system and "Odon" not in system
+    assert plain.version != variant.version  # deux variantes, deux versions (comparables, jamais mélangées)

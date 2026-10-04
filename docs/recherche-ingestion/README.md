@@ -15,7 +15,7 @@ Journal de travail du chantier ingestion ([`../chantier-ingestion.md`](../chanti
    5. couche spécialisée (expérience).
 5. Vérifier : l'écart disparaît-il, sans en créer d'autres ?
 
-Contrainte permanente : on vise un **petit modèle**. « Prendre un meilleur modèle » n'est pas un remède. Les mesures faites avec Haiku 4.5 portent la mention « substitut » (chantier §8).
+Contrainte permanente : on vise un **petit modèle**. Autre limite permanente : tant qu'il n'y a qu'un corpus (Valmont, synthétique et arbitraire), un remède qui marche n'est qu'un candidat ; les exemples des prompts sont pris hors de Valmont pour ne pas les régler sur lui. « Prendre un meilleur modèle » n'est pas un remède. Les mesures faites avec Haiku 4.5 portent la mention « substitut » (chantier §8).
 
 ## Index
 
@@ -26,11 +26,13 @@ Contrainte permanente : on vise un **petit modèle**. « Prendre un meilleur mod
 | [E-003](E-003-conseil-valeur.md) | « le conseil des marchands » pris pour une valeur, jamais créé | N | ouverte |
 | [E-004](E-004-depuis-la-chute.md) | « depuis la Chute » donne `odon involved_in la-chute` | H | ouverte |
 | [E-005](E-005-regent-de-brume.md) | « régent de Brume » au lieu de « régent » | S | ouverte |
+| [E-006](E-006-designations-nouvelles.md) | des désignations proposées comme entités nouvelles | N | ouverte |
 
 | Expérience | Titre | Statut |
 |---|---|---|
 | [X-001](X-001-b1-haiku-reference.md) | Mesure de référence : b1 sous Haiku 4.5 (API), extracteur actuel | conclue |
 | [X-002](X-002-c1-c2-fenetre.md) | Repérer puis recouper : C1 et C2 sur une fenêtre au document (b1) | conclue (première itération) |
+| [X-003](X-003-formes-courtes.md) | Formes courtes : consigne (A) ou règle sans modèle (B) | conclue sur b1, non tranchée |
 
 Statuts : **ouverte** (observée, non traitée), **en cours** (remède essayé), **résolue** (remède mesuré, sans régression), **acceptée** (on vit avec, avec la raison), **transformée** (devenue une expérience ou une question du chantier).
 
