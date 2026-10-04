@@ -171,7 +171,20 @@ flowchart LR
 - **C2, recoupement** : la cascade du §10.3. Le modèle n'y intervient que sur une vraie ambiguïté, avec une liste courte.
 - **Point d'arrêt** : les entités confirmées (gardées, corrigées, ajoutées par l'auteur) sont l'entrée de C5. C'est le rythme du §7 : on ne demande des faits qu'à propos d'entités établies.
 - **C5, faits** : relations et attributs entre entités confirmées, avec les seules relations du schéma compatibles avec leurs types (§10.2), et peu de consignes (celles de forme et de temps : règles 5, 9, 10 de l'extracteur actuel, ignorées par Haiku quand elles étaient noyées parmi 13, X-001).
-- **C4 et le méta** ne partent que sur indice ; **C3** (coréférence) et **C6** (critique) restent des hypothèses à éprouver quand un écart les réclamera.
+- **Question ciblée sur les phrases muettes** (après C5) : une phrase qui cite au moins deux entités confirmées sans produire de fait est repérée sans modèle ; elle reçoit une question étroite, **sans liste de relations** : « quelle relation cette phrase affirme-t-elle entre ces entités ? ». C'est par là que vient le hors schéma (E-007) : C5 garde sa liste réduite, donc sa précision.
+- **C4 et le méta** ne partent que sur indice ; **C3** (coréférence) et **C6** (critique) restent des hypothèses à éprouver quand un écart les réclamera. Sur b1, le document entier a suffi à C5 pour comprendre « Il gouverne la cité portuaire ».
+
+### 6.6 Une relation inconnue nourrit le schéma, par décision de l'auteur
+
+Une relation proposée hors schéma (« Odon est vassal de Mervin », `vassal_of`) n'étend jamais le schéma d'elle-même (T-ARC-03). Elle arrive dans l'Atelier avec sa **tournure** (« est le vassal de »), et l'auteur choisit :
+
+| Choix | Effet | La fois suivante |
+|---|---|---|
+| **Ajouter au schéma** | une édition de schéma, versionnée dans le journal (R-SCH-03) : la relation, avec les types des deux entités (Character → Character) et un libellé tiré de la tournure | C5 la voit dans sa liste |
+| **Relation existante** | l'auteur choisit laquelle ; la tournure devient une indication d'ingestion de cette relation (§10.5) | la tournure guide vers la bonne relation |
+| **Ignorer** | retenu dans la mémoire des décisions (R-PRI-04) | la question ne revient pas pour cette tournure |
+
+La tournure est gardée dans les trois cas : c'est elle qui rend la fois suivante déterministe ou mieux guidée. Dans un lot, les phrases d'une même tournure sont regroupées en une question ; entre lots, l'ontologiste (§10.4) regroupe les synonymes (`vassal_of`, `sworn_to`, `liege_of`) avant de les soumettre. Le schéma de départ d'un corpus ne change pas : une extension acceptée vit dans l'état du monde de travail (Valmont garde son absence de `vassal_of`, qui teste W09).
 
 ## 7. L'Atelier d'ingestion (interface)
 
@@ -292,7 +305,7 @@ Séparer les écarts qui posent une question en revue de ceux qui sont des suppo
 ### 10.4 C — Diversité des sources
 
 - **Parsing** (C0) : chemin de titres comme contexte (« Brume › Quartiers › Le Port »), éléments de liste et lignes de tableau comme unités, règles pour les blocs de caractéristiques (`sheet_values` sans modèle). PDF plus tard, par un parseur dédié.
-- **Ontologiste** : regroupe les hors schéma de plusieurs lots (`vassal_of`, `sworn_to`, `liege_of`), propose une extension canonique sous forme de proposition. Mode d'amorçage pour un univers sans schéma : extraction libre, schéma proposé, puis extraction guidée avec une catégorie « autre » surveillée.
+- **Ontologiste** : regroupe les hors schéma de plusieurs lots (`vassal_of`, `sworn_to`, `liege_of`), avec leurs tournures, et les soumet à l'auteur avec les trois issues du §6.6 (ajouter, rattacher, ignorer). Mode d'amorçage pour un univers sans schéma : extraction libre, schéma proposé, puis extraction guidée avec une catégorie « autre » surveillée.
 - **Couche haute d'ontologie**, que tout schéma de monde étend (`extends`) : Personne, Lieu, Organisation, Événement, Objet, Créature ; familles de relations (spatiale, parenté, hiérarchie et pouvoir, appartenance, possession, participation). Extraction en deux temps (famille, puis relation du monde) : choix plus petits à chaque appel, favorable aux petits modèles. Risque : forcer un univers dans des cases ; la couche doit rester minimale, avec « autre ».
 - **Contrôle de rappel déterministe** : noms propres qu'aucune annotation ne couvre ; relance ciblée seulement dans ce cas.
 
@@ -407,6 +420,10 @@ Document entier, entités confirmées données, schéma réduit aux types prése
 - **Restent** : E-005 (forme courte, à traiter sans modèle) et **E-007** : la relation hors schéma « vassal de » est omise ; la liste réduite des relations cadre trop la réponse. Question de conception ouverte (§14).
 - **Défaut de mesure corrigé** : le nom d'une entité nouvelle se lit à l'échelle du lot.
 
+### 11.7 Question ciblée sur les phrases muettes (X-005)
+
+Signal sans modèle (deux entités confirmées, aucun fait) : deux phrases sur b1. Question étroite sans liste de relations, 2 appels, 0,0027 $. « Odon est le vassal du roi Mervin » donne `odon vassal_of mervin` (« est le vassal de ») ; la phrase du Roi Gris (« régnait autrefois ») ne donne rien, comme il faut. Rappel des faits 0,77 → 0,82, questions 0,70 → 0,80. E-007 résolu sur b1. Détail dans [X-005](recherche-ingestion/X-005-question-ciblee.md).
+
 ## 12. Corpus à venir
 
 Chaque nouveau corpus met un levier à l'épreuve ; chacun demande un gold (l'extraction peut en proposer un brouillon, que l'auteur corrige dans l'Atelier, en signalant le biais).
@@ -454,6 +471,8 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 25. **C1 sans la liste des entités connues** : les noms connus sont trouvés sans modèle (C1a), le modèle ne repère que les mentions nouvelles (C1b).
 26. **Les entités confirmées sont le point d'arrêt avant les faits** : C5 ne travaille qu'entre entités gardées, corrigées ou ajoutées par l'auteur (§6.5, §7).
 27. **Mettre l'architecture à l'épreuve avant de corriger l'extracteur actuel** : l'ordre des remèdes (§4) vaut pour corriger un écart dans une architecture donnée ; quand c'est l'architecture qu'on teste, l'expérience passe d'abord (X-002 avant l'indication de schéma sur E-003).
+28. **Le hors schéma vient d'une question ciblée** sur les phrases muettes (deux entités confirmées, aucun fait), sans liste de relations ; C5 garde sa liste réduite (§6.5, E-007).
+29. **Une relation inconnue nourrit le schéma par décision de l'auteur** : ajouter au schéma, rattacher à une relation existante, ou ignorer ; la tournure est gardée dans les trois cas ; regroupement par tournure dans un lot, synonymes regroupés par l'ontologiste entre lots (§6.6).
 
 ## 14. Questions ouvertes
 
@@ -466,7 +485,6 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 7. Les hallucinations (classe H) existent-elles ailleurs que dans b1 ? La Chronique de la Chute (b2, *in_world*) est le meilleur candidat.
 8. C5 par fenêtre ou par passage : la fenêtre donne le contexte, le passage limite ce qu'un fait peut citer ; à mesurer.
 9. Types de C1b : types du schéma du monde, ou familles de la couche haute d'ontologie (question 2) quand le schéma est riche ?
-10. Hors schéma (E-007) : C5 reçoit les relations compatibles, ce qui cadre la réponse ; le hors schéma doit-il venir de C5 (consigne, champ dédié) ou d'une question ciblée sur les phrases qui citent deux entités confirmées sans produire de fait ?
 
 ## 15. Évolutions du cadre à prévoir
 
@@ -490,7 +508,8 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 | R-NOT-04 | plafonnement de la notoriété par les références d'une note |
 | R-SCH-05 | couche haute d'ontologie fournie par l'outil |
 | Schéma | indications d'ingestion, ignorées du validateur, empreinte séparée |
-| Cadre de la fondation §1.4 | « extension du schéma » et « inférence de systèmes », préparés, deviennent concernés (ontologiste) ; « fenêtre de validité diégétique », préparée, pourrait recevoir ce qu'on jette aujourd'hui (« régnait autrefois ») |
+| R-SCH-06 hors schéma | prolongé : une relation hors schéma proposée porte sa tournure ; trois issues par décision de l'auteur (§6.6) |
+| Cadre de la fondation §1.4 | « extension du schéma » et « inférence de systèmes », préparés, deviennent concernés (ontologiste, §6.6) ; « fenêtre de validité diégétique », préparée, pourrait recevoir ce qu'on jette aujourd'hui (« régnait autrefois ») |
 | T2 | indicateurs par couche (§9), optionnels du gold exclus, classement des écarts |
 | T-LLM-01 | adaptateur compatible OpenAI ; usage (tokens, coût) remonté par tous les adaptateurs ; contraintes de profil simulant un petit modèle |
 
@@ -501,7 +520,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 3. **Mesurer b1 avec l'extracteur actuel sous Haiku** (fait, [X-001](recherche-ingestion/X-001-b1-haiku-reference.md)) : fiches E-003 à E-005 ouvertes, E-001 et E-002 complétées, stabilité mesurée. Reste : comparaison juste avec Sonnet.
 4. **X-002, C1 et C2 sur b1** (fait, [fiche](recherche-ingestion/X-002-c1-c2-fenetre.md)) : 23 mentions sur 28, 22 bien recoupées sur 23 ; E-003 disparaît au niveau des entités. Formes courtes ensuite traitées (fait, [X-003](recherche-ingestion/X-003-formes-courtes.md)) : 28 sur 28 avec A ou B, non tranché.
 5. **E-006** (fait) : désignations rattachées ou mises en doute, jamais créées ; fausses créations 4 → 1. Reste à compléter le gold de b1 (vraies mentions non notées, classe G).
-6. **C5, faits entre entités confirmées** (fait, [X-004](recherche-ingestion/X-004-c5-faits.md)) : E-003 résolu de bout en bout, E-004 non reproduit ; restent E-005 et E-007.
+6. **C5, faits entre entités confirmées** (fait, [X-004](recherche-ingestion/X-004-c5-faits.md)) : E-003 résolu de bout en bout, E-004 non reproduit ; E-007 résolu par la question ciblée ([X-005](recherche-ingestion/X-005-question-ciblee.md)) ; reste E-005 (vocabulaire d'attribut, sans modèle).
 7. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
 8. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.
 9. **Un second corpus**, au moins un petit, qui départage A et B (noms de famille seuls, surnoms, homonymes) et éprouve les règles de C2 hors de Valmont.

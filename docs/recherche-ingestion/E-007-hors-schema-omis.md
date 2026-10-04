@@ -1,6 +1,6 @@
 # E-007 — Une relation hors schéma est omise (« vassal du roi Mervin »)
 
-- **Statut** : ouverte
+- **Statut** : résolue sur b1 (remède 5 : question ciblée sur signal, choix de l'auteur)
 - **Classe** : consigne ignorée ; question de conception (hors schéma)
 - **Où** : b1, `notes-baron` v1, passage 2 ; couche C5
 - **Observé avec** : Claude Haiku 4.5, `api-haiku`, 4 octobre 2026, C5 à entités du gold et de la chaîne ([X-004](X-004-c5-faits.md)) ; 1 passe chacune
@@ -29,8 +29,8 @@ Sortie de C5 : rien pour ce passage. La consigne 3 (« si aucune relation ne con
 
 ## Essais
 
-Aucun.
+- **4 octobre 2026, [X-005](X-005-question-ciblee.md)** (remède 2 puis 5, choisi par l'auteur) : signal sans modèle sur les phrases qui citent deux entités confirmées sans fait (deux sur b1), puis question étroite sans liste de relations. « Odon est le vassal du roi Mervin » donne `odon vassal_of mervin`, tournure « est le vassal de » ; la phrase du Roi Gris (« régnait autrefois ») ne donne rien. Rappel des faits 0,77 → 0,82.
 
 ## Conclusion
 
-À venir. Question de conception à trancher avec l'auteur : le hors schéma doit-il venir de C5 (consigne) ou d'une question ciblée sur les phrases sans fait (remède 2 puis 5) ?
+Tranché par l'auteur : le hors schéma vient d'une question ciblée sur les phrases muettes, pas de C5 (choix 28 du chantier). La relation proposée nourrit le schéma seulement par une décision de l'auteur, avec trois issues (choix 29). Limites : un seul corpus, deux phrases muettes.

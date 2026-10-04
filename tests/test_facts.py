@@ -80,3 +80,37 @@ def test_chain_entities_leave_doubts_out():
                 Mention("conseil des marchands", 10, 1, "Faction", "model", entity="new:conseil des marchands"),
                 Mention("régent de Brume", 30, 1, "Character", "model", rule="doubt", candidates=("brume",))]
     assert [e.id for e in chain_entities(mentions, context)] == ["new:conseil des marchands", "odon"]
+
+
+def test_silent_sentences_are_found_without_a_model_E_007():
+    """Une phrase qui cite deux entités confirmées sans produire de fait reçoit la question ciblée ; une phrase
+    qui a produit un fait, ou qui ne cite qu'une entité, ne la reçoit pas."""
+    from worldkit.periphery.facts import Fact, gold_forms, silent_sentences
+    context, _ = setup()
+    w = next(w for w in windows() if w.doc_id == "notes-baron")
+    entities = gold_entities(w, VALMONT / "gold", context)
+    facts = [Fact({"op": "set_attribute", "entity": "odon", "attribute": "title", "value": "baron"},
+                  "Odon de Brume est le baron de Brume.", 1)]
+    silent = silent_sentences(w, facts, gold_forms(w, VALMONT / "gold", entities))
+    texts = [s.sentence for s in silent]
+    assert any(t.startswith("Odon est le vassal du roi Mervin") for t in texts)
+    assert not any(t.startswith("Odon de Brume est le baron") for t in texts)
+
+
+def test_relation_probe_asks_without_the_list_of_relations():
+    from worldkit.periphery.facts import RelationProbe, Silent
+
+    class Probe(FakeAdapter):
+        def complete(self, system, prompt, schema):
+            self.calls.append((system, prompt, schema))
+            return {"relations": [{"subject": "odon", "relation": "vassal_of", "object": "mervin",
+                                   "phrase": "est le vassal de"},
+                                  {"subject": "odon", "relation": "knows", "object": "inconnu", "phrase": "x"}]}
+    context, _ = setup()
+    w = next(w for w in windows() if w.doc_id == "notes-baron")
+    adapter = Probe()
+    silent = Silent(2, "Odon est le vassal du roi Mervin, à qui il a prêté serment à Hautval.", ["hautval", "mervin", "odon"])
+    facts = RelationProbe(adapter, PROFILE).ask(silent, gold_entities(w, VALMONT / "gold", context))
+    _, prompt, _ = adapter.calls[0]
+    assert "Relations possibles" not in prompt and "member_of" not in prompt  # aucune liste : le hors schéma est libre
+    assert [f.draft["relation"] for f in facts] == ["vassal_of"]  # objet hors de la phrase : écarté

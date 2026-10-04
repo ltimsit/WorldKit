@@ -187,6 +187,26 @@ def chain_entities(mentions: list[Any], context: ExtractionContext) -> list[Conf
     return sorted(out.values(), key=lambda e: e.id)
 
 
+def gold_forms(window: Window, gold_dir: Path, entities: list[Confirmed]) -> dict[str, set[str]]:
+    """Les formes sous lesquelles chaque entité confirmée apparaît (mentions du gold, et son nom)."""
+    from .mentions import _gold_mentions
+    forms: dict[str, set[str]] = {e.id: {e.name} for e in entities}
+    for mentions in _gold_mentions(gold_dir, window).values():
+        for surface, eid in mentions.items():
+            if eid in forms:
+                forms[eid].add(surface)
+    return forms
+
+
+def chain_forms(mentions: list[Any], entities: list[Confirmed]) -> dict[str, set[str]]:
+    """Les formes trouvées par C1 pour chaque entité rattachée par C2."""
+    forms: dict[str, set[str]] = {e.id: {e.name} for e in entities}
+    for m in mentions:
+        if m.entity in forms:
+            forms[m.entity].add(m.text)
+    return forms
+
+
 # ---------------------------------------------------------------------------
 # Mesure contre le gold (X-004)
 # ---------------------------------------------------------------------------
@@ -220,6 +240,8 @@ class FactReport:
     unplaced: list[Fact] = field(default_factory=list)
     calls: list[Any] | None = None
     prompts: dict[str, int] = field(default_factory=dict)  # document → nombre d'entités données
+    silent: list[Any] = field(default_factory=list)          # phrases muettes et réponses de la question ciblée
+    probe_calls: list[Any] | None = None
 
     def summary(self) -> dict[str, Any]:
         def scores(pairs: list[tuple[set[Any], set[Any]]]) -> dict[str, Any]:
@@ -235,24 +257,128 @@ class FactReport:
             "optional": f"{sum(len(p.found & p.optional) for p in self.passages)}"
                         f"/{sum(len(p.optional) for p in self.passages)}",
             "unplaced": len(self.unplaced),
+            "silent_sentences": len(self.silent),
             **({"usage": summarize(self.calls, input_budget())} if self.calls is not None else {}),
+            **({"probe_usage": summarize(self.probe_calls, input_budget())} if self.probe_calls is not None else {}),
         }
 
 
+# ---------------------------------------------------------------------------
+# Question ciblée sur les phrases muettes (E-007, choix B) : le hors schéma
+# ---------------------------------------------------------------------------
+
+PROBE_PROMPT_VERSION = 1
+
+# Exemples volontairement pris hors de Valmont.
+PROBE_SYSTEM = """Une phrase de notes de jeu de rôle (français) cite plusieurs entités. Dis quelle relation durable et actuelle
+la phrase affirme entre deux d'entre elles, s'il y en a une.
+
+Règles :
+1. Seulement ce que la phrase affirme. Un fait révolu (« régnait autrefois ») ou un repère de temps (« depuis la
+   guerre ») n'est pas une relation.
+2. relation : un identifiant anglais en snake_case (« ally_of »), même s'il n'existe pas encore dans le monde ;
+   phrase : la tournure française de la phrase qui l'exprime (« est l'allié de »).
+3. subject et object sont des identifiants de la liste donnée.
+4. Aucune relation affirmée : liste vide.
+"""
+
+
+def probe_schema() -> dict[str, Any]:
+    item = {"type": "object", "additionalProperties": False, "required": ["subject", "relation", "object", "phrase"],
+            "properties": {k: {"type": "string"} for k in ("subject", "relation", "object", "phrase")}}
+    return {"type": "object", "additionalProperties": False, "required": ["relations"],
+            "properties": {"relations": {"type": "array", "items": item}}}
+
+
+@dataclass
+class Silent:
+    """Une phrase qui cite au moins deux entités confirmées et n'a produit aucun fait (signal sans modèle)."""
+
+    passage: int
+    sentence: str
+    entities: list[str]
+    answer: list[dict[str, Any]] = field(default_factory=list)
+
+
+def _sentences(text: str) -> list[str]:
+    import re
+    return [s for s in re.split(r"(?<=[.!?…])\s+", text.strip()) if s]
+
+
+def silent_sentences(window: Window, facts: list[Fact], forms: dict[str, set[str]]) -> list[Silent]:
+    """Les phrases muettes : deux entités confirmées au moins (par leurs formes dans le texte), aucun fait cité."""
+    from .mentions import _occurrences
+    cited = [normalize(f.evidence).casefold().strip(" .") for f in facts]
+    out = []
+    for index, text in sorted(window.passage_texts.items()):
+        for sentence in _sentences(text):
+            flat = normalize(sentence).casefold().strip(" .")
+            if any(c and (c in flat or flat in c) for c in cited):
+                continue
+            present = sorted(eid for eid, fs in forms.items() if any(_occurrences(sentence, f) for f in fs))
+            if len(present) >= 2:
+                out.append(Silent(index, sentence, present))
+    return out
+
+
+@dataclass
+class RelationProbe:
+    """Question étroite, sans liste de relations : « quelle relation cette phrase affirme-t-elle entre A et B ? »."""
+
+    adapter: Any
+    profile: Any
+
+    @property
+    def version(self) -> str:
+        return f"probe-{PROBE_PROMPT_VERSION}:{self.profile.signature}"
+
+    @property
+    def meter(self) -> Any:
+        return getattr(self.adapter, "meter", None)
+
+    def prompt(self, silent: Silent, entities: list[Confirmed]) -> tuple[str, str]:
+        known = {e.id: e for e in entities}
+        lines = [f"- {eid} ({known[eid].type}) : {known[eid].name}" for eid in silent.entities if eid in known]
+        return PROBE_SYSTEM, "Entités :\n" + "\n".join(lines) + "\n\nPhrase :\n" + silent.sentence
+
+    def ask(self, silent: Silent, entities: list[Confirmed]) -> list[Fact]:
+        system, user = self.prompt(silent, entities)
+        silent.answer = self.adapter.complete(system, user, probe_schema())["relations"]
+        return [Fact({"op": "add_relation", "from": r["subject"].strip(), "relation": r["relation"].strip(),
+                      "to": r["object"].strip()}, silent.sentence, silent.passage)
+                for r in silent.answer if r["subject"].strip() in silent.entities and r["object"].strip() in silent.entities]
+
+
 def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str, list[Confirmed]], gold_dir: Path,
-                   context: ExtractionContext, state: Any, label: str) -> FactReport:
-    """C5 sur chaque fenêtre, à entités données, comparé aux changements du gold qui relèvent de C5."""
+                   context: ExtractionContext, state: Any, label: str, probe: RelationProbe | None = None,
+                   forms: dict[str, dict[str, set[str]]] | None = None) -> FactReport:
+    """C5 sur chaque fenêtre, à entités données, comparé aux changements du gold qui relèvent de C5. Avec `probe`,
+    chaque phrase muette (deux entités confirmées, aucun fait) reçoit ensuite une question ciblée (E-007)."""
     oracle = OracleExtractor(Path(gold_dir))
     meter = finder.meter
     first_call = len(meter.calls) if meter is not None else 0
+    probe_meter = probe.meter if probe is not None else None
+    first_probe = len(probe_meter.calls) if probe_meter is not None else 0
+    silents: list[Silent] = []
 
     def run(window: Window) -> list[Fact]:
         with meter.label(window.doc_id) if meter is not None else nullcontext():
-            return finder.find(window, entities.get(window.doc_id, []), context.schema)
+            facts = finder.find(window, entities.get(window.doc_id, []), context.schema)
+        if probe is None:
+            return facts
+        for s in silent_sentences(window, facts, (forms or {}).get(window.doc_id, {})):
+            silents.append(s)
+            with probe_meter.label(f"{window.doc_id} p{s.passage}") if probe_meter is not None else nullcontext():
+                facts += probe.ask(s, entities.get(window.doc_id, []))
+        return facts
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         found = list(pool.map(run, windows))
-    report = FactReport(finder.version, label, [], prompts={w.doc_id: len(entities.get(w.doc_id, [])) for w in windows})
+    report = FactReport(finder.version + (f"+{probe.version}" if probe is not None else ""), label, [],
+                        prompts={w.doc_id: len(entities.get(w.doc_id, [])) for w in windows})
+    report.silent = silents
+    if probe_meter is not None:
+        report.probe_calls = probe_meter.calls[first_probe:]
     # Noms des entités nouvelles à l'échelle du lot : le conseil des marchands est nommé dans notes-baron et cité
     # dans lieux-de-valmont ; gold et faits trouvés doivent le désigner par le même nom normalisé (T-ING-07).
     gold_names = _names([d for w in windows for text in w.passage_texts.values()

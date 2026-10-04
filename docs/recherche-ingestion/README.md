@@ -27,7 +27,7 @@ Contrainte permanente : on vise un **petit modèle**. Autre limite permanente : 
 | [E-004](E-004-depuis-la-chute.md) | « depuis la Chute » donne `odon involved_in la-chute` | H | non reproduit par C5 |
 | [E-005](E-005-regent-de-brume.md) | « régent de Brume » au lieu de « régent » | S | ouverte |
 | [E-006](E-006-designations-nouvelles.md) | des désignations proposées comme entités nouvelles | N | résolue sur b1 |
-| [E-007](E-007-hors-schema-omis.md) | une relation hors schéma est omise (« vassal du roi Mervin ») | — | ouverte |
+| [E-007](E-007-hors-schema-omis.md) | une relation hors schéma est omise (« vassal du roi Mervin ») | — | résolue sur b1 |
 
 | Expérience | Titre | Statut |
 |---|---|---|
@@ -35,6 +35,7 @@ Contrainte permanente : on vise un **petit modèle**. Autre limite permanente : 
 | [X-002](X-002-c1-c2-fenetre.md) | Repérer puis recouper : C1 et C2 sur une fenêtre au document (b1) | conclue (première itération) |
 | [X-003](X-003-formes-courtes.md) | Formes courtes : consigne (A) ou règle sans modèle (B) | conclue sur b1, non tranchée |
 | [X-004](X-004-c5-faits.md) | C5 : les faits entre entités confirmées (b1) | conclue (première itération) |
+| [X-005](X-005-question-ciblee.md) | Question ciblée sur les phrases muettes (hors schéma) | conclue (première itération) |
 
 Statuts : **ouverte** (observée, non traitée), **en cours** (remède essayé), **résolue** (remède mesuré, sans régression), **acceptée** (on vit avec, avec la raison), **transformée** (devenue une expérience ou une question du chantier).
 

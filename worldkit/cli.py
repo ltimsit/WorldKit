@@ -255,7 +255,9 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
     """X-004 : C5 (faits entre entités confirmées), entités du gold ou de la chaîne C1 puis C2."""
     import json as _json
     from worldkit.ingest.batch import batch_documents, extraction_context
-    from worldkit.periphery.facts import FactFinder, chain_entities, evaluate_facts, gold_entities
+    from worldkit.periphery.facts import (
+        FactFinder, RelationProbe, chain_entities, chain_forms, evaluate_facts, gold_entities, gold_forms,
+    )
     from worldkit.periphery.llm import load_config, make_adapter
     from worldkit.periphery.llm.usage import ReplayAdapter
     from worldkit.periphery.mentions import MentionFinder, document_window, evaluate_mentions
@@ -266,21 +268,31 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
     windows = [document_window(p) for p in paths]
     if args.entities == "gold":
         entities = {w.doc_id: gold_entities(w, Path(args.oracle), context) for w in windows}
+        forms = {w.doc_id: gold_forms(w, Path(args.oracle), entities[w.doc_id]) for w in windows}
     else:
         profile = config.profile(args.profile, "mentions")
         adapter = ReplayAdapter(args.mentions_replay) if args.mentions_replay else make_adapter(profile)
         mentions = evaluate_mentions(MentionFinder(adapter, profile), paths, Path(args.oracle), context, state,
                                      with_short_forms=args.short_forms)
-        entities = {w.doc_id: chain_entities([m for p in mentions.passages if p.doc == w.doc_id for m in p.found],
-                                             context) for w in windows}
+        found = {w.doc_id: [m for p in mentions.passages if p.doc == w.doc_id for m in p.found] for w in windows}
+        entities = {d: chain_entities(ms, context) for d, ms in found.items()}
+        forms = {d: chain_forms(ms, entities[d]) for d, ms in found.items()}
     profile = config.profile(args.profile, "facts")
     finder = FactFinder(ReplayAdapter(args.replay) if args.replay else make_adapter(profile), profile)
-    report = evaluate_facts(finder, windows, entities, Path(args.oracle), context, state, args.entities)
+    probe = None
+    if args.probe:
+        probe = RelationProbe(ReplayAdapter(args.probe_replay) if args.probe_replay else make_adapter(profile), profile)
+    report = evaluate_facts(finder, windows, entities, Path(args.oracle), context, state, args.entities, probe, forms)
     summary = report.summary()
     print(f"couche : {summary['finder']} ; entités : {args.entities} "
           f"({', '.join(f'{d} {n}' for d, n in report.prompts.items())})")
-    for k in ("facts", "questions", "optional", "unplaced", "usage"):
-        print(f"  {k} : {summary[k]}")
+    for k in ("facts", "questions", "optional", "unplaced", "silent_sentences", "usage", "probe_usage"):
+        if k in summary:
+            print(f"  {k} : {summary[k]}")
+    for s in report.silent:
+        print(f"  phrase muette p{s.passage} {s.entities} : {s.sentence!r}")
+        for r in s.answer:
+            print(f"     -> {r['subject']} {r['relation']} {r['object']} (« {r['phrase']} »)")
     for p in report.passages:
         missing, extra = p.expected - p.found, p.scored - p.expected
         if missing or extra:
@@ -920,6 +932,9 @@ def build_parser() -> argparse.ArgumentParser:
     evf.add_argument("--mentions-replay", default=None, help="chaîne : rejoue les réponses de C1 tracées")
     evf.add_argument("--short-forms", action="store_true", help="chaîne : formes courtes sans modèle (variante B)")
     evf.add_argument("--replay", default=None, help="rejoue les réponses de C5 tracées, sans appel ni coût")
+    evf.add_argument("--probe", action="store_true",
+                     help="question ciblée sur les phrases muettes (deux entités confirmées, aucun fait) : E-007")
+    evf.add_argument("--probe-replay", default=None, help="rejoue les réponses tracées de la question ciblée")
     evf.add_argument("--out", default=None, help="rapport JSON détaillé")
 
     review = commands.add_parser("review", help="file de revue des propositions")
