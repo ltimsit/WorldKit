@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v40** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v41** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -1184,6 +1184,19 @@ La voie **traçable** est retenue partout où elle ne retarde pas le premier éc
 
 **Décision.** I-AID-02 (*cadre-interface.md* §8.7). En l'écrivant, deux constats : modifier un attribut par une édition directe n'est pas une collision (le glossaire l'affirmait à tort ; corrigé) ; `worldkit run save` sans `--sandbox` écrit dans le monde de travail (le guide passe toujours par un bac).
 
+### 00.61 Ingérer en annotant : l'atelier, premier incrément (v41)
+
+> Décision du 4 octobre 2026, jalon I8 (*chantier-ingestion.md*, choix 35 à 38).
+
+**Problème.** Le chantier ingestion a mesuré une chaîne en couches (repérage, recoupement, faits) en **simulant** l'auteur : le gold tenait lieu de ses décisions. Les cas difficiles (homographes, noms communs, faux rattachements, X-012) ne se jugent pas sans lui, et toute règle ajoutée pour les éviter crée d'autres faux positifs ailleurs. Il fallait une ingestion réelle où l'auteur corrige, et où une correction faite une fois profite à la suite.
+
+**Voies comparées.**
+- Continuer à durcir les couches contre le gold : écarté, on conclurait trop vite sur un corpus arbitraire.
+- Corriger dans la revue (`/review`) : écarté, la revue voit des propositions de faits, pas les mentions sur le texte ; une erreur de repérage s'y paie en plusieurs propositions à refuser.
+- **Retenu** : un atelier où les couches écrivent des annotations sur le texte, que l'auteur garde, corrige, retire, ajoute ou ignore, avec une portée (occurrence, source, monde) ; un geste négatif retenu pour le monde devient une règle d'atelier, jamais un fait ; « Proposer » envoie les décisions en un lot par le circuit existant. Les entités d'abord, les faits au deuxième incrément.
+
+**Décision.** I-ATL-01 à I-ATL-05 (*cadre-interface.md* §8.8). Choix fait sans validation explicite : l'atelier écrit dans le monde de travail sans bac ni confirmation (I-PRI-04 vise les exécutions de test).
+
 ---
 
 ## 0. Comment lire ce document
@@ -1794,6 +1807,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 85. Comment voir la structure d'un monde et juger la qualité de l'extraction ? — **Réponse (v38) :** ✅ Un graphe dont les nœuds sont les entités, avec leurs couches, leurs marques d'état et un mode comparaison, et des mesures T2 en tableaux qu'on compare jusqu'au passage, à coût contrôlé (00.58).
 86. Comment retrouver ce que désigne un code affiché par l'outil ? — **Réponse (v39) :** ✅ Chaque code reste affiché et mène à sa définition, lue dans les documents (cadres et `docs/aide/`) ; chaque écran a sa fiche ; un test garantit que rien d'affichable n'est sans définition (00.59).
 87. Comment apprendre à se servir de l'outil sans risque que le mode d'emploi soit faux ? — **Réponse (v40) :** ✅ Un guide pas à pas (gestes, commandes, sorties attendues) exécuté par les tests, maintenu à chaque jalon (00.60).
+88. Comment l'auteur corrige-t-il ce que les couches d'ingestion repèrent, et comment une correction profite-t-elle aux sources suivantes ? — **Réponse (v41) :** ✅ Un atelier d'annotation : gestes de l'auteur sur les mentions, trois portées, règles d'atelier pour les corrections négatives retenues, « Proposer » vers la revue (00.61).
 
 ---
 

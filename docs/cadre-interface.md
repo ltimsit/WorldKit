@@ -1,7 +1,7 @@
 # Cadre de l'interface
 
 **Objet :** vision, principes, découpage et points à trancher de l'interface de `worldkit`, conçue d'abord comme un **banc d'essai** : tester, suivre l'efficacité, contrôler, et obtenir des retours complets et explicites.
-**Version :** 1.4 — 27 septembre 2026. Tous les jalons d'interface (I0 à I7) sont faits ; les tests humains se font à l'écran. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.18, qu'il cite sans les dupliquer.
+**Version :** 1.5 — 4 octobre 2026. Tous les jalons d'interface (I0 à I8) sont faits ; I8 ouvre l'atelier d'ingestion (premier incrément : les entités) ; les tests humains se font à l'écran. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.18, qu'il cite sans les dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (en attente). En cas de divergence, le cadre de la fondation puis le cadre technique prévalent.
 
 **Conventions**
@@ -115,7 +115,8 @@ flowchart TB
   BR["Branches et historique"]
   ME["Mesures T2"]
   TR["Journal d'exécution"]
-  TB --- IN & PB & MB & RV
+  AT["Atelier d'ingestion<br/>sources, mentions, gestes"]
+  TB --- IN & AT & PB & MB & RV
   TB --- GR & WK & BR & ME & TR
 ```
 
@@ -131,6 +132,7 @@ flowchart TB
 | I-VUE-08 | **Branches et historique** | Lignée des branches, points nommés, journal par branche, éditions (origine, lectures, écritures), transpositions, rejeux, historique des références ; comparaison de deux états. |
 | I-VUE-09 | **Mesures** | Mesures T2 (par lot, par opération, pièges, stabilité), historique des mesures, comparaison de modèles ou de prompts. |
 | I-VUE-10 | **Journal d'exécution** | Toutes les exécutions (qui, quoi, entrées, durée, appels au modèle, résultat), rejouables. |
+| I-VUE-11 | **Atelier d'ingestion** | Sources importées (texte collé) ; le texte d'une source avec ses mentions surlignées ; couches à lancer et relancer (coût estimé) ; gestes de l'auteur et leur portée ; règles d'atelier ; « Proposer » vers la revue (§8.8). |
 
 ## 6. Indicateurs (proposés)
 
@@ -244,6 +246,18 @@ Opérations d'I1 (`worldkit ops`) : consultations `world.summary`, `branch.list`
 | I-AID-01 | Retrouver ce que désigne un code | L'interface reste un outil de test pour les gens du projet : **les noms techniques et les identifiants restent affichés**, mais chacun mène à sa définition. Un **lexique** (`worldkit/service/lexicon.py`) lit les **documents** — règles et décisions des cadres (tableaux et paragraphes), glossaires, étapes (§4) — et le registre des opérations ; ce qui manquait est écrit dans des **documents d'aide à part** (`docs/aide/glossaire.md` : statuts, codes de signalement, valeurs affichées, vocabulaire des exécutions, des parcours et des mesures ; `docs/aide/outils.md` : carte des outils, un écran par ligne, et enchaînements usuels), sans gonfler les cadres. À l'écran : tout code connu est un lien vers `/aide` avec sa définition au survol ; chaque écran affiche sa ligne de la carte des outils et un lien « ? » ; page `/aide` (recherche, index par sorte, texte des règles, « cité par »). En ligne de commande : `worldkit explain`. Un **test de complétude** échoue si un statut, un code, une valeur, une étape, une opération, un écran ou un identifiant cité n'a pas de définition. | Traduire l'interface en libellés humains (inutile pour des testeurs du projet, et l'on perd le lien avec les documents) ; infobulles écrites dans les gabarits (incohérentes, dérivent) ; guide séparé non relié à l'écran (on ne l'ouvre pas au moment du besoin) ; un fichier `aide.yaml` dans le code (seconde source à tenir d'accord avec les glossaires) ; compléter les glossaires des cadres (les gonfle). | validé |
 | I-AID-02 | Guide pas à pas | Un **guide d'utilisation** par l'exemple (`docs/aide/guide.md`, écran `/aide/guide`, lien « Guide » du menu) : construire Valmont, lire un résultat, écrire un changement et lire une contradiction, essayer dans un bac et rendre réel, ingérer un lot étape par étape et le revoir, retcon, tester un mécanisme, mesurer, vérifier après un changement de code ; pour chaque cas, les gestes à l'écran, la commande et la sortie attendue. **Le guide est exécuté** par `tests/test_guide.py` : chaque bloc de commandes tourne, dans l'ordre, sur un même monde temporaire ; chaque bloc « sortie » (extrait) et chaque écran annoncé (`<!-- écran /adresse : "texte" -->`, rendu en lien) sont vérifiés. Il est maintenu à chaque jalon, comme les documents (CLAUDE.md, règle 7). Rendu par `markdown-it-py`. | Guide vérifié une fois à la main (dérive sans que personne ne le voie) ; guide dans les gabarits (non lisible hors de l'interface, non testable) ; moteur Markdown maison (fragile). | validé |
 
+### 8.8 Atelier d'ingestion (I8)
+
+Premier incrément : les **entités**. Les annotations sont la monnaie d'échange entre les couches et l'auteur (*chantier-ingestion.md*) ; l'atelier rend réelle la chaîne en couches que le chantier mesurait en simulant l'auteur. Fiche : *i8-brief.md*. Les faits (C5, question ciblée, énonciation, critique) viendront au deuxième incrément.
+
+| ID | Sujet | Décision | Alternatives écartées | Statut |
+|---|---|---|---|---|
+| I-ATL-01 | Source et magasin d'atelier | Une **source d'atelier est une version de document** (tables `document_versions` et `passages` existantes, texte entier conservé dans `atelier_sources`) ; les annotations s'accrochent au passage (document, version, passage, début, fin). **Magasin d'atelier** dans le fichier du monde (T-STO-02) : tables `annotations` et `atelier_rules`, **en ajout seul** (un geste écrit une ligne qui remplace la précédente, `replaces` ; R-HIS-01), portant `branch_id` et `at_seq` (tête de la branche à l'écriture) et **lues par lignée** comme le journal (T-BRA-01). L'atelier écrit dans le **monde de travail**, sans bac ni confirmation : c'est le travail de l'auteur, pas un essai (I-PRI-04 vise les exécutions de test) ; ses opérations acceptent aussi un bac comme cible. | Magasin à part, hors du monde (deux fichiers à tenir d'accord, lignée perdue) ; annotations modifiables en place (effort de l'auteur et historique perdus) ; source distincte d'un document (deux modèles, empreintes et cache à dupliquer). | validé (Q2, T1, T2) ; l'écriture sans bac est proposée |
+| I-ATL-02 | Couches | Une couche est une **opération du service** qui écrit des annotations `proposed` : `atelier.run`, couche « mentions » (`c1-c2`) : noms connus sans modèle (C1a), noms repérés par le modèle en option (C1b, estimation et confirmation, I-LLM-01), recoupement (C2), signaux en option, règles d'atelier appliquées. **Relance** : la couche remplace ses propres annotations encore proposées ; elle ne touche ni aux annotations de l'auteur, ni aux portions qu'il couvre ou a ignorées ; aucune entité nouvelle n'est tirée d'une note de travail. | Couches dans l'écran (non scriptables, contraire à I-CLI-01) ; relance qui efface tout (le travail de l'auteur perdu). | validé (T3) |
+| I-ATL-03 | Gestes et portées | Gestes : **garder, retirer, corriger** (autre entité, entité nouvelle, autre type), **ajouter** (portion choisie, par sélection à l'écran), **ignorer** (« pas une entité »). Portées : **cette occurrence** ; **toute la source** (toutes les occurrences de la forme, par défaut ; un ajout couvre aussi les autres occurrences) ; **le monde** (« retenir ») : un rattachement retenu devient un alias proposé au journal ; un geste négatif devient une **règle d'atelier** (`not_entity`, `not_entity_of`), par branche, appliquée aux sources suivantes, jamais écrite au journal. Les gestes sont les annotations : leur nombre et leur nature mesurent l'effort réel (T3). | Une seule portée (corrections à refaire partout, aucun apprentissage d'une source à l'autre) ; règles négatives écrites comme faits du monde (le monde ne reçoit que des faits). | validé (Q4, T6) |
+| I-ATL-04 | Proposer | **Geste explicite** : un extracteur d'atelier rend, par passage, les brouillons tirés des décisions de l'auteur (`create_entity` et nom pour une entité nouvelle confirmée ; `add_value aliases` pour un rattachement retenu au monde) ; le lot `atelier-<source>-<version>` passe par les étapes E1 à E9+, sans modèle, avec la provenance par passage (T-ING-11), jusqu'à la revue (`/review`). Ce que l'auteur n'a pas décidé ne part pas. Une version de source ne se propose qu'une fois (T-ING-10). | Écriture directe au journal (contourne qualification et revue) ; envoi au fil des gestes (lots émiettés, propositions à défaire). | validé (Q3, T5) |
+| I-ATL-05 | Écran | `/atelier` : sources (à revoir, décidées) et import d'un texte collé ; `/atelier/{source}` : texte des passages, mentions surlignées par état (connue, nouvelle, doute en pointillé, retirée ou ignorée barrée, trait plein pour une décision de l'auteur), imbriquées listées sous le passage ; clic → panneau (candidats, gestes, portée) ; sélection → ajout (JavaScript sans bibliothèque) ; barre des couches avec estimation ; compteurs ; « Proposer ». | Édition en ligne des annotations dans le texte (`[texte]{…}`, reportée) ; bibliothèque d'annotation (dépendance, hors ligne compliqué). | validé (T4) |
+
 ## 9. Périmètre
 
 | Dans le périmètre | Préparé (possible plus tard) | Hors périmètre |
@@ -262,6 +276,7 @@ Opérations d'I1 (`worldkit ops`) : consultations `world.summary`, `branch.list`
 | I5 — **fait** | Revue complète (`/review`, session du monde de travail) ; parcours exécutables (`walkthrough.run`, `/acceptance`, `worldkit walkthrough run`), W15 et W08 structurés, les 18 parcours exécutables (I-REV-01, I-REV-02, I-ACC-02, I-ACC-03) | sessions de curation chronométrées (à faire à l'écran) |
 | I6 — **fait** | Graphe (`/graph`, `graph.view`, `graph.compare`), mesures T2 (`/measures`, `eval.run`, `eval.history`, `eval.compare`) (I-GRA-02, I-MES-01) | choix du modèle sur le second jet du corpus (à venir) |
 | I7 — **fait** | Aide : lexique lu dans les documents, `docs/aide/`, page `/aide`, liens et infobulles sur les codes, fiche de chaque écran, `worldkit explain`, test de complétude (I-AID-01) ; guide pas à pas exécuté par les tests (`/aide/guide`, I-AID-02) | retrouver en un clic ce que désigne un code affiché (à l'écran) |
+| I8 — **fait** | Atelier d'ingestion, premier incrément (les entités) : magasin d'atelier, import, couche « mentions », gestes et portées, règles d'atelier, « Proposer » ; opérations `atelier.*`, écran `/atelier` (I-ATL-01 à I-ATL-05) | ingérer une source réelle en annotant (à faire à l'écran) ; gestes comptés contre les gestes simulés du chantier |
 
 ## 11. Questions
 
@@ -291,5 +306,6 @@ Toutes tranchées le 27 septembre 2026 (§8) :
 | Artefact | `Artifact` | Sortie enregistrée d'une étape ou d'un mécanisme, inspectable et réinjectable. |
 | Exécution | `Run` | Une exécution enregistrée (mécanisme, étapes ou pipeline), avec ses entrées, sorties, indicateurs et trace. |
 | Résultat | `Result` | Forme commune du retour d'une exécution (§7). |
+| Atelier d'ingestion | `atelier` | Espace où l'auteur ingère une source en annotant : couches qui proposent des mentions, gestes qui les décident, « Proposer » vers la revue (§8.8). |
 | Bac à sable | `sandbox` | Copie du monde où l'on essaie sans modifier le monde de travail. |
 | Couche de service | `service` | API Python entre l'interface (et la ligne de commande) et le code métier, sans logique propre. |

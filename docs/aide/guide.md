@@ -406,7 +406,80 @@ Chaque attendu est `passed`, `failed` (valeur obtenue et attendue montrées) ou 
 .venv\Scripts\python -m pytest -q
 ```
 
-## 12. Pour aller plus loin
+## 12. Annoter une source dans l'atelier
+
+L'**atelier d'ingestion** est l'autre voie pour ingérer un texte : au lieu de tout confier à l'extracteur, vous voyez les entités qu'une **couche** repère sur le texte, vous les gardez, les corrigez, les retirez ou en ajoutez, puis vous **proposez** le résultat, qui part dans la file de revue comme un lot. Chaque geste est une **annotation**, enregistrée en ajout seul : rien ne s'efface, une correction remplace l'annotation précédente.
+
+Une source se colle à l'écran, ou se passe en YAML à la ligne de commande :
+
+```yaml fichier=echoppe.yaml
+text: |
+  # L'échoppe de Bertille
+
+  Bertille tient une échoppe de cordes sur le port de Brume.
+
+  Le régent Odon lui achète ses cordages ; Bertille refuse de le servir à crédit.
+```
+
+```powershell
+worldkit --db valmont.db call atelier.import echoppe.yaml
+worldkit --db valmont.db call atelier.run --param doc_id=l-echoppe-de-bertille
+```
+
+```text sortie
+atelier.import [write] → world : ok
+doc_id: l-echoppe-de-bertille
+passages: 2
+atelier.run [write] → world : ok
+proposed : 2
+new : 0
+calls: 0
+```
+
+La source a pris son identifiant du titre ; elle a deux passages. Sans modèle, la couche « mentions » ne trouve que les **noms connus** : « Brume », et « Le régent Odon » (depuis la section 6, le titre « régent » n'est porté que par Odon). Bertille, inconnue, lui échappe. Avec le modèle (`--param model=true`), elle chercherait aussi les noms nouveaux ; l'appel est d'abord **estimé**, puis lancé seulement avec `--param confirm=true` :
+
+```powershell
+worldkit --db valmont.db call atelier.run --param doc_id=l-echoppe-de-bertille --param model=true
+```
+
+```text sortie
+atelier.run [write] → world : pending
+estimated_calls : 1
+```
+
+On ajoute Bertille à la main : à l'écran, en sélectionnant le mot dans le texte ; ici, en donnant le passage et la position (début et fin, comptés en caractères dans le passage). Par défaut, un geste vaut pour **toute la source** (portée `source`) : les deux occurrences de « Bertille » sont annotées.
+
+```powershell
+worldkit --db valmont.db call atelier.annotate --param doc_id=l-echoppe-de-bertille --param action=add --param passage=1 --param start=0 --param end=8 --param entity=new --param type=Character
+```
+
+```text sortie
+atelier.annotate [write] → world : ok
+written : 2
+```
+
+<!-- écran /atelier/l-echoppe-de-bertille : "Bertille" ; "Proposer" ; "décidée(s)" -->
+
+À l'écran : **Atelier**, la source `l-echoppe-de-bertille`. Les mentions sont surlignées : bleu pour une entité connue, vert pour une nouvelle, jaune en pointillé pour un **doute** (à vous de choisir l'entité), grisé barré pour une mention retirée ou ignorée ; un trait plein marque ce que vous avez décidé. Un clic sur une mention ouvre ses gestes : garder, retirer, ignorer (« ce n'est pas une entité »), corriger (autre entité, nouvelle entité, autre type), avec une portée : cette occurrence, toute la source, ou **retenir pour le monde**. Retenu pour le monde, un rattachement devient un alias proposé ; un geste négatif (« vallée n'est pas une entité ») devient une **règle d'atelier**, appliquée aux sources suivantes. Relancer la couche ne touche jamais à ce que vous avez décidé.
+
+Enfin, **Proposer** : les entités nouvelles que vous avez confirmées et les alias retenus partent en un lot, par le circuit habituel (étapes E1 à E9+), jusqu'à la revue. Ce qui n'a pas été décidé ne part pas.
+
+```powershell
+worldkit --db valmont.db call atelier.propose --param doc_id=l-echoppe-de-bertille
+worldkit --db valmont.db call review.list
+```
+
+```text sortie
+atelier.propose [write] → world : ok
+new_entities:
+- bertille
++ entité bertille (Character)
+bertille.name = 'Bertille'
+```
+
+L'atelier écrit dans le monde de travail (son magasin d'annotations, hors journal) : c'est votre travail d'auteur, pas un essai. Le monde lui-même ne change qu'à la revue, quand vous acceptez la proposition.
+
+## 13. Pour aller plus loin
 
 - `worldkit explain <code ou mot>` et l'écran **Aide** : toute règle, décision, étape, opération, statut ou code de signalement.
 - `worldkit --help`, `worldkit ops` : toutes les commandes et opérations.

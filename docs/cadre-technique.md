@@ -1,7 +1,7 @@
 # Cadre technique de la fondation
 
 **Objet :** décisions techniques de la fondation : éléments structurants, découpage en modules, architecture, articulation entre le noyau et l'ingestion, stratégie de test et étapes de construction.
-**Version :** 2.20 — 4 octobre 2026. S'appuie sur *cadre-fondation.md* v1.21, qu'il cite sans le dupliquer.
+**Version :** 2.21 — 4 octobre 2026. S'appuie sur *cadre-fondation.md* v1.21, qu'il cite sans le dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (argumenté, en attente de validation). En cas de divergence, *cadre-fondation.md* prévaut.
 
 **Conventions**
@@ -66,6 +66,9 @@ Esquisse du stockage SQLite ; les noms sont indicatifs.
 | `decisions` | Décisions humaines par empreinte de changement (T-ING-08) | Ajout seul |
 | `conflicts` | Contradictions et leurs éléments en cause | Ajout, résolution |
 | `extraction_cache` | Sorties d'extraction par passage (T-ING-09) | Ajout |
+| `atelier_sources` | Texte entier d'une source d'atelier par version de document ; ses passages sont dans `passages` (I-ATL-01) | Ajout seul |
+| `annotations` | Annotations d'atelier : branche, `at_seq`, document, version, passage, début, fin, sorte, valeur (JSON), origine (`author` ou couche et lancement), confiance, statut, annotation remplacée (I-ATL-01) | Ajout seul ; une correction remplace par une ligne nouvelle |
+| `atelier_rules` | Règles d'atelier (`not_entity`, `not_entity_of`) par branche, sur une forme pliée (I-ATL-03) | Ajout seul |
 
 ---
 
@@ -335,6 +338,10 @@ Vues antérieures (R-VUE-03) : un fait dont la clé est réécrite plus tard, su
 ### 5.3 quinquies Pipeline en étapes (I4)
 
 L'ingestion est découpée en étapes nommées (`worldkit/ingest/stages.py`, *cadre-interface.md* §4 et I-PPL-01) : E1 Déclaration, E2 Passages, E3 Nature, E4 Extraction, E5 Traduction, E6 Classement, E7 Résolution, E8 Qualification, E9 Propositions, **E9+ Enregistrer**, E10 Revue, E11 Application, E12 Vues. E1 à E9 sont des calculs sur un artefact cumulé sérialisable (JSON canonique), seule écriture le cache d'extraction (T-ING-09) ; E9+ est l'écriture du lot, précédée de la requalification de la file (T-ING-06). `ingest` = E1 à E8 puis E9+ : comportement inchangé. Précisions : le changement revendiqué d'une affirmation est enregistré à clés triées ; deux passages de même texte dans un lot ne coûtent qu'un appel d'extraction ; `proposals.assemble` = `qualify_all` (E8) puis `group` (E9) ; le plafond d'appels par exécution se règle par `max_calls_per_run` dans `worldkit-llm.yaml` (30 par défaut, I-LLM-01).
+
+### 5.3 sexies Atelier d'ingestion (I8)
+
+L'atelier (`worldkit/atelier/`) précède l'ingestion sans la remplacer : ses couches (`layers.py`) écrivent des **annotations**, pas des propositions ; l'auteur les décide (`gestures.py`) ; « Proposer » (`propose.py`) transforme ses décisions en brouillons rendus par un extracteur d'atelier, et le lot suit les étapes E1 à E9+ (une source en mémoire est acceptée par E1). Le noyau n'est pas touché : le magasin d'atelier (§2.1) vit dans le fichier du monde (T-STO-02), en ajout seul, lu par lignée comme le journal (`at_seq` comparé aux segments de la branche, T-BRA-01). La couche « mentions » réutilise la périphérie du chantier ingestion (`periphery/mentions.py`, `periphery/matching.py`) ; seul C1b appelle un modèle. Décisions au cadre d'interface (I-ATL-01 à I-ATL-05).
 
 ### 5.4 Règles du cadre issues de cette analyse
 

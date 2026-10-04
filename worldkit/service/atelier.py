@@ -36,7 +36,7 @@ def _branch(ctx: Context, p: Any) -> str:
 
 
 @operation("atelier.import", "write", ImportParams, "atelier : importer une source (texte collé ou fichier)",
-           ("I8", "R-DOC-02", "T-ING-10"))
+           ("I-ATL-01", "R-DOC-02", "T-ING-10"))
 def atelier_import(ctx: Context, p: ImportParams) -> Output:
     from worldkit.atelier import store
     assert ctx.world is not None
@@ -49,7 +49,7 @@ class NoParams(Params):
     pass
 
 
-@operation("atelier.sources", "read", NoParams, "atelier : les sources, la plus récente d'abord", ("I8",))
+@operation("atelier.sources", "read", NoParams, "atelier : les sources, la plus récente d'abord", ("I-ATL-05",))
 def atelier_sources(ctx: Context, p: NoParams) -> Output:
     from worldkit.atelier import layers, store
     assert ctx.world is not None
@@ -69,7 +69,7 @@ def _annotation(a: Any) -> dict[str, Any]:
 
 
 @operation("atelier.view", "read", SourceParams, "atelier : une source, ses passages et ses annotations courantes",
-           ("I8",))
+           ("I-ATL-05",))
 def atelier_view(ctx: Context, p: SourceParams) -> Output:
     from worldkit.atelier import layers, store
     assert ctx.world is not None
@@ -100,7 +100,7 @@ class RunParams(SourceParams):
 
 @operation("atelier.run", "write", RunParams,
            "atelier : lancer la couche « mentions » (noms connus, modèle en option, recoupement), avec estimation",
-           ("I8", "I-LLM-01", "T-ING-07"))
+           ("I-ATL-02", "I-LLM-01", "T-ING-07"))
 def atelier_run(ctx: Context, p: RunParams) -> Output:
     from worldkit.atelier import layers
     assert ctx.world is not None
@@ -132,7 +132,7 @@ class AnnotateParams(SourceParams):
 
 @operation("atelier.annotate", "write", AnnotateParams,
            "atelier : un geste de l'auteur (garder, retirer, corriger, ajouter, ignorer) et sa portée",
-           ("I8", "R-HIS-01"))
+           ("I-ATL-03", "R-HIS-01"))
 def atelier_annotate(ctx: Context, p: AnnotateParams) -> Output:
     from worldkit.atelier import gestures
     assert ctx.world is not None
@@ -140,13 +140,13 @@ def atelier_annotate(ctx: Context, p: AnnotateParams) -> Output:
         written = gestures.gesture(ctx.world, _branch(ctx, p), p.doc_id, p.action, p.scope, p.ann_id, p.passage,
                                    p.start, p.end, p.entity, p.type)
     except ValueError as e:
-        return Output(None, [Issue(IssueCode.EDIT_RULE, str(e), "I8")])
+        return Output(None, [Issue(IssueCode.EDIT_RULE, str(e), "I-ATL-03")])
     return Output({"written": written}, [], {"written": len(written)})
 
 
 @operation("atelier.propose", "write", SourceParams,
            "atelier : proposer les entités confirmées et les alias retenus (un lot, jusqu'à la revue)",
-           ("I8", "T-ING-07", "T-ING-11"))
+           ("I-ATL-04", "T-ING-07", "T-ING-11"))
 def atelier_propose(ctx: Context, p: SourceParams) -> Output:
     from worldkit.atelier import propose
     from worldkit.ingest.batch import BatchError
@@ -154,7 +154,7 @@ def atelier_propose(ctx: Context, p: SourceParams) -> Output:
     try:
         report = propose.propose(ctx.world, _branch(ctx, p), p.doc_id)
     except BatchError as e:
-        return Output(None, [Issue(IssueCode.EDIT_RULE, str(e), "I8")])
+        return Output(None, [Issue(IssueCode.EDIT_RULE, str(e), "I-ATL-04")])
     return Output({"batch": report.batch_id, "proposals": [x.id for x in report.proposals],
                    "new_entities": [e.id for e in report.new_entities]}, [],
                   {"proposals": len(report.proposals)})

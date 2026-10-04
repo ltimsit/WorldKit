@@ -1,6 +1,6 @@
 # Chantier : faire évoluer l'ingestion
 
-**Statut :** document de travail, version 0.3 — 4 octobre 2026. Ce n'est pas un cadre : il consigne une réflexion en cours (brainstorm, mesures, choix déjà faits, questions ouvertes) pour qu'on puisse la reprendre. En cas de divergence, les cadres priment. Quand un choix sera acté, il passera dans *cadre-technique.md* (décisions `T-ING`), dans *cadre-interface.md* pour l'Atelier, et dans l'analyse (section 00.xx), et sortira d'ici. Le travail expérimental lui-même (fiches d'écart, expériences) vit dans [`docs/recherche-ingestion/`](recherche-ingestion/README.md).
+**Statut :** document de travail, version 0.4 — 4 octobre 2026. Ce n'est pas un cadre : il consigne une réflexion en cours (brainstorm, mesures, choix déjà faits, questions ouvertes) pour qu'on puisse la reprendre. En cas de divergence, les cadres priment. Quand un choix sera acté, il passera dans *cadre-technique.md* (décisions `T-ING`), dans *cadre-interface.md* pour l'Atelier, et dans l'analyse (section 00.xx), et sortira d'ici. Le travail expérimental lui-même (fiches d'écart, expériences) vit dans [`docs/recherche-ingestion/`](recherche-ingestion/README.md).
 
 ## 1. Orientation
 
@@ -132,6 +132,8 @@ Les couches C1 à C6 découpent l'actuelle E4 (Extraction) et absorbent une part
 
 ### 6.3 Où vivent les annotations : le magasin d'atelier (choix 13)
 
+*Acté pour les entités au cadre d'interface (I-ATL-01, I-ATL-03, jalon I8) ; ce qui suit garde la vision d'ensemble.*
+
 Les annotations ne sont ni un calcul jetable (comme le cache d'extraction) ni des faits du monde. Ce sont pourtant, pour celles de l'auteur, des décisions humaines qu'il ne faut pas perdre.
 
 - **Magasin d'atelier**, hors journal mais durable, en **ajout seul** (une correction est une nouvelle annotation qui remplace la précédente, l'historique reste), avec `branch_id` sur chaque annotation.
@@ -188,7 +190,7 @@ La tournure est gardée dans les trois cas : c'est elle qui rend la fois suivant
 
 ## 7. L'Atelier d'ingestion (interface)
 
-Esquisse d'un espace dédié, à porter dans *cadre-interface.md* quand elle sera validée.
+Esquisse d'un espace dédié. Le **premier incrément** (les entités : import, couche « mentions », gestes et portées, règles d'atelier, « Proposer ») est fait et acté au cadre d'interface (§8.8, I-ATL-01 à I-ATL-05, jalon I8). Restent à l'état d'esquisse : la palette au clavier, l'opacité selon le score, plusieurs couches avec leur statut, les annotations de portée large et les questions libres, l'enchaînement rapide.
 
 - **Entrée** : l'auteur colle ou importe un texte (Markdown, texte brut, texte en ligne annoté). Le texte devient une source de l'atelier.
 - **Au centre, le texte** avec les annotations surlignées : une couleur par genre, l'opacité selon le score, une bordure pointillée quand la couche a un doute. Un filtre montre une couche à la fois, ou les seules annotations à revoir.
@@ -534,10 +536,10 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 10. **Couches spécialisées comme hypothèse de recherche** (§6.1) : à mettre à l'épreuve, et à revoir si elles n'apportent rien.
 11. **Les annotations sont la monnaie d'échange** entre les couches et avec l'auteur ; la source que le système connaît est la source annotée (§6). La couche marque elle-même ses doutes.
 12. **L'auteur décide du rythme** : il lance, corrige, relance chaque couche jusqu'à satisfaction ; annotation possible avant comme après (§7).
-13. **Magasin d'atelier** pour les annotations : hors journal, durable, en ajout seul, `branch_id` sur chaque annotation ; le savoir sur le monde en sort par proposition (§6.3).
+13. *Magasin d'atelier* : acté au cadre d'interface (I-ATL-01).
 14. **Haiku 4.5 par l'API comme substitut** d'un petit modèle, sous les conditions du §8 ; puis petit modèle hébergé, puis local.
 15. **Indicateurs par couche** (§9), pilotés par les gestes jusqu'à satisfaction et le rendement des annotations.
-16. **Atelier dans le fichier du monde, lu par lignée** (§6.3) : tables à part, hors journal, en ajout seul ; une branche voit les annotations de sa base jusqu'à son point de départ, sans copie.
+16. *Atelier dans le fichier du monde, lu par lignée* : acté au cadre d'interface (I-ATL-01).
 17. **Syntaxe en ligne** `[texte]{...}`, avec lecture des liens Obsidian à l'import (§6.4).
 18. **Score en trois niveaux avec doutes** pour le premier prototype ; les autres définitions sont des expériences (§6.2).
 19. **Budget d'entrée de 4 000 tokens par appel, avec avertissement** et mesure du dépassement, réglable par variable d'environnement (§8.2).
@@ -556,10 +558,10 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 32. **Question ciblée par paire et avec relations connues** (§11.10) : déclenchée par une paire d'entités non reliées dans le passage, avec les relations du schéma comme préférence ; la consigne stricte de C5 est écartée.
 33. **Le critique C6 est mis en place** (§11.11) : un fait qui pose une question jugé contre son passage, mis de côté s'il n'est pas soutenu ; il reçoit les autres noms des entités et sait que la notoriété ne le regarde pas.
 34. **Énonciation sans modèle** (§11.12) : rumeur → attribution sans fait ; note de travail → ni fait ni entité nouvelle ; voie « s'adapter au cadre » (rumeurs hors périmètre, §1.4).
-35. **Atelier, premier incrément : les entités** ([fiche I8](i8-brief.md)) : magasin d'atelier, import d'une source, repérage et recoupement, point d'arrêt, écran Atelier ; les faits au deuxième incrément.
-36. **Une source de l'atelier est une version de document** (tables existantes, texte entier conservé) ; les annotations s'accrochent au passage.
-37. **« Proposer » est un geste explicite** : un lot (entités nouvelles confirmées, alias retenus) par le circuit existant jusqu'à la revue.
-38. **Trois portées pour une correction** : occurrence ; toutes les occurrences de la source (défaut) ; le monde (alias proposé au journal si positive, règle d'atelier par branche si négative).
+35. *Atelier, premier incrément : les entités* : acté au cadre d'interface (I8).
+36. *Une source de l'atelier est une version de document* : acté au cadre d'interface (I-ATL-01).
+37. *« Proposer » est un geste explicite* : acté au cadre d'interface (I-ATL-04).
+38. *Trois portées pour une correction* : acté au cadre d'interface (I-ATL-03).
 
 ## 14. Questions ouvertes
 
@@ -587,13 +589,10 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 | T-ING-11 supports | un support porte une portion du texte (l'annotation de fait) |
 | T-ING-17 erreur d'extraction | une erreur par couche et par fenêtre ; sort d'une fenêtre dont C1 réussit et C5 échoue |
 | T-ARC-03 | nouvelles notions : l'annotation et son score, produits de la périphérie, distincts de la qualification du noyau ; l'annotation de l'auteur, décision humaine hors journal |
-| T-STO-02 | le fichier du monde reçoit les tables du magasin d'atelier, hors journal |
-| T-BRA-01 | `branch_id` sur les annotations ; lecture par lignée, sans copie |
 | R-PRI-04 mémoire des décisions | ne retient que des décisions humaines sur des propositions ; l'avis du critique n'en est pas une ; les annotations de l'auteur vivent à part |
 | R-PRI-03 symétrie du lot | une fenêtre ne mélange jamais deux documents ; tout contexte pris hors du document (C2 contre l'état) ne doit pas dépendre de l'ordre des documents |
 | I-LLM-01 | un budget par couche ou par appel, en plus du plafond par exécution |
 | I-PIP-01 et pipeline E1 à E12 | E4 découpée en couches C1 à C6, relançables séparément ; E7 en partie absorbée par C2 |
-| Espaces de l'interface | un espace nouveau : l'Atelier (§7) |
 | R-NOT-04 | plafonnement de la notoriété par les références d'une note |
 | R-SCH-05 | couche haute d'ontologie fournie par l'outil |
 | Schéma | indications d'ingestion, ignorées du validateur, empreinte séparée |
@@ -612,8 +611,8 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 4. **X-002, C1 et C2 sur b1** (fait, [fiche](recherche-ingestion/X-002-c1-c2-fenetre.md)) : 23 mentions sur 28, 22 bien recoupées sur 23 ; E-003 disparaît au niveau des entités. Formes courtes ensuite traitées (fait, [X-003](recherche-ingestion/X-003-formes-courtes.md)) : 28 sur 28 avec A ou B, non tranché.
 5. **E-006** (fait) : désignations rattachées ou mises en doute, jamais créées ; fausses créations 4 → 1. Reste à compléter le gold de b1 (vraies mentions non notées, classe G).
 6. **C5, faits entre entités confirmées** (fait, [X-004](recherche-ingestion/X-004-c5-faits.md)) : E-003 résolu de bout en bout, E-004 non reproduit ; E-007 résolu par la question ciblée ([X-005](recherche-ingestion/X-005-question-ciblee.md)) ; reste E-005 (vocabulaire d'attribut, sans modèle).
-7. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
-8. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.
+7. **Modèle d'annotation et magasin d'atelier** (fait, jalon I8) : ajout seul, lecture par lignée, règle de relance. Reste : C1 avec et sans pré-annotation (rendement d'une annotation).
+8. **Atelier, premier incrément** (fait, jalon I8, [fiche](i8-brief.md)) : import, couche « mentions », surlignage, gestes et portées, sélection, règles d'atelier, « Proposer ». Reste : **l'essayer sur des sources réelles** (homographes de X-012, notes de Corbelle) et compter les gestes contre les gestes simulés ; puis le **deuxième incrément, les faits** (C5, question ciblée, énonciation, critique, sur les entités confirmées).
 9. **Corbelle** (fait, mesuré, [X-006](recherche-ingestion/X-006-corbelle-chaine.md)) : le déterministe est durci ([X-007](recherche-ingestion/X-007-recoupement-par-score.md) : recoupement par score, texte barré, contrôles de C5) ; chaîne remesurée ; question ciblée améliorée ([X-008](recherche-ingestion/X-008-consignes-et-question.md)) ; relations devinées, repère de temps et rumeur mis de côté par le critique ([X-009](recherche-ingestion/X-009-critique.md)) ; énonciation sans modèle ([X-010](recherche-ingestion/X-010-enonciation.md)) : rumeur → attribution, note de travail → silence ; restent le critique trop littéral (E-013), les deux dernières fausses créations (nom commun, surnom), et la nature d'une note de travail dans le cadre (question 10). Ensuite les corpus suivants du plan (§12).
 10. Les écarts restants de l'extracteur actuel (E-001 et E-005 par un vocabulaire d'attribut, E-002 par l'annotation), par les remèdes les moins coûteux.
 

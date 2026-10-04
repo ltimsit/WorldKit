@@ -1,7 +1,7 @@
 # Glossaire complémentaire de l'outil
 
 **Objet :** définir ce que l'outil affiche et que les glossaires des cadres ne définissent pas : statuts, sortes d'opérations, codes de signalement, valeurs d'énumérations, marques du graphe, vocabulaire des exécutions, des bacs, des parcours et des mesures. Une ligne par terme ; un même nom technique n'est défini qu'une fois, ici ou dans un cadre.
-**Version :** 1.0 — 27 septembre 2026. Complète les glossaires de *cadre-fondation.md* (§3), *cadre-technique.md* (§10) et *cadre-interface.md* (§12), sans les répéter.
+**Version :** 1.1 — 4 octobre 2026. Complète les glossaires de *cadre-fondation.md* (§3), *cadre-technique.md* (§10) et *cadre-interface.md* (§12), sans les répéter.
 **Lecture :** ces tableaux alimentent l'aide de l'interface (`/aide`) et `worldkit explain` (I-AID-01). Corriger une définition ici la corrige partout. Un test vérifie que tout statut, code ou valeur affichable a sa ligne.
 
 ---
@@ -77,7 +77,7 @@ Un signalement (`Issue`) porte un code, une sévérité, un message et la règle
 | Redéfini plus tard | `redefined_later` | Marque d'un fait lu à un point antérieur alors qu'une redéfinition plus récente le change (R-VUE-03). Exemple : le règne d'Odon sur Brume lu à `@base` dans `variante-mj`. |
 | Orphelin | `orphan` | Marque d'un fait d'origine documentaire qui a perdu son dernier support (passage supprimé à la ré-ingestion) ; signalé, jamais retiré d'office (R-FAI-06). |
 | Ajouté | `added` | Comparaison : présent à droite seulement. |
-| Retiré | `removed` | Comparaison : présent à gauche seulement. |
+| Retiré | `removed` | Deux sens. **Comparaison** : présent à gauche seulement. **Annotation d'atelier** : mention que l'auteur a retirée (ce n'est pas une mention utile ici) ; elle reste tracée. |
 | Changé | `changed` | Comparaison : présent des deux côtés avec une valeur différente. |
 | Identique | `same` | Deux sens. **Comparaison** : présent des deux côtés, à l'identique. **Verdict** de répétition à blanc : l'action rejouée donne exactement le même résultat que dans le bac. |
 
@@ -95,7 +95,7 @@ Un signalement (`Issue`) porte un code, une sévérité, un message et la règle
 | Répétition à blanc | `dry_run` | Avant de rendre réel : rejouer les actions sur une copie fraîche du monde de travail et comparer chaque résultat à celui du bac. |
 | Écart | `gap` | Verdict de répétition à blanc : l'action réussit mais sa sortie diffère (rang décalé…). Montré, n'empêche pas d'appliquer. |
 | Divergence | `divergence` | Verdict de répétition à blanc : l'action serait refusée ou changerait de sens sur le monde actuel. Empêche d'appliquer. |
-| Ignorée | `ignored` | Verdict de répétition à blanc : action refusée ou en erreur dans le bac, donc non rejouée. |
+| Ignorée | `ignored` | Deux sens. **Verdict** de répétition à blanc : action refusée ou en erreur dans le bac, donc non rejouée. **Annotation d'atelier** : portion que l'auteur déclare « pas une entité » ; une couche relancée n'y revient pas, et retenu pour le monde, le geste devient une règle d'atelier. |
 | Monde d'acceptation | `acceptance_world` | Fichier neuf (`monde.acceptance-<n>.db`) où s'exécute un parcours d'acceptation ; jamais promouvable. |
 | Plafond d'appels | `max_calls_per_run` | Nombre maximal d'appels au modèle par exécution (30 par défaut, `worldkit-llm.yaml`). Un pipeline s'arrête proprement au plafond ; une mesure T2 qui le dépasserait est refusée (I-LLM-01, I-MES-01). |
 | Estimation | `estimate` | Nombre exact d'appels au modèle qu'une exécution ferait : passages absents du cache pour ce profil et ce prompt. Montrée avant toute confirmation. |
@@ -142,3 +142,18 @@ Un signalement (`Issue`) porte un code, une sévérité, un message et la règle
 | Rejeu | `--replay` | Relit les réponses d'appels tracés (`WORLDKIT_LLM_LOG_DIR`) au lieu de rappeler le modèle : mêmes prompts, mêmes réponses, aucun coût. Un prompt qui n'a pas été tracé est une erreur. |
 | Introuvable | `unplaced` | Mention rendue par le modèle dont le texte n'apparaît pas tel quel dans le document ; pour un fait (`eval facts`), phrase citée en preuve qui n'apparaît dans aucun passage : il n'est rattaché à rien. |
 | Stabilité | `stability` | Accord entre plusieurs extractions répétées d'un même passage (0 à 1) ; mesure le hasard du modèle. Quand elle est inférieure à 1, le détail montre ce que chaque extraction a trouvé seule (« 1re seule », « 2e seule », `variant`). |
+
+## 7. Atelier d'ingestion
+
+| Terme | Nom technique | Définition |
+|---|---|---|
+| Source d'atelier | `atelier_source` | Texte importé dans l'atelier (collé ou lu d'un fichier) : une version de document, avec ses passages, dont le texte entier est conservé (I8, Q2). Son identifiant vient de l'en-tête ou du titre. |
+| Annotation | `annotation` | Marque posée sur une portion d'un passage (début, fin) ou sur un passage : par une couche (`origin` : `layer:c1-c2:<n>`, n-ième lancement) ou par l'auteur (`author`). En ajout seul : un geste écrit une nouvelle annotation qui remplace l'ancienne (`replaces`) (R-HIS-01). Lue par lignée de branche. |
+| Mention | `mention` | Sorte d'annotation : une portion du texte désigne une entité, connue (`entity`), nouvelle (`new`) ou en doute (candidats à départager). |
+| Couche « mentions » | `c1-c2` | Couche de l'atelier : noms connus sans modèle (C1a), noms repérés par le modèle en option (C1b), recoupement avec l'état (C2), signaux en option ; règles d'atelier appliquées. Relancée, elle remplace ses annotations encore proposées, jamais celles de l'auteur ni les portions qu'il couvre. |
+| Proposée | `proposed` | Annotation écrite par une couche, pas encore touchée par l'auteur : « à revoir ». |
+| Gardée | `kept` | Annotation que l'auteur confirme telle quelle. |
+| Corrigée | `corrected` | Annotation que l'auteur a changée : autre entité, entité nouvelle, autre type. |
+| Portée | `scope` | Étendue d'un geste de l'auteur (I8, Q4) : `occurrence` (cette annotation seule), `source` (toutes les occurrences de la forme dans la source, par défaut), `world` (retenu pour le monde : un rattachement devient un alias proposé, un geste négatif devient une règle d'atelier). |
+| Règle d'atelier | `atelier_rule` | Correction négative retenue pour le monde, par branche, appliquée aux sources suivantes : `not_entity` (« vallée n'est pas une entité »), `not_entity_of` (« les veilleurs de nuit ne sont pas les Veilleurs »). Elle n'écrit rien au journal : le monde ne reçoit que des faits (I8, Q4). |
+| À revoir | `to_review` | Nombre d'annotations courantes d'une source que l'auteur n'a pas encore décidées ; « décidées » (`decided`) : celles qu'il a posées ou confirmées. |
