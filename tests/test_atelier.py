@@ -55,3 +55,57 @@ def test_atelier_rules_follow_the_lineage_Q4():
     store.add_rule(world, "retcon", "vallée", "not_entity")
     assert [r.form for r in store.rules(world, "retcon")] == ["veilleurs de nuit", "vallee"]
     assert [r.form for r in store.rules(world, "reference")] == ["veilleurs de nuit"]
+
+
+# --- Étape 2 : la couche « mentions » écrit des annotations ; relance ---
+
+from worldkit.atelier import layers  # noqa: E402
+
+
+class FakeFinder:
+    """C1b simulé : rend des mentions fixes (texte, type)."""
+
+    def __init__(self, mentions):
+        self.items = mentions
+        self.version = "fake"
+
+    def find(self, window, context):
+        from worldkit.periphery.mentions import Mention, _occurrences
+        out = []
+        for text, type_ in self.items:
+            for start in _occurrences(window.text, text):
+                out.append(Mention(window.text[start:start + len(text)], start, window.passage_at(start), type_,
+                                   "model"))
+        return out
+
+
+def mention_values(world, doc):
+    return sorted((a.passage, a.value["text"], a.value["entity"]) for a in layers.effective(world, "reference", doc)
+                  if a.kind == "mention")
+
+
+def test_layer_writes_mentions_known_without_model_and_new_with_it():
+    world = base_world()
+    doc = store.import_source(world, NOTES)
+    layers.run_mentions(world, "reference", doc.doc_id)
+    assert ("1", "Odon de Brume", "odon") in [(str(p), t, e) for p, t, e in mention_values(world, doc)]
+    report = layers.run_mentions(world, "reference", doc.doc_id, FakeFinder([("conseil des marchands", "Faction")]))
+    assert report.run == 2 and report.new == 1
+    values = mention_values(world, doc)
+    assert (2, "conseil des marchands", "new:conseil des marchands") in values
+    assert len([v for v in values if v[1] == "Odon de Brume"]) == 1  # le premier lancement n'est plus courant
+
+
+def test_relaunch_respects_the_author_and_the_atelier_rules_T3():
+    world = base_world()
+    doc = store.import_source(world, NOTES)
+    layers.run_mentions(world, "reference", doc.doc_id, FakeFinder([("conseil des marchands", "Faction")]))
+    conseil = next(a for a in layers.effective(world, "reference", doc) if a.value["text"] == "conseil des marchands")
+    store.add_annotation(world, "reference", doc, "mention", {**conseil.value, "entity": None}, "author",
+                         conseil.passage, conseil.start, conseil.end, status="ignored", replaces=conseil.ann_id)
+    store.add_rule(world, "reference", "Brume", "not_entity")  # pour l'essai : « Brume » n'est jamais une entité
+    report = layers.run_mentions(world, "reference", doc.doc_id, FakeFinder([("conseil des marchands", "Faction")]))
+    assert report.skipped_by_author == 1 and report.skipped_by_rules >= 1
+    values = mention_values(world, doc)
+    assert (2, "conseil des marchands", None) in values  # la décision de l'auteur reste, la couche ne la refait pas
+    assert not any(t == "Brume" for _, t, _ in values)

@@ -78,7 +78,11 @@ class Window:
 
 
 def document_window(path: str | Path) -> Window:
-    doc = read_document(path)
+    return window_of(read_document(path))
+
+
+def window_of(doc: Any) -> Window:
+    """La fenêtre d'une version de document : son titre, puis ses passages, chacun à sa place."""
     text = f"# {doc.title}\n\n" if doc.title else ""
     spans = []
     for p in doc.passages:
