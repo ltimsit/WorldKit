@@ -449,6 +449,15 @@ Au lieu d'une règle par cas, la méthode classique de résolution d'entités : 
 - **Pas de nettoyage destructif en amont** : un correcteur réécrirait les noms inventés (« Ysolde » → « Isolde »), et la provenance deviendrait fausse (R-HIS-01). La normalisation sert à comparer ; les corrections deviennent des annotations proposées à l'auteur (« Marcastell ≈ Jehan Marcastel ? »), qui deviennent des alias une fois validées (§6.3).
 - Les seuils sont réglés sur deux corpus écrits par Claude : à éprouver sur un corpus qu'ils n'ont pas vu.
 
+### 11.10 Consigne stricte et nouvelle question ciblée (X-008)
+
+Grille sur les deux corpus, ~33 appels, ~0,044 $. Détail dans [X-008](recherche-ingestion/X-008-consignes-et-question.md).
+
+- **Consigne stricte de C5 écartée** : sans effet sur Corbelle, régression sur Valmont. Les relations devinées (E-010) et le repère de temps (E-004) ne se règlent pas par une consigne ; prochain candidat : le critique C6.
+- **Question ciblée adoptée sous sa nouvelle forme** : relations connues comme préférence, signal par paire d'entités non reliées dans le passage. Corbelle : rappel des faits 0,50 → **0,92** (questions 1,0), précision 0,29 → 0,44 ; Valmont sans régression sur les questions.
+- **Mesure** : une relation hors schéma se compare par sa paire d'entités, pas par l'identifiant proposé (l'auteur le fixera, §6.6).
+- Restent en trop sur Corbelle : relations devinées, repère de temps, jugement vague, et une **rumeur** prise pour un fait (la couche C4, énonciation, n'existe pas encore).
+
 ## 12. Corpus
 
 Les axes de test sont compilés dans [axes-corpus.md](recherche-ingestion/axes-corpus.md) : une quarantaine d'axes identifiés (`AX-S1` fautes sur un nom, `AX-E1` note de travail de l'auteur, `AX-R2` homonymes…), regroupés en huit familles (surface, structure, énonciation, référence, temps, jeu, échelle, plusieurs documents), avec l'attendu et la couche éprouvée. Les corpus déclarent les axes qu'ils couvrent ; les fiches d'écart citent l'axe en cause.
@@ -503,6 +512,7 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 29. **Une relation inconnue nourrit le schéma par décision de l'auteur** : ajouter au schéma, rattacher à une relation existante, ou ignorer ; la tournure est gardée dans les trois cas ; regroupement par tournure dans un lot, synonymes regroupés par l'ontologiste entre lots (§6.6).
 30. **Trois sortes de corpus** (§12) : dérivé (script), ciblé (Claude, pour construire les couches, jamais pour choisir le modèle), auteur (cas réels, plus tard) ; les axes sont compilés dans `axes-corpus.md`.
 31. **Recoupement par score** (§11.9) : pliage pour comparer, indices généraux (RapidFuzz), trois issues à deux seuils, regroupement des nouvelles indépendant de l'ordre ; pas de nettoyage destructif de la source : les corrections sont des annotations proposées à l'auteur.
+32. **Question ciblée par paire et avec relations connues** (§11.10) : déclenchée par une paire d'entités non reliées dans le passage, avec les relations du schéma comme préférence ; la consigne stricte de C5 est écartée.
 
 ## 14. Questions ouvertes
 
@@ -555,7 +565,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 6. **C5, faits entre entités confirmées** (fait, [X-004](recherche-ingestion/X-004-c5-faits.md)) : E-003 résolu de bout en bout, E-004 non reproduit ; E-007 résolu par la question ciblée ([X-005](recherche-ingestion/X-005-question-ciblee.md)) ; reste E-005 (vocabulaire d'attribut, sans modèle).
 7. **Prototype du modèle d'annotation** (forme du §6.2, magasin d'atelier minimal, règle de relance), puis C1 avec et sans pré-annotation (rendement d'une annotation).
 8. **Prototype de l'Atelier** : texte, surlignage, sélection et palette, garder/retirer, relance de C1, confirmation des entités.
-9. **Corbelle** (fait, mesuré, [X-006](recherche-ingestion/X-006-corbelle-chaine.md)) : le déterministe est durci ([X-007](recherche-ingestion/X-007-recoupement-par-score.md) : recoupement par score, texte barré, contrôles de C5) ; reste à remesurer la chaîne complète de Corbelle (nouveaux appels), puis les remèdes qui touchent au modèle : question ciblée (E-012), inférences de proximité et de temps (E-010, E-004) ; puis le silence des notes de travail (question 10). Ensuite les corpus suivants du plan (§12).
+9. **Corbelle** (fait, mesuré, [X-006](recherche-ingestion/X-006-corbelle-chaine.md)) : le déterministe est durci ([X-007](recherche-ingestion/X-007-recoupement-par-score.md) : recoupement par score, texte barré, contrôles de C5) ; chaîne remesurée ; question ciblée améliorée ([X-008](recherche-ingestion/X-008-consignes-et-question.md)) ; restent les relations devinées et le repère de temps (E-010, E-004 : essayer le critique C6), la rumeur prise pour un fait (couche C4), le silence des notes de travail (question 10). Ensuite les corpus suivants du plan (§12).
 10. Les écarts restants de l'extracteur actuel (E-001 et E-005 par un vocabulaire d'attribut, E-002 par l'annotation), par les remèdes les moins coûteux.
 
 ## 17. Références

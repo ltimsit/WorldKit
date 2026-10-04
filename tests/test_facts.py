@@ -114,3 +114,32 @@ def test_relation_probe_asks_without_the_list_of_relations():
     _, prompt, _ = adapter.calls[0]
     assert "Relations possibles" not in prompt and "member_of" not in prompt  # aucune liste : le hors schéma est libre
     assert [f.draft["relation"] for f in facts] == ["vassal_of"]  # objet hors de la phrase : écarté
+
+
+def test_pair_signal_works_at_passage_scope_and_sees_a_sentence_with_a_fact_X_008():
+    """« elle deteste les bateliers » : Ysolde n'est nommée que dans la phrase d'avant, qui a produit un fait."""
+    from test_corpus_corbelle import CORBELLE, corbelle_world
+    from test_corpus_corbelle import documents as corbelle_documents
+    from worldkit.periphery.facts import Fact, gold_forms, silent_sentences
+    world = corbelle_world()
+    context = extraction_context(world, world.state())
+    w = next(document_window(p) for p in corbelle_documents() if "brouillon" in str(p))
+    entities = gold_entities(w, CORBELLE / "gold", context)
+    facts = [Fact({"op": "add_relation", "from": "ysolde-marcastel", "relation": "lives_in", "to": "pont-aux-anes"},
+                  "Ysolde (la soeur) elle tient l'apothicairerie pres du pont-aux-anes.", 4)]
+    forms = gold_forms(w, CORBELLE / "gold", entities)
+    by_sentence = [s for s in silent_sentences(w, facts, forms) if s.passage == 4]
+    by_pair = [s for s in silent_sentences(w, facts, forms, by_pair=True) if s.passage == 4]
+    assert not by_sentence and by_pair and "bateliers" in by_pair[0].entities
+
+
+def test_probe_can_be_given_known_relations_as_a_preference_X_008():
+    from worldkit.periphery.facts import RelationProbe, Silent
+    context, _ = setup()
+    w = next(w for w in windows() if w.doc_id == "notes-baron")
+    silent = Silent(2, "Odon est le vassal du roi Mervin.", ["mervin", "odon"])
+    plain = RelationProbe(None, PROFILE).prompt(silent, gold_entities(w, VALMONT / "gold", context), context.schema)
+    listed = RelationProbe(None, PROFILE, with_relations=True).prompt(silent, gold_entities(w, VALMONT / "gold", context),
+                                                                      context.schema)
+    assert "Relations connues" not in plain[1] and "sibling_of" in listed[1] and "haunts" not in listed[1]
+    assert listed[0].startswith(plain[0])

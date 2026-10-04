@@ -34,7 +34,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [E-009](E-009-texte-barre.md) | un texte barré est lu comme une mention | — | résolue sur Corbelle |
 | [E-010](E-010-inferences-spatiales.md) | relations inférées d'une proximité (« sur », « près de ») | I | ouverte |
 | [E-011](E-011-controles-c5.md) | faits de C5 qu'un contrôle sans modèle écarterait | S | résolue sur Corbelle |
-| [E-012](E-012-question-ciblee-limites.md) | limites de la question ciblée : synonymes, phrases non muettes | — | ouverte |
+| [E-012](E-012-question-ciblee-limites.md) | limites de la question ciblée : synonymes, phrases non muettes | — | en grande partie résolue |
 
 | Expérience | Titre | Statut |
 |---|---|---|
@@ -45,6 +45,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [X-005](X-005-question-ciblee.md) | Question ciblée sur les phrases muettes (hors schéma) | conclue (première itération) |
 | [X-006](X-006-corbelle-chaine.md) | La chaîne sur des notes brouillon (Corbelle) | conclue (diagnostic) |
 | [X-007](X-007-recoupement-par-score.md) | Recoupement par score, texte barré, contrôles de C5 (sans modèle) | conclue (première itération) |
+| [X-008](X-008-consignes-et-question.md) | Consigne stricte pour C5 ; question ciblée avec relations connues et signal par paire | conclue |
 
 Statuts : **ouverte** (observée, non traitée), **en cours** (remède essayé), **résolue** (remède mesuré, sans régression), **acceptée** (on vit avec, avec la raison), **transformée** (devenue une expérience ou une question du chantier).
 

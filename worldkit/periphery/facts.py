@@ -41,6 +41,17 @@ Règles :
 5. evidence : la phrase du texte qui affirme le fait, recopiée exactement.
 """
 
+# Variante stricte (X-008, E-010, E-004) : mêmes règles, la 3 et la 4 resserrées. Exemples hors des corpus.
+SYSTEM_STRICT = SYSTEM.replace(
+    """3. Une relation : une de celles données ; si aucune ne convient, propose un identifiant anglais en snake_case.""",
+    """3. Une relation : une de celles données, seulement si le texte l'affirme telle quelle. Être au bord d'un lieu,
+   près d'un lieu ou le traverser n'est pas y être situé ; travailler quelque part n'est pas y habiter. Si aucune
+   relation de la liste ne dit exactement ce que dit le texte, ne produis rien pour ce fait.""").replace(
+    """4. Un fait révolu (« régnait autrefois ») n'est pas un fait actuel ; un repère de temps (« depuis la guerre »)
+   n'est pas une relation.""",
+    """4. Un fait révolu (« régnait autrefois », « avant l'incendie il était ») n'est pas un fait actuel ; un repère
+   de temps (« depuis la guerre », « avant l'incendie ») n'est ni un fait ni une relation.""")
+
 
 def output_schema() -> dict[str, Any]:
     fact = {"type": "object", "additionalProperties": False,
@@ -79,10 +90,11 @@ class FactFinder:
 
     adapter: Any
     profile: Any
+    strict: bool = False  # variante stricte (X-008)
 
     @property
     def version(self) -> str:
-        return f"facts-{PROMPT_VERSION}:{self.profile.signature}"
+        return f"facts-{PROMPT_VERSION}{'+strict' if self.strict else ''}:{self.profile.signature}"
 
     @property
     def meter(self) -> Any:
@@ -107,7 +119,7 @@ class FactFinder:
                 + "\n\nRelations possibles :\n" + ("\n".join(relations) or "- (aucune)")
                 + "\n\nAttributs par type :\n" + ("\n".join(attributes) or "- (aucun)")
                 + "\n\nTexte :\n" + window.text)
-        return SYSTEM, user
+        return (SYSTEM_STRICT if self.strict else SYSTEM), user
 
     def find(self, window: Window, entities: list[Confirmed], schema: Any, state: Any = None) -> list[Fact]:
         system, user = self.prompt(window, entities, schema)
@@ -269,6 +281,17 @@ def chain_forms(mentions: list[Any], entities: list[Confirmed]) -> dict[str, set
 _OUT_OF_C5 = {"create_entity", "set_visibility"}  # C2 (création) et C4 (notoriété)
 
 
+OUT_OF_SCHEMA = "(hors schéma)"
+
+
+def _key(d: dict[str, Any], names: dict[str, str], schema: Any) -> tuple[Any, ...]:
+    """Clé de comparaison : une relation hors schéma se compare par sa paire d'entités, pas par l'identifiant
+    proposé (`detests` ou `hates`) : c'est l'auteur qui le fixera en l'acceptant (§6.6)."""
+    if d.get("op") == "add_relation" and d.get("relation") not in schema.relations:
+        d = {**d, "relation": OUT_OF_SCHEMA}
+    return key(d, names)
+
+
 def _in_scope(d: dict[str, Any]) -> bool:
     return d.get("op") not in _OUT_OF_C5 and not (d.get("op") == "set_attribute" and d.get("attribute") == "name")
 
@@ -339,6 +362,11 @@ Règles :
 4. Aucune relation affirmée : liste vide.
 """
 
+# Variante (X-008, E-012) : les relations connues, compatibles avec les types, données comme préférence.
+PROBE_RELATIONS_RULE = """5. Relations connues du monde (liste donnée) : si l'une dit la même chose que la phrase, utilise son identifiant
+   et sa direction ; sinon seulement, propose un identifiant nouveau.
+"""
+
 
 def probe_schema() -> dict[str, Any]:
     item = {"type": "object", "additionalProperties": False, "required": ["subject", "relation", "object", "phrase"],
@@ -362,18 +390,33 @@ def _sentences(text: str) -> list[str]:
     return [s for s in re.split(r"(?<=[.!?…])\s+", text.strip()) if s]
 
 
-def silent_sentences(window: Window, facts: list[Fact], forms: dict[str, set[str]]) -> list[Silent]:
-    """Les phrases muettes : deux entités confirmées au moins (par leurs formes dans le texte), aucun fait cité."""
+def silent_sentences(window: Window, facts: list[Fact], forms: dict[str, set[str]],
+                     by_pair: bool = False) -> list[Silent]:
+    """Les phrases muettes : deux entités confirmées au moins (par leurs formes dans le texte), aucun fait cité.
+
+    Avec `by_pair` (X-008, E-012) : une phrase dont au moins une **paire** d'entités citées n'est reliée par aucune
+    relation trouvée dans la fenêtre, même si la phrase a produit un autre fait (« elle tient l'apothicairerie
+    près du pont. elle deteste les bateliers ») ; la question ne porte que sur les entités de ces paires."""
+    from itertools import combinations
+
     from .mentions import _occurrences
     cited = [normalize(f.evidence).casefold().strip(" .") for f in facts]
+    linked = {frozenset((f.draft["from"], f.draft["to"])) for f in facts if f.draft.get("op") == "add_relation"}
     out = []
     for index, text in sorted(window.passage_texts.items()):
-        for sentence in _sentences(text):
-            flat = normalize(sentence).casefold().strip(" .")
-            if any(c and (c in flat or flat in c) for c in cited):
-                continue
+        # par paire, l'unité est le passage : « elle deteste les bateliers » ne cite Ysolde que par un pronom ;
+        # c'est la phrase d'avant, dans le même passage, qui la nomme (pas de coréférence, C3, pour l'instant)
+        for sentence in ([text] if by_pair else _sentences(text)):
             present = sorted(eid for eid, fs in forms.items() if any(_occurrences(sentence, f) for f in fs))
-            if len(present) >= 2:
+            if len(present) < 2:
+                continue
+            if by_pair:
+                loose = {e for a, b in combinations(present, 2) if frozenset((a, b)) not in linked for e in (a, b)}
+                if loose:
+                    out.append(Silent(index, sentence, sorted(loose)))
+                continue
+            flat = normalize(sentence).casefold().strip(" .")
+            if not any(c and (c in flat or flat in c) for c in cited):
                 out.append(Silent(index, sentence, present))
     return out
 
@@ -384,22 +427,34 @@ class RelationProbe:
 
     adapter: Any
     profile: Any
+    with_relations: bool = False  # relations connues données comme préférence (X-008)
+    by_pair: bool = False         # signal par paire d'entités non reliées, plutôt que par phrase muette (X-008)
 
     @property
     def version(self) -> str:
-        return f"probe-{PROBE_PROMPT_VERSION}:{self.profile.signature}"
+        flags = ("+rel" if self.with_relations else "") + ("+pairs" if self.by_pair else "")
+        return f"probe-{PROBE_PROMPT_VERSION}{flags}:{self.profile.signature}"
 
     @property
     def meter(self) -> Any:
         return getattr(self.adapter, "meter", None)
 
-    def prompt(self, silent: Silent, entities: list[Confirmed]) -> tuple[str, str]:
+    def prompt(self, silent: Silent, entities: list[Confirmed], schema: Any = None) -> tuple[str, str]:
         known = {e.id: e for e in entities}
         lines = [f"- {eid} ({known[eid].type}) : {known[eid].name}" for eid in silent.entities if eid in known]
-        return PROBE_SYSTEM, "Entités :\n" + "\n".join(lines) + "\n\nPhrase :\n" + silent.sentence
+        user = "Entités :\n" + "\n".join(lines)
+        if not self.with_relations or schema is None:
+            return PROBE_SYSTEM, user + "\n\nPhrase :\n" + silent.sentence
+        types = {known[eid].type for eid in silent.entities if eid in known}
+        relations = [f"- {name} : {'|'.join(r.from_)} → {'|'.join(r.to)} ({(r.labels or {}).get('fr', name)})"
+                     for name, r in sorted(schema.relations.items())
+                     if any(_is_a(schema, t, r.from_) for t in types) and any(_is_a(schema, t, r.to) for t in types)]
+        return (PROBE_SYSTEM + PROBE_RELATIONS_RULE,
+                user + "\n\nRelations connues :\n" + ("\n".join(relations) or "- (aucune)")
+                + "\n\nPhrase :\n" + silent.sentence)
 
-    def ask(self, silent: Silent, entities: list[Confirmed]) -> list[Fact]:
-        system, user = self.prompt(silent, entities)
+    def ask(self, silent: Silent, entities: list[Confirmed], schema: Any = None) -> list[Fact]:
+        system, user = self.prompt(silent, entities, schema)
         silent.answer = self.adapter.complete(system, user, probe_schema())["relations"]
         return [Fact({"op": "add_relation", "from": r["subject"].strip(), "relation": r["relation"].strip(),
                       "to": r["object"].strip()}, silent.sentence, silent.passage)
@@ -423,10 +478,11 @@ def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str
             facts = finder.find(window, entities.get(window.doc_id, []), context.schema, state)
         if probe is None:
             return facts
-        for s in silent_sentences(window, facts, (forms or {}).get(window.doc_id, {})):
+        for s in silent_sentences(window, facts, (forms or {}).get(window.doc_id, {}), probe.by_pair):
             silents.append(s)
             with probe_meter.label(f"{window.doc_id} p{s.passage}") if probe_meter is not None else nullcontext():
-                facts += probe.ask(s, entities.get(window.doc_id, []))
+                facts += check_facts(probe.ask(s, entities.get(window.doc_id, []), context.schema),
+                                     entities.get(window.doc_id, []), context.schema, state, finder.rejected)
         return facts
 
     with ThreadPoolExecutor(max_workers=4) as pool:
@@ -447,9 +503,11 @@ def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str
         expected_by_passage = {i: oracle.extract(window.doc_id, text) for i, text in window.passage_texts.items()}
         report.unplaced += [f for f in facts if f.passage is None]
         for index, ex in sorted(expected_by_passage.items()):  # tous les passages : un fait en trop compte partout
-            optional = {key(d, gold_names) for i, d in enumerate(ex.drafts) if i in ex.optional and _in_scope(d)}
-            expected = {key(d, gold_names) for d in ex.drafts if _in_scope(d)} - optional
-            p = PassageFacts(window.doc_id, index, expected, {key(f.draft, names) for f in facts if f.passage == index},
+            optional = {_key(d, gold_names, context.schema) for i, d in enumerate(ex.drafts)
+                        if i in ex.optional and _in_scope(d)}
+            expected = {_key(d, gold_names, context.schema) for d in ex.drafts if _in_scope(d)} - optional
+            p = PassageFacts(window.doc_id, index, expected,
+                             {_key(f.draft, names, context.schema) for f in facts if f.passage == index},
                              optional)
             p.supports = {k for k in p.expected | p.found if is_support(k, state)}
             report.passages.append(p)

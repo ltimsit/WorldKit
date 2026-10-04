@@ -278,10 +278,11 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
         entities = {d: chain_entities(ms, context) for d, ms in found.items()}
         forms = {d: chain_forms(ms, entities[d]) for d, ms in found.items()}
     profile = config.profile(args.profile, "facts")
-    finder = FactFinder(ReplayAdapter(args.replay) if args.replay else make_adapter(profile), profile)
+    finder = FactFinder(ReplayAdapter(args.replay) if args.replay else make_adapter(profile), profile, args.strict)
     probe = None
     if args.probe:
-        probe = RelationProbe(ReplayAdapter(args.probe_replay) if args.probe_replay else make_adapter(profile), profile)
+        probe = RelationProbe(ReplayAdapter(args.probe_replay) if args.probe_replay else make_adapter(profile), profile,
+                              args.probe_relations, args.probe_pairs)
     report = evaluate_facts(finder, windows, entities, Path(args.oracle), context, state, args.entities, probe, forms)
     summary = report.summary()
     print(f"couche : {summary['finder']} ; entités : {args.entities} "
@@ -937,6 +938,11 @@ def build_parser() -> argparse.ArgumentParser:
     evf.add_argument("--probe", action="store_true",
                      help="question ciblée sur les phrases muettes (deux entités confirmées, aucun fait) : E-007")
     evf.add_argument("--probe-replay", default=None, help="rejoue les réponses tracées de la question ciblée")
+    evf.add_argument("--strict", action="store_true", help="C5, variante stricte : proximité et repères de temps (X-008)")
+    evf.add_argument("--probe-relations", action="store_true",
+                     help="question ciblée : relations connues données comme préférence (X-008)")
+    evf.add_argument("--probe-pairs", action="store_true",
+                     help="question ciblée : signal par paire d'entités non reliées (X-008)")
     evf.add_argument("--out", default=None, help="rapport JSON détaillé")
 
     review = commands.add_parser("review", help="file de revue des propositions")

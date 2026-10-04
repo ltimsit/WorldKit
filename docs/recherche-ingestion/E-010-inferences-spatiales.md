@@ -27,4 +27,4 @@ Le schéma n'a pas de relation pour « au bord de », « traverse », « près d
 
 ## Essais
 
-Aucun.
+- **4 octobre 2026, [X-008](X-008-consignes-et-question.md)** : consigne stricte de C5 (« être au bord, près, traverser n'est pas être situé ; travailler n'est pas habiter ; sinon ne rien produire ») : **aucun effet** sur Corbelle, et régression sur Valmont (rappel 0,82 → 0,71). Écartée. Les relations devinées viennent aussi de la question ciblée (« habite près du »). Prochain candidat : le critique C6 (un fait contre sa preuve).

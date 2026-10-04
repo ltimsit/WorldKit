@@ -33,6 +33,7 @@ La règle 10 du prompt cite ce cas mot pour mot : « pas de relation qui n'est p
 - **4 octobre 2026, X-004** : C5 (document entier, cinq consignes, dont « un repère de temps n'est pas une relation ») ne le produit pas, avec les entités du gold comme avec celles de la chaîne ; il rend au contraire « Il gouverne la cité portuaire » par `odon rules brume`, juste. Une passe.
 
 - **4 octobre 2026, [X-006](X-006-corbelle-chaine.md)** : sur Corbelle, « faisait passer les gens avant la grande crue » donne `jehan-leblond involved_in grande-crue` (C5, entités du gold et de la chaîne) : la consigne tient sur un texte propre, pas sur un texte familier.
+- **4 octobre 2026, [X-008](X-008-consignes-et-question.md)** : consigne stricte (« avant l'incendie » n'est ni un fait ni une relation) : sans effet, `involved_in grande-crue` reste. Candidat suivant : le critique C6.
 
 ## Conclusion
 
