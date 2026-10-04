@@ -3,7 +3,7 @@
 - **Statut** : ouverte
 - **Classe** : S (forme de surface) ; consigne explicite ignorée
 - **Où** : b1, `notes-baron` v1, passage 7 ; extraction monolithique (future couche C5)
-- **Observé avec** : Claude Haiku 4.5, `api-haiku`, prompt version 3, 4 octobre 2026 ; 1 passe sur 1 ([X-001](X-001-b1-haiku-reference.md)). Non observé sous Sonnet 5.
+- **Observé avec** : Claude Haiku 4.5, `api-haiku`, prompt version 3, 4 octobre 2026 ; 2 passes sur 2, identiques ([X-001](X-001-b1-haiku-reference.md)). Non observé sous Sonnet 5.
 - **Coût en revue** : une adaptation (corriger la valeur), et une fausse collision si « régent » existe ailleurs.
 
 ## Observation

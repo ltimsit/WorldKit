@@ -3,7 +3,7 @@
 - **Statut** : ouverte
 - **Classe** : S (forme de surface : une désignation prise pour une valeur)
 - **Où** : b1, `notes-baron` v1, passage 1 ; extraction monolithique (future couche C5, avec C3 en amont)
-- **Observé avec** : Claude Sonnet 5, `claude-code`, prompt version 3, 28 septembre 2026 ; 6 appels sur 6 (systématique). **Non reproduit** sous Claude Haiku 4.5, `api-haiku`, 4 octobre 2026, 1 passe ([X-001](X-001-b1-haiku-reference.md)) : Haiku ne tire rien de « la cité portuaire »
+- **Observé avec** : Claude Sonnet 5, `claude-code`, prompt version 3, 28 septembre 2026 ; 6 appels sur 6 (systématique). **Non reproduit** sous Claude Haiku 4.5, `api-haiku`, 4 octobre 2026, 0 passe sur 2 ([X-001](X-001-b1-haiku-reference.md)) : Haiku ne tire rien de « la cité portuaire »
 - **Coût en revue** : une fausse anomalie (collision avec `brume.category = port`, donné par `lieux-de-valmont`)
 
 ## Observation
@@ -34,7 +34,7 @@ Attendu : rien sur `brume.category` dans ce passage. La catégorie `port` est d�
 
 ## Essais
 
-Sous Haiku 4.5, l'écart n'apparaît pas (X-001) : le petit modèle en fait moins, y compris moins d'inférences de ce genre. À confirmer avec la stabilité avant de classer la fiche. Premier essai prévu : remède 2 (vocabulaire de `category`), mesuré sous Haiku 4.5 en substitut.
+Sous Haiku 4.5, l'écart n'apparaît pas (X-001) : le petit modèle en fait moins, y compris moins d'inférences de ce genre. Confirmé sur deux passes identiques (stabilité 1,0 sur ce passage). Premier essai prévu : remède 2 (vocabulaire de `category`), mesuré sous Haiku 4.5 en substitut.
 
 ## Conclusion
 

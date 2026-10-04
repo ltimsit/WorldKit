@@ -52,8 +52,12 @@ Attention : la colonne Sonnet compte les facultatifs comme manqués (mesure d'av
 4. **Le budget d'entrée tient** : 3 538 tokens au plus par appel par l'API. Les 4 900 tokens mesurés avec `claude -p` comprenaient le surcoût de Claude Code. Le prompt système, sous le seuil de mise en cache de Haiku, n'est pas mis en cache (0 token lu du cache).
 5. **Limites** : une passe, 12 passages, substitut plus capable qu'un vrai petit modèle, corpus optimiste (T-TST-01). Les chiffres sont un point de départ, pas un verdict.
 
+## Stabilité (deuxième passe, 4 octobre 2026)
+
+`--repeat 2` : la première extraction est relue du cache, la seconde rappelle le modèle (12 appels, 0,0515 $). Stabilité moyenne **0,875** : 10 passages identiques (1,0), deux instables, **notes p3 (0,5) et notes p4 (0,0)**, précisément ceux d'E-003. E-002, E-004 et E-005 sont donc reproduits à l'identique ; E-001 reste absent. La mesure ne gardait pas alors le contenu de la seconde extraction : elle le garde désormais (« 1re seule », « 2e seule »).
+
 ## Suites
 
 - E-003 est le premier écart à traiter (plus gros coût, cause unique) ; les remèdes vont de l'indication de schéma à une couche C1.
-- Mesurer la stabilité (`repeat=2`) avant de conclure qu'un écart est systématique.
+- Relire la variante de notes p3 et p4 (une passe de plus, environ 0,05 $) : E-003 est-il instable sur la forme seulement, ou le conseil devient-il parfois une entité ?
 - Rejouer b1 sous Sonnet avec la mesure actuelle (facultatifs neutres) pour une comparaison juste, si le cache de la mesure du 28 septembre est retrouvé (sinon, coût d'abonnement seulement).

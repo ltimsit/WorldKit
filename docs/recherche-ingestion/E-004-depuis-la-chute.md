@@ -3,7 +3,7 @@
 - **Statut** : ouverte
 - **Classe** : H (non dit) ; consigne explicite ignorée
 - **Où** : b1, `notes-baron` v1, passage 1 ; extraction monolithique (future couche C5)
-- **Observé avec** : Claude Haiku 4.5, `api-haiku`, prompt version 3, 4 octobre 2026 ; 1 passe sur 1 ([X-001](X-001-b1-haiku-reference.md)). Non observé sous Sonnet 5.
+- **Observé avec** : Claude Haiku 4.5, `api-haiku`, prompt version 3, 4 octobre 2026 ; 2 passes sur 2, identiques ([X-001](X-001-b1-haiku-reference.md)). Non observé sous Sonnet 5.
 - **Coût en revue** : un refus.
 
 ## Observation
@@ -29,7 +29,7 @@ La règle 10 du prompt cite ce cas mot pour mot : « pas de relation qui n'est p
 
 ## Essais
 
-Aucun. Mesurer d'abord la stabilité : 1 passe ne dit pas si l'écart est systématique.
+Aucun. L'écart est reproduit à l'identique sur deux passes (stabilité 1,0 sur ce passage).
 
 ## Conclusion
 
