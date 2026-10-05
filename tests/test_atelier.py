@@ -259,3 +259,28 @@ def test_atelier_screen_import_run_annotate_and_propose(tmp_path):
 def Session_view(db, doc_url):
     from worldkit.service.session import Session
     return Session(db).call("atelier.view", {"doc_id": doc_url.rsplit("/", 1)[1]}).output
+
+
+def test_a_model_launch_runs_in_the_background_and_the_page_follows_it_I_LLM_01(tmp_path, monkeypatch):
+    """Le modèle prend des minutes (116 s sur les notes de Corbelle) : la requête rend la main aussitôt."""
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    from test_service import make_world
+    from worldkit.periphery import llm
+    from worldkit.service import jobs
+    from worldkit.web import create_app
+
+    class Adapter:
+        def complete(self, system, prompt, schema):
+            return {"mentions": [{"text": "Roi Gris", "type": "Character", "confidence": "sure"}]}
+
+    monkeypatch.setattr(llm, "make_adapter", lambda profile: Adapter())
+    db = make_world(tmp_path / "valmont.db")
+    c = TestClient(create_app(db))
+    doc_url = str(c.post("/atelier", data={"text": ROI}).url).split("testserver")[1]
+    r = c.post(doc_url + "/run", data={"model": "1", "confirm": "1"}, follow_redirects=False)
+    assert r.status_code == 303 and "?job=" in r.headers["location"]
+    run_id = int(r.headers["location"].rsplit("=", 1)[1])
+    jobs.wait(db, run_id, 30)
+    page = c.get(r.headers["location"]).text
+    assert "mention(s) proposée(s)" in page and "Roi Gris" in page

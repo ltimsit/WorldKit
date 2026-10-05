@@ -33,6 +33,8 @@ JOBS: dict[tuple[str, int], Job] = {}
 
 
 def _uses_model(operation: str, params: dict[str, Any]) -> bool:
+    if operation == "atelier.run":  # I8 : la couche « mentions » avec modèle
+        return bool(params.get("model")) and bool(params.get("confirm"))
     return operation == "pipeline.run" and bool(params.get("profile")) and bool(params.get("confirm"))
 
 
@@ -50,7 +52,7 @@ def start(db: str | Path, operation: str, params: dict[str, Any], target: str | 
     uses_model = _uses_model(operation, params)
     with _LOCK:
         if uses_model and any(j.uses_model for j in running(db)):
-            raise ValueError("un pipeline avec modèle est déjà en cours sur ce monde : attendre ou l'arrêter (I-LLM-01)")
+            raise ValueError("un appel au modèle est déjà en cours sur ce monde : attendre ou l'arrêter (I-LLM-01)")
         with Session(db) as s:
             run_id = s.runs.begin(operation, op.kind, parse_target(target), params)
         job = Job(run_id, db, operation, uses_model)

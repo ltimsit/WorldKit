@@ -15,6 +15,9 @@ from urllib.parse import quote
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from worldkit.service import jobs
+from worldkit.service.session import Session
+
 
 def spans_of(text: str, annotations: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Le texte découpé en morceaux (texte seul, ou portion annotée) ; les annotations imbriquées à part."""
@@ -81,8 +84,23 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
         annotations = {a["id"]: a for p in view.output["passages"] for a in p["annotations"]}
         chosen = annotations.get(int(selected)) if selected and selected.isdigit() else None
         names = {e["id"]: e for e in view.output["entities"]}
+        job = job_view(request.query_params.get("job"))
         return render(request, "atelier.html", page, view=view.output, indicators=view.indicators, chosen=chosen,
-                      names=names, **{"estimate": None, "message": None, "error": None, **extra})
+                      names=names, job=job, **{"estimate": None, "message": None, "error": None, **extra})
+
+    def job_view(raw: str | None) -> dict[str, Any] | None:
+        """Lancement avec modèle en tâche de fond (I4, I-LLM-01) : en cours, ou son résultat."""
+        if not raw or not raw.isdigit():
+            return None
+        run_id = int(raw)
+        with Session(db) as s:
+            try:
+                status, _ = s.runs.progress(run_id)
+            except KeyError:
+                return None
+            result = None if status in ("running", "interrupted") else s.runs.result(run_id)
+        return {"id": run_id, "status": status, "live": run_id in {j.run_id for j in jobs.running(db)},
+                "result": result}
 
     @app.get("/atelier/{doc_id}", response_class=HTMLResponse)
     def atelier_source(doc_id: str, request: Request) -> HTMLResponse:
@@ -94,6 +112,12 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
         page = page_factory()
         params = {"doc_id": doc_id, "model": bool(form.get("model")), "signals": bool(form.get("signals")),
                   "confirm": bool(form.get("confirm"))}
+        if params["model"] and params["confirm"]:  # le modèle prend des minutes : en tâche de fond
+            try:
+                run_id = jobs.start(db, "atelier.run", params)
+            except (KeyError, ValueError) as e:
+                return source_page(request, page, doc_id, error=str(e))
+            return RedirectResponse(f"/atelier/{quote(doc_id)}?job={run_id}", status_code=303)
         result = page.call("atelier.run", params)
         if result.status == "pending":
             return source_page(request, page, doc_id, estimate=result)
