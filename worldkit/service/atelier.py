@@ -116,7 +116,8 @@ def atelier_run(ctx: Context, p: RunParams) -> Output:
         finder = MentionFinder(make_adapter(profile), profile)
     report = layers.run_mentions(ctx.world, _branch(ctx, p), p.doc_id, finder, p.signals)
     return Output(report.__dict__ | {"calls": len(report.calls)}, [],
-                  {"proposed": report.proposed, "doubts": report.doubts, "new": report.new})
+                  {"proposed": report.proposed, "doubts": report.doubts, "new": report.new,
+                   "llm_calls": len(report.calls)})
 
 
 class AnnotateParams(SourceParams):

@@ -270,8 +270,13 @@ def test_a_model_launch_runs_in_the_background_and_the_page_follows_it_I_LLM_01(
     from worldkit.service import jobs
     from worldkit.web import create_app
 
+    from worldkit.periphery.llm.usage import CallUsage, UsageMeter
+
     class Adapter:
+        meter = UsageMeter()
+
         def complete(self, system, prompt, schema):
+            self.meter.record(CallUsage("fake", 100, 10))
             return {"mentions": [{"text": "Roi Gris", "type": "Character", "confidence": "sure"}]}
 
     monkeypatch.setattr(llm, "make_adapter", lambda profile: Adapter())
@@ -284,3 +289,6 @@ def test_a_model_launch_runs_in_the_background_and_the_page_follows_it_I_LLM_01(
     jobs.wait(db, run_id, 30)
     page = c.get(r.headers["location"]).text
     assert "mention(s) proposée(s)" in page and "Roi Gris" in page
+    from worldkit.service.session import Session
+    with Session(db) as s:
+        assert s.runs.result(run_id).trace.llm_calls == 1  # l'appel est compté dans la trace

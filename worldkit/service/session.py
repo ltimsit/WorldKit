@@ -235,7 +235,9 @@ class Session:
             message = e.args[0] if e.args else str(e)
             result = _error(name, op.kind, target_name, raw, [
                 IssueView(code="service_error", severity=str(Severity.ERROR), rule="", message=str(message))])
-        result.trace = Trace(duration_ms=round((time.perf_counter() - start) * 1000, 1), code_version=code_version())
+        calls = (result.indicators or {}).get("llm_calls", 0)  # appels au modèle relevés par l'opération (I-LLM-01)
+        result.trace = Trace(duration_ms=round((time.perf_counter() - start) * 1000, 1), code_version=code_version(),
+                             llm_calls=calls if isinstance(calls, int) else 0)
         if keep:
             self.runs.record(result, run_id)
         return result
