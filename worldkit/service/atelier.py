@@ -117,7 +117,9 @@ def atelier_run(ctx: Context, p: RunParams) -> Output:
                                  "I-LLM-01", Severity.WARNING)], {"estimated_calls": 1}, status="pending")
         finder = MentionFinder(make_adapter(profile), profile)
     report = layers.run_mentions(ctx.world, _branch(ctx, p), p.doc_id, finder, p.signals)
-    return Output(report.__dict__ | {"calls": len(report.calls)}, [],
+    from worldkit.periphery.llm.usage import input_budget, summarize
+    usage = summarize(report.calls, input_budget()) | {"seconds": round(sum(c.seconds for c in report.calls), 1)}
+    return Output(report.__dict__ | {"calls": len(report.calls), "usage": usage}, [],
                   {"proposed": report.proposed, "doubts": report.doubts, "new": report.new,
                    "llm_calls": len(report.calls)})
 

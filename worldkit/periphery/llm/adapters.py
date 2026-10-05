@@ -247,7 +247,8 @@ class AnthropicApiAdapter:
                              f"ERREUR : {e}")
             raise LLMError(f"API Anthropic : {e}") from e
         self.meter.trace("anthropic-api", self.model, system, prompt, output_config["format"]["schema"],
-                         {"max_tokens": self.max_tokens, "effort": self.effort, "temperature": self.temperature},
+                         {"max_tokens": self.max_tokens, "effort": self.effort, "temperature": self.temperature,
+                          "seconds": round(time.perf_counter() - start, 2)},
                          response.to_dict() if hasattr(response, "to_dict") else repr(response))
         u = getattr(response, "usage", None)
         if u is not None:
