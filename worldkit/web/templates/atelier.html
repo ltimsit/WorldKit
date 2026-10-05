@@ -22,7 +22,7 @@
 {% if message %}<div class="stat" style="border-color:var(--ok, #1b7f3b)">{{ message }} — <a href="/review">ouvrir la revue</a></div>{% endif %}
 {% if estimate %}<div class="stat" style="border-color:var(--warn)">{{ m.result_head(estimate) }}
   <form method="post" action="/atelier/{{ view.doc_id }}/run" hx-boost="false"><input type="hidden" name="model" value="1"><input type="hidden" name="confirm" value="1">
-  {{ estimate.output.estimate.calls }} appel(s) au modèle {{ estimate.output.estimate.model }}. <button>Confirmer et lancer</button></form></div>{% endif %}
+  {{ estimate.output.estimate.calls }} appel(s) au modèle {{ estimate.output.estimate.model }} (profil {{ estimate.output.estimate.profile }}, {{ estimate.output.estimate.adapter }}). <button>Confirmer et lancer</button></form></div>{% endif %}
 
 <div class="stat">
   <form method="post" action="/atelier/{{ view.doc_id }}/run" hx-boost="false" style="display:inline">

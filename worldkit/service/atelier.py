@@ -110,8 +110,10 @@ def atelier_run(ctx: Context, p: RunParams) -> Output:
         from worldkit.periphery.mentions import MentionFinder
         profile = load_config(p.llm_config).profile(p.profile, "mentions")
         if not p.confirm:
-            return Output({"estimate": {"calls": 1, "model": profile.model}},
-                          [Issue(IssueCode.EDIT_RULE, f"1 appel au modèle {profile.model} : confirmer pour lancer",
+            return Output({"estimate": {"calls": 1, "model": profile.model, "profile": profile.name,
+                                        "adapter": profile.adapter}},
+                          [Issue(IssueCode.EDIT_RULE, f"1 appel au modèle {profile.model} (profil {profile.name}, "
+                                 f"{profile.adapter}) : confirmer pour lancer",
                                  "I-LLM-01", Severity.WARNING)], {"estimated_calls": 1}, status="pending")
         finder = MentionFinder(make_adapter(profile), profile)
     report = layers.run_mentions(ctx.world, _branch(ctx, p), p.doc_id, finder, p.signals)
