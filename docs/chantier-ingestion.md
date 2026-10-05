@@ -383,6 +383,7 @@ Un appel envoie environ 9 200 caractères, dont **83** pour le passage : règles
 
 - Environ 34 000 tokens par appel venaient de l'environnement de Claude Code ; ils sont retirés par l'appel isolé (T-LLM-01).
 - La **réflexion** du modèle domine la durée ; l'effort bas a rendu le même résultat deux fois plus vite sur un passage, à confirmer sur un lot entier.
+- **Atelier, couche « mentions »** (6 octobre 2026, notes de Corbelle dans le monde Valmont, un appel sur le document entier) : par `claude -p`, 116 à 144 s ; par l'API (`api-haiku`), 31 s au premier appel, puis 5,7 et 5,9 s (1 063 tokens en entrée, 506 en sortie, 0,0036 $). La lenteur du premier appel tient sans doute à la compilation du schéma de sortie, neuf pour ce monde (sa liste de types), ou à une charge passagère : un seul cas, non tranché. Le premier lancement après démarrage du serveur ajoute environ 3,5 s hors modèle (chargement des bibliothèques).
 
 ### 11.3 b1 sous Haiku 4.5, substitut d'un petit modèle (X-001)
 
