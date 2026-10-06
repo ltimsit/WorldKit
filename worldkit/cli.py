@@ -172,8 +172,9 @@ def _run_eval(world: Any, args: argparse.Namespace) -> int:
     for op, m in summary["per_op"].items():
         print(f"  {op:16} précision {m['precision']:.2f}  rappel {m['recall']:.2f}  (vp {m['tp']}, fp {m['fp']}, fn {m['fn']})")
     for r in report.passages:
-        missing, extra = r.expected - r.found, r.found - r.expected
-        if missing or extra or r.traps or r.error or not r.attribution_ok:
+        missing, extra = r.expected - r.found, r.extra
+        unstable = r.variant is not None and r.variant != r.found
+        if missing or extra or r.traps or r.error or not r.attribution_ok or unstable:
             print(f"  -- {r.doc} p{r.index}" + (f" : ERREUR {r.error[:120]}" if r.error else ""))
             for k in sorted(missing, key=repr):
                 print(f"     manque  {dict(k)}")
@@ -183,10 +184,16 @@ def _run_eval(world: Any, args: argparse.Namespace) -> int:
                 print(f"     piège   {t}")
             if not r.attribution_ok:
                 print("     attribution mal détectée")
+            if unstable:
+                for k in sorted(r.found - r.variant, key=repr):
+                    print(f"     1re seule {dict(k)}")
+                for k in sorted(r.variant - r.found, key=repr):
+                    print(f"     2e seule  {dict(k)}")
     if args.out:
         Path(args.out).write_text(_json.dumps({"summary": summary, "passages": [
             {"doc": r.doc, "passage": r.index, "expected": sorted(map(str, r.expected)),
              "found": sorted(map(str, r.found)), "traps": r.traps, "error": r.error, "stability": r.stability,
+             "variant": sorted(map(str, r.variant)) if r.variant is not None else None,
              "seconds": round(r.seconds, 1)}
             for r in report.passages]}, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"rapport écrit : {args.out}")
@@ -194,6 +201,147 @@ def _run_eval(world: Any, args: argparse.Namespace) -> int:
         print(f"ÉCHEC : toutes les extractions ont échoué, la mesure ne vaut rien (T-ING-17) : "
               f"{report.passages[0].error[:200]}", file=sys.stderr)
         return 1
+    return 0
+
+
+def _run_eval_mentions(world: Any, args: argparse.Namespace) -> int:
+    """X-002 : C1 (noms connus, puis mentions par le modèle sur le document entier) et C2 (recoupement)."""
+    import json as _json
+    from worldkit.ingest.batch import batch_documents, extraction_context
+    from worldkit.periphery.llm import load_config, make_adapter
+    from worldkit.periphery.mentions import MentionFinder, evaluate_mentions
+    paths = [p for b in args.batch for p in batch_documents(args.batches, b)]
+    state = world.state()
+    finder = None
+    if not args.no_model:
+        profile = load_config(args.llm_config).profile(args.profile, "mentions")
+        if args.replay:
+            from worldkit.periphery.llm.usage import ReplayAdapter
+            finder = MentionFinder(ReplayAdapter(args.replay), profile, args.prompt_short_forms)
+        else:
+            finder = MentionFinder(make_adapter(profile), profile, args.prompt_short_forms)
+    report = evaluate_mentions(finder, paths, Path(args.oracle), extraction_context(world, state), state, args.repeat,
+                               args.short_forms, args.enunciation, args.signals)
+    summary = report.summary()
+    print(f"couches : {summary['finder']} ; {len(paths)} document(s) ; {summary['gold_mentions']} mention(s) au gold")
+    for k in ("c1", "c2", "gestures", "stability", "usage"):
+        if k in summary:
+            print(f"  {k} : {summary[k]}")
+    for p in report.passages:
+        wrong = [(s, m) for s, m in p.matched if not p.resolved_ok(s, m)]
+        if p.missed or p.extra or wrong:
+            print(f"  -- {p.doc} p{p.index}")
+            for s in p.missed:
+                print(f"     manque    {s} ({p.gold[s]})")
+            for m in p.extra:
+                print(f"     en trop   {m.text} ({m.type}, {m.source}, {m.entity or m.rule})")
+            for s, m in wrong:
+                print(f"     recoupé   {m.text} -> {m.entity or m.rule} {list(m.candidates) or ''} (gold : {p.gold[s]})")
+    for m in report.unplaced:
+        print(f"  introuvable dans le texte : {m.text} ({m.type})")
+    if args.out:
+        Path(args.out).write_text(_json.dumps({"summary": summary, "passages": [
+            {"doc": p.doc, "passage": p.index, "gold": p.gold,
+             "found": [{"text": m.text, "type": m.type, "source": m.source, "confidence": m.confidence,
+                        "reason": m.reason, "entity": m.entity, "rule": m.rule, "candidates": list(m.candidates)}
+                       for m in p.found],
+             "missed": p.missed, "extra": [m.text for m in p.extra]} for p in report.passages]},
+            ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"rapport écrit : {args.out}")
+    return 0
+
+
+def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
+    """X-004 : C5 (faits entre entités confirmées), entités du gold ou de la chaîne C1 puis C2."""
+    import json as _json
+    from worldkit.ingest.batch import batch_documents, extraction_context
+    from worldkit.periphery.facts import (
+        FactFinder, RelationProbe, chain_entities, chain_forms, evaluate_facts, gold_entities, gold_forms,
+    )
+    from worldkit.periphery.llm import load_config, make_adapter
+    from worldkit.periphery.llm.usage import ReplayAdapter
+    from worldkit.periphery.mentions import MentionFinder, document_window, evaluate_mentions
+    paths = [p for b in args.batch for p in batch_documents(args.batches, b)]
+    state = world.state()
+    context = extraction_context(world, state)
+    config = load_config(args.llm_config)
+    windows = [document_window(p) for p in paths]
+    if args.entities == "gold":
+        entities = {w.doc_id: gold_entities(w, Path(args.oracle), context) for w in windows}
+        forms = {w.doc_id: gold_forms(w, Path(args.oracle), entities[w.doc_id]) for w in windows}
+        new_aliases = {}
+    else:
+        profile = config.profile(args.profile, "mentions")
+        adapter = ReplayAdapter(args.mentions_replay) if args.mentions_replay else make_adapter(profile)
+        mentions = evaluate_mentions(MentionFinder(adapter, profile), paths, Path(args.oracle), context, state,
+                                     with_short_forms=args.short_forms, with_enunciation=args.enunciation,
+                                     with_signals=args.signals)
+        if args.checkpoint:
+            from worldkit.ingest.declaration import name_key as _key
+            for p in mentions.passages:  # l'auteur simulé confirme les entités avant les faits (§6.5), d'après le gold
+                matched = {id(m): s for s, m in p.matched}
+                for m in p.found:
+                    gold = p.gold.get(matched.get(id(m), ""), "")
+                    if m.rule == "doubt" and gold and gold in m.candidates:
+                        m.entity = gold
+                    elif m.rule == "doubt" and gold.startswith("new:"):
+                        m.entity = f"new:{_key(m.text)}"
+                    elif m.entity and m.entity.startswith("new:") and not gold.startswith("new:"):
+                        m.entity = None  # entité nouvelle refusée par l'auteur
+        found = {w.doc_id: [m for p in mentions.passages if p.doc == w.doc_id for m in p.found] for w in windows}
+        new_aliases = {m.entity: p.gold[s] for p in mentions.passages for s, m in p.matched
+                       if m.entity and m.entity.startswith("new:") and p.gold[s].startswith("new:")}
+        entities = {d: chain_entities(ms, context) for d, ms in found.items()}
+        forms = {d: chain_forms(ms, entities[d]) for d, ms in found.items()}
+    profile = config.profile(args.profile, "facts")
+    finder = FactFinder(ReplayAdapter(args.replay) if args.replay else make_adapter(profile), profile, args.strict)
+    probe = None
+    if args.probe:
+        probe = RelationProbe(ReplayAdapter(args.probe_replay) if args.probe_replay else make_adapter(profile), profile,
+                              args.probe_relations, args.probe_pairs)
+    critic = None
+    if args.critic:
+        from worldkit.periphery.facts import Critic
+        critic = Critic(ReplayAdapter(args.critic_replay) if args.critic_replay else make_adapter(profile), profile)
+    report = evaluate_facts(finder, windows, entities, Path(args.oracle), context, state, args.entities, probe, forms,
+                            critic, args.enunciation, new_aliases)
+    summary = report.summary()
+    print(f"couche : {summary['finder']} ; entités : {args.entities} "
+          f"({', '.join(f'{d} {n}' for d, n in report.prompts.items())})")
+    for k in ("facts", "questions", "optional", "unplaced", "silent_sentences", "rejected", "enunciation", "critic", "usage",
+              "probe_usage", "critic_usage"):
+        if k in summary:
+            print(f"  {k} : {summary[k]}")
+    for s in report.silent:
+        print(f"  phrase muette p{s.passage} {s.entities} : {s.sentence!r}")
+        for r in s.answer:
+            print(f"     -> {r['subject']} {r['relation']} {r['object']} (« {r['phrase']} »)")
+    for p in report.passages:
+        missing, extra = p.expected - p.found, p.scored - p.expected
+        if missing or extra:
+            print(f"  -- {p.doc} p{p.index}")
+            for k in sorted(missing, key=repr):
+                print(f"     manque  {dict(k)}")
+            for k in sorted(extra, key=repr):
+                print(f"     en trop {dict(k)}" + ("  (support)" if k in p.supports else ""))
+    for f in report.unplaced:
+        print(f"  preuve introuvable : {f.draft} ({f.evidence!r})")
+    for f, reason in report.rejected:
+        print(f"  écarté ({reason}) : {f.draft}")
+    for f, voice in report.withheld:
+        print(f"  retenu ({voice}) : {f.draft}")
+    for f, verdict in report.judged:
+        if verdict.get("verdict") != "supported":
+            print(f"  critique {verdict.get('verdict')} : {f.draft} ({verdict.get('reason')})")
+    if args.out:
+        Path(args.out).write_text(_json.dumps({"summary": summary, "entities": {d: [e.__dict__ for e in es]
+                                                                                  for d, es in entities.items()},
+                                               "passages": [{"doc": p.doc, "passage": p.index,
+                                                             "expected": sorted(map(str, p.expected)),
+                                                             "found": sorted(map(str, p.found))}
+                                                            for p in report.passages]},
+                                              ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"rapport écrit : {args.out}")
     return 0
 
 
@@ -536,7 +684,9 @@ def _run_world(args: argparse.Namespace) -> int:
         if args.command == "ingest":
             return _run_ingest(world, args)
         if args.command == "eval":
-            return _run_eval(world, args)
+            if args.eval_command == "facts":
+                return _run_eval_facts(world, args)
+            return _run_eval_mentions(world, args) if args.eval_command == "mentions" else _run_eval(world, args)
         if args.command == "review":
             return _run_review(world, args)
         if args.command == "edit":
@@ -785,6 +935,54 @@ def build_parser() -> argparse.ArgumentParser:
     evx.add_argument("--repeat", type=int, default=1, help="2 pour mesurer la stabilité (deux appels par passage)")
     evx.add_argument("--out", default=None, help="rapport JSON détaillé")
     evx.add_argument("--no-cache", action="store_true", help="rappeler le modèle même pour un passage déjà extrait")
+
+    evm = ev_cmds.add_parser("mentions", help="C1 et C2 : repérer les entités d'un document, les recouper (X-002)")
+    evm.add_argument("--batches", required=True)
+    evm.add_argument("--oracle", required=True, help="dossier gold/ (mentions par passage)")
+    evm.add_argument("--batch", action="append", required=True, help="lot à mesurer (répétable)")
+    evm.add_argument("--profile", default=None)
+    evm.add_argument("--llm-config", default=None)
+    evm.add_argument("--repeat", type=int, default=1, help="2 pour mesurer la stabilité de C1b")
+    evm.add_argument("--no-model", action="store_true", help="C1a et C2 seuls, sans appel au modèle")
+    evm.add_argument("--replay", default=None, help="dossier de traces : rejoue les réponses, sans appel ni coût")
+    evm.add_argument("--prompt-short-forms", action="store_true",
+                     help="variante A : consigne de C1b sur les formes courtes (prénom seul, fonction)")
+    evm.add_argument("--enunciation", action="store_true",
+                     help="une note de travail de l'auteur ne propose aucune entité nouvelle (C4, X-010)")
+    evm.add_argument("--signals", action="store_true",
+                     help="signaler sans décider : nom connu ressemblant et entité nouvelle peu sûre deviennent des doutes (X-012)")
+    evm.add_argument("--short-forms", action="store_true",
+                     help="variante B : formes courtes des personnes repérées, cherchées sans modèle")
+    evm.add_argument("--out", default=None, help="rapport JSON détaillé")
+
+    evf = ev_cmds.add_parser("facts", help="C5 : faits entre entités confirmées (X-004)")
+    evf.add_argument("--batches", required=True)
+    evf.add_argument("--oracle", required=True, help="dossier gold/")
+    evf.add_argument("--batch", action="append", required=True, help="lot à mesurer (répétable)")
+    evf.add_argument("--profile", default=None)
+    evf.add_argument("--llm-config", default=None)
+    evf.add_argument("--entities", choices=["gold", "chain"], default="gold",
+                     help="entités confirmées : celles du gold, ou celles de C1 puis C2")
+    evf.add_argument("--mentions-replay", default=None, help="chaîne : rejoue les réponses de C1 tracées")
+    evf.add_argument("--short-forms", action="store_true", help="chaîne : formes courtes sans modèle (variante B)")
+    evf.add_argument("--signals", action="store_true", help="chaîne : signaler sans décider (X-012)")
+    evf.add_argument("--checkpoint", action="store_true",
+                     help="chaîne : l'auteur simulé (d'après le gold) confirme les entités avant les faits (§6.5, X-012)")
+    evf.add_argument("--replay", default=None, help="rejoue les réponses de C5 tracées, sans appel ni coût")
+    evf.add_argument("--probe", action="store_true",
+                     help="question ciblée sur les phrases muettes (deux entités confirmées, aucun fait) : E-007")
+    evf.add_argument("--probe-replay", default=None, help="rejoue les réponses tracées de la question ciblée")
+    evf.add_argument("--enunciation", action="store_true",
+                     help="énonciation C4 sans modèle : rumeur → attribution sans fait, note de travail → silence (X-010)")
+    evf.add_argument("--critic", action="store_true",
+                     help="critique C6 : chaque fait qui pose une question jugé contre son passage (X-009)")
+    evf.add_argument("--critic-replay", default=None, help="rejoue les réponses tracées du critique")
+    evf.add_argument("--strict", action="store_true", help="C5, variante stricte : proximité et repères de temps (X-008)")
+    evf.add_argument("--probe-relations", action="store_true",
+                     help="question ciblée : relations connues données comme préférence (X-008)")
+    evf.add_argument("--probe-pairs", action="store_true",
+                     help="question ciblée : signal par paire d'entités non reliées (X-008)")
+    evf.add_argument("--out", default=None, help="rapport JSON détaillé")
 
     review = commands.add_parser("review", help="file de revue des propositions")
     review_cmds = review.add_subparsers(dest="review_command", required=True)

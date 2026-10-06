@@ -1,0 +1,5 @@
+batches:
+  - id: p1
+    target_branch: reference
+    documents: [p1/homographes.md]
+    purpose: "Contre-corpus : homographes de noms connus (brume, chute, veilleurs, loup, morsure, cercle, flamme)."

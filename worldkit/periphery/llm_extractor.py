@@ -132,6 +132,11 @@ class LLMExtractor:
         return int(self.profile.options.get("concurrency", 4))
 
     @property
+    def meter(self) -> Any:
+        """Compteur d'usage de l'adaptateur (None si l'adaptateur n'en a pas)."""
+        return getattr(self.adapter, "meter", None)
+
+    @property
     def version(self) -> str:
         digest = hashlib.sha256((SYSTEM + json.dumps(OUTPUT_SCHEMA, sort_keys=True)).encode()).hexdigest()[:8]
         return f"llm-{PROMPT_VERSION}:{self.profile.signature}:{digest}"

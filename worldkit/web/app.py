@@ -252,6 +252,8 @@ def create_app(db: str | Path) -> FastAPI:
     register_graph(app, db, render, lambda: Page(db), templates)
     from .measures import register as register_measures
     register_measures(app, db, render, lambda: Page(db), templates)
+    from .atelier import register as register_atelier
+    register_atelier(app, db, render, lambda: Page(db), templates)
     from . import help as aide
     aide.install(env)
     aide.register(app, db, render, lambda: Page(db))

@@ -1,0 +1,160 @@
+# Gold dérivé automatiquement (corpus/tools/derive_noisy.py) : ne pas modifier à la main.
+document: notes-baron
+version: 1
+batch: l2-b1
+axes:
+  mode: source
+  nature: diegetic
+  voice: author
+  visibility: unqualified
+passages:
+- index: 1
+  starts_with: Odon de brume c le baron de Br
+  mentions:
+    Odon de brume: odon
+    brume: brume
+    la cute: la-chute
+  changes:
+  - op: set_attribute
+    entity: odon
+    attribute: title
+    value: baron
+    outcome: support
+  - op: add_relation
+    from: odon
+    relation: rules
+    to: brume
+    outcome: support
+  derived_from: Odon de Brume est le baron de Brume
+- index: 2
+  starts_with: Odon c le vassal du roi mervin
+  mentions:
+    Odon: odon
+    roi mervin: mervin
+    hautval: hautval
+  changes:
+  - op: add_relation
+    from: odon
+    relation: vassal_of
+    to: mervin
+    outcome: out_of_schema
+  rules:
+  - R-SCH-06
+  - R-SCH-10
+  derived_from: Odon est le vassal du roi Mervin
+- index: 3
+  starts_with: ds les faits c'est le CdM qui
+  mentions:
+    CdM: new:conseil-marchands
+    brume: brume
+  changes:
+  - op: create_entity
+    entity: new:conseil-marchands
+    type: Faction
+    outcome: enrichment
+  - op: set_attribute
+    entity: new:conseil-marchands
+    attribute: name
+    value: le conseil des marchands
+    outcome: enrichment
+  - op: add_relation
+    from: new:conseil-marchands
+    relation: rules
+    to: brume
+    outcome: anomaly
+    collides_with: odon rules brume (clé (rules, brume)) ; et passage 1 du même document
+    internal_contradiction: true
+  rules:
+  - R-FAI-05
+  - R-PRI-01
+  - T-ING-03
+  - R-ING-02
+  derived_from: Dans les faits, c'est le conseil des marchands
+- index: 4
+  starts_with: odon siege lui-même au CdM don
+  mentions:
+    odon: odon
+    CdM: new:conseil-marchands
+    brume: brume
+  changes:
+  - op: add_relation
+    from: odon
+    relation: member_of
+    to: new:conseil-marchands
+    outcome: enrichment
+    depends_on: création du conseil (passage 3)
+  - op: add_relation
+    from: new:conseil-marchands
+    relation: based_in
+    to: brume
+    outcome: batch_conflict
+    conflicts_with: lieux-de-valmont p2 (based_in hautval)
+  rules:
+  - T-ING-05
+  - T-ING-07
+  - R-PRI-03
+  derived_from: Odon siège lui-même au conseil des marchands
+- index: 5
+  starts_with: En secret, odon c membre du Cd
+  mentions:
+    odon: odon
+    CdC: cercle-des-cendres
+  changes:
+  - op: add_relation
+    from: odon
+    relation: member_of
+    to: cercle-des-cendres
+    outcome: enrichment
+  - op: set_visibility
+    target: odon member_of cercle-des-cendres
+    value: secret
+    outcome: hint_visibility
+    hint: En secret
+  note: Même sans l'indice, le fait est secret par propagation (R-NOT-04). L'indice produit une proposition distincte (T-ING-15).
+  rules:
+  - R-NOT-04
+  - R-DEC-02
+  - T-ING-15
+  derived_from: En secret, Odon est membre du Cercle des Cendres
+- index: 6
+  starts_with: « Le baron c un traitre » murm
+  mentions:
+    Le baron: odon
+  changes: []
+  outcome: attribution
+  note: 'Guillemets = attribution, pas fausseté (R-DEC-03). Locuteur non identifié ; les rumeurs sont hors périmètre : aucun
+    fait attendu.'
+  must_not:
+  - op: set_attribute
+    entity: odon
+    attribute: condition
+    value: traître
+  derived_from: « Le baron est un traître »
+- index: 7
+  starts_with: dps la Chute Odon porte le tit
+  mentions:
+    Odon: odon
+    brume: brume
+  changes:
+  - op: set_attribute
+    entity: odon
+    attribute: title
+    value: régent
+    outcome: anomaly
+    collides_with: odon.title = baron (état) ; et passage 1 du même document
+    internal_contradiction: true
+  rules:
+  - R-ING-02
+  - R-PRI-01
+  derived_from: Depuis la Chute, Odon porte le titre de régent
+derived:
+  from: valmont-v1/b1-notes-baron.v1.yaml
+  level: l2
+  rates:
+    typo: 0.35
+    lower: 0.6
+    accent: 0.8
+    abbrev: 1.0
+    acronym: 1.0
+    punct: 0.8
+  seed: 20261004

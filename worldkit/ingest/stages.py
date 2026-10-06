@@ -241,8 +241,9 @@ def e1_declare(run: Run, art: PipelineArt, paths: list[str | Path]) -> PipelineA
     head = run.head(art)
     docs = []
     for p in paths:
-        text = Path(p).read_text(encoding="utf-8")
-        doc = parse_document(text, str(p))
+        # un fichier, ou une source déjà en mémoire (atelier, I8 : `path` et `text`)
+        text = p.text if hasattr(p, "text") else Path(p).read_text(encoding="utf-8")
+        doc = parse_document(text, p.path if hasattr(p, "path") else str(p))
         docs.append(DocumentArt(doc_id=doc.doc_id, path=doc.path, fingerprint=doc.fingerprint, title=doc.title,
                                 axes=asdict(doc.axes), text=text,
                                 obsolete=bool(head.obsolete_documents.get(doc.doc_id))))

@@ -358,6 +358,32 @@ worldkit --db valmont.db call eval.run --param "batch=[b4]" --param profile=sonn
 
 À l'écran : **Mesures** — historique, détail par opération et par passage (manqués, en trop, pièges), et comparaison de deux mesures jusqu'au passage, pour choisir entre deux modèles.
 
+Les changements **facultatifs** du gold (`optional: true`) ne comptent ni comme manqués ni comme en trop : la mesure les décompte à part (« facultatifs trouvés 1/4 »).
+
+Une mesure avec un modèle rend aussi son **usage** : appels, tokens en entrée et en sortie, coût (profils `api-haiku` et `api-sonnet`, qui portent un prix), et l'écart au **budget d'entrée** qui simule un petit modèle (4 000 tokens par appel). Un appel qui le dépasse n'est pas refusé : il est signalé, et compté (`over_budget`, `excess_tokens`). Pour changer le budget le temps d'une session :
+
+```powershell sans-test
+$env:WORLDKIT_LLM_INPUT_BUDGET = "8000"   # « off » : aucun budget
+```
+
+Les **couches** de l'ingestion se mesurent aussi une à une. `eval mentions` repère les entités de chaque document entier (C1), puis les recoupe avec le monde (C2), et compare aux mentions du gold. Sans modèle, on voit ce que les noms déjà connus suffisent à trouver :
+
+```powershell
+worldkit --db valmont.db eval mentions --batches corpus/valmont-v1/valmont/docs/batches.yaml --oracle corpus/valmont-v1/valmont/gold --batch b1 --no-model
+```
+
+```text sortie
+couches : known-only ; 2 document(s) ; 28 mention(s) au gold
+```
+
+Avec `--profile api-haiku` (sans `--no-model`), le modèle repère en plus les entités nouvelles : deux appels pour b1, un par document. Si les appels ont été tracés, `--replay llm-log` relit leurs réponses au lieu de rappeler le modèle : on corrige une couche déterministe et on remesure sans rien payer. `eval facts` mesure de même la couche suivante, les faits entre entités confirmées, avec les entités du gold (`--entities gold`) ou celles que les couches précédentes ont trouvées (`--entities chain`).
+
+Pour voir exactement ce qui part vers le modèle, désignez un dossier : chaque appel y est écrit en Markdown (prompt système, message, schéma de sortie envoyé, réglages, réponse brute), un fichier par appel, nommé d'après le passage. Le dossier `llm-log/` est ignoré par git.
+
+```powershell sans-test
+$env:WORLDKIT_LLM_LOG_DIR = "llm-log"
+```
+
 ## 11. Vérifier après un changement de code
 
 Les **parcours d'acceptation** W00 à W17 du corpus rejouent des scénarios d'usage complets, chacun dans un monde neuf, avec leurs prérequis :
@@ -380,7 +406,80 @@ Chaque attendu est `passed`, `failed` (valeur obtenue et attendue montrées) ou 
 .venv\Scripts\python -m pytest -q
 ```
 
-## 12. Pour aller plus loin
+## 12. Annoter une source dans l'atelier
+
+L'**atelier d'ingestion** est l'autre voie pour ingérer un texte : au lieu de tout confier à l'extracteur, vous voyez les entités qu'une **couche** repère sur le texte, vous les gardez, les corrigez, les retirez ou en ajoutez, puis vous **proposez** le résultat, qui part dans la file de revue comme un lot. Chaque geste est une **annotation**, enregistrée en ajout seul : rien ne s'efface, une correction remplace l'annotation précédente.
+
+Une source se colle à l'écran, ou se passe en YAML à la ligne de commande :
+
+```yaml fichier=echoppe.yaml
+text: |
+  # L'échoppe de Bertille
+
+  Bertille tient une échoppe de cordes sur le port de Brume.
+
+  Le régent Odon lui achète ses cordages ; Bertille refuse de le servir à crédit.
+```
+
+```powershell
+worldkit --db valmont.db call atelier.import echoppe.yaml
+worldkit --db valmont.db call atelier.run --param doc_id=l-echoppe-de-bertille
+```
+
+```text sortie
+atelier.import [write] → world : ok
+doc_id: l-echoppe-de-bertille
+passages: 2
+atelier.run [write] → world : ok
+proposed : 2
+new : 0
+calls: 0
+```
+
+La source a pris son identifiant du titre ; elle a deux passages. Sans modèle, la couche « mentions » ne trouve que les **noms connus** : « Brume », et « Le régent Odon » (depuis la section 6, le titre « régent » n'est porté que par Odon). Bertille, inconnue, lui échappe. Avec le modèle (`--param model=true`), elle chercherait aussi les noms nouveaux ; l'appel est d'abord **estimé**, puis lancé seulement avec `--param confirm=true` :
+
+```powershell
+worldkit --db valmont.db call atelier.run --param doc_id=l-echoppe-de-bertille --param model=true
+```
+
+```text sortie
+atelier.run [write] → world : pending
+estimated_calls : 1
+```
+
+On ajoute Bertille à la main : à l'écran, en sélectionnant le mot dans le texte ; ici, en donnant le passage et la position (début et fin, comptés en caractères dans le passage). Par défaut, un geste vaut pour **toute la source** (portée `source`) : les deux occurrences de « Bertille » sont annotées.
+
+```powershell
+worldkit --db valmont.db call atelier.annotate --param doc_id=l-echoppe-de-bertille --param action=add --param passage=1 --param start=0 --param end=8 --param entity=new --param type=Character
+```
+
+```text sortie
+atelier.annotate [write] → world : ok
+written : 2
+```
+
+<!-- écran /atelier/l-echoppe-de-bertille : "Bertille" ; "Proposer" ; "décidée(s)" -->
+
+À l'écran : **Atelier**, la source `l-echoppe-de-bertille`. Les mentions sont surlignées : bleu pour une entité connue, vert pour une nouvelle, jaune en pointillé pour un **doute** (à vous de choisir l'entité), grisé barré pour une mention retirée ou ignorée ; un trait plein marque ce que vous avez décidé. Un clic sur une mention ouvre ses gestes : garder, retirer, ignorer (« ce n'est pas une entité »), corriger (autre entité, nouvelle entité, autre type), avec une portée : cette occurrence, toute la source, ou **retenir pour le monde**. Retenu pour le monde, un rattachement devient un alias proposé ; un geste négatif (« vallée n'est pas une entité ») devient une **règle d'atelier**, appliquée aux sources suivantes. Relancer la couche ne touche jamais à ce que vous avez décidé.
+
+Enfin, **Proposer** : les entités nouvelles que vous avez confirmées et les alias retenus partent en un lot, par le circuit habituel (étapes E1 à E9+), jusqu'à la revue. Ce qui n'a pas été décidé ne part pas.
+
+```powershell
+worldkit --db valmont.db call atelier.propose --param doc_id=l-echoppe-de-bertille
+worldkit --db valmont.db call review.list
+```
+
+```text sortie
+atelier.propose [write] → world : ok
+new_entities:
+- bertille
++ entité bertille (Character)
+bertille.name = 'Bertille'
+```
+
+L'atelier écrit dans le monde de travail (son magasin d'annotations, hors journal) : c'est votre travail d'auteur, pas un essai. Le monde lui-même ne change qu'à la revue, quand vous acceptez la proposition.
+
+## 13. Pour aller plus loin
 
 - `worldkit explain <code ou mot>` et l'écran **Aide** : toute règle, décision, étape, opération, statut ou code de signalement.
 - `worldkit --help`, `worldkit ops` : toutes les commandes et opérations.

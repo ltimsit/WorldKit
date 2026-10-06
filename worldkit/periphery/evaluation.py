@@ -10,7 +10,11 @@ des formes réduites (`sheet_values`) contre l'état de base, comme le fait le l
 
 Indicateurs : précision et rappel, globaux et sur les seuls changements qui posent une question
 (les supports, qui répètent l'état, n'en posent aucune) ; par opération ; pièges (`must_not`) ;
-attributions ; affirmations ; stabilité (deux extractions d'un même passage).
+attributions ; affirmations ; stabilité (deux extractions d'un même passage) ; usage du modèle (appels,
+tokens, coût, écart au budget d'entrée), par passage et au total, quand l'extracteur a un compteur.
+
+Les changements facultatifs du gold (`optional: true`) sont neutres : absents, ils ne comptent pas comme
+manqués ; trouvés, ni comme vrais positifs ni comme en trop. Ils sont décomptés à part (`optional`).
 Mesure indicative, jamais bloquante : elle n'entre pas dans `pytest`, un vrai modèle coûte et varie.
 """
 
@@ -18,6 +22,7 @@ from __future__ import annotations
 
 import time
 from collections import Counter
+from contextlib import nullcontext
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -28,6 +33,7 @@ import yaml
 from worldkit.ingest.declaration import name_key, normalize, read_document
 
 from .extraction import Extraction, ExtractionContext, Extractor, KnownEntity
+from .llm.usage import CallUsage, input_budget, summarize
 
 NEW_PREFIXES = ("new:", "pending:")
 _KEY_FIELDS = ("op", "scope", "entity", "type", "attribute", "value", "from", "relation", "to", "target",
@@ -111,9 +117,21 @@ class PassageResult:
     claimed_matched: int = 0
     claimed_expected: int = 0
     stability: float | None = None
+    variant: set[tuple[Any, ...]] | None = None  # changements de la deuxième extraction (stabilité)
     error: str | None = None
     seconds: float = 0.0
     supports: set[tuple[Any, ...]] = field(default_factory=set)  # attendus ou trouvés qui répètent l'état
+    optional: set[tuple[Any, ...]] = field(default_factory=set)  # facultatifs du gold, hors `expected`, neutres
+    usage: dict[str, Any] | None = None  # appels au modèle pour ce passage (None : extracteur sans compteur)
+
+    @property
+    def scored(self) -> set[tuple[Any, ...]]:
+        """Changements trouvés qui comptent : les facultatifs du gold sont neutres."""
+        return self.found - self.optional
+
+    @property
+    def extra(self) -> set[tuple[Any, ...]]:
+        return self.scored - self.expected
 
     @property
     def expected_questions(self) -> set[tuple[Any, ...]]:
@@ -121,7 +139,7 @@ class PassageResult:
 
     @property
     def found_questions(self) -> set[tuple[Any, ...]]:
-        return self.found - self.supports
+        return self.scored - self.supports
 
 
 def _scores(pairs: list[tuple[set[Any], set[Any]]]) -> dict[str, Any]:
@@ -137,6 +155,7 @@ class Report:
     extractor: str
     passages: list[PassageResult]
     elapsed: float | None = None  # temps écoulé ; les passages sont extraits en parallèle, leurs durées se recouvrent
+    calls: list[CallUsage] | None = None  # appels au modèle pendant la mesure (None : extracteur sans compteur)
 
     @property
     def all_failed(self) -> bool:
@@ -144,16 +163,16 @@ class Report:
         return bool(self.passages) and all(p.error for p in self.passages)
 
     def per_op(self) -> dict[str, dict[str, Any]]:
-        ops = sorted({dict(k)["op"] for p in self.passages for k in p.expected | p.found})
+        ops = sorted({dict(k)["op"] for p in self.passages for k in p.expected | p.scored})
         return {op: _scores([({k for k in p.expected if dict(k)["op"] == op},
-                              {k for k in p.found if dict(k)["op"] == op}) for p in self.passages]) for op in ops}
+                              {k for k in p.scored if dict(k)["op"] == op}) for p in self.passages]) for op in ops}
 
     def questions(self) -> dict[str, Any]:
         """Précision et rappel sur les seuls changements qui posent une question (supports écartés)."""
         return _scores([(p.expected_questions, p.found_questions) for p in self.passages])
 
     def summary(self) -> dict[str, Any]:
-        overall = _scores([(p.expected, p.found) for p in self.passages])
+        overall = _scores([(p.expected, p.scored) for p in self.passages])
         stabilities = [p.stability for p in self.passages if p.stability is not None]
         return {
             "extractor": self.extractor,
@@ -162,7 +181,9 @@ class Report:
             "precision": overall["precision"],
             "recall": overall["recall"],
             "questions": self.questions(),
-            "extra_supports": sum(len((p.found - p.expected) & p.supports) for p in self.passages),
+            "extra_supports": sum(len(p.extra & p.supports) for p in self.passages),
+            "optional": f"{sum(len(p.found & p.optional) for p in self.passages)}"
+                        f"/{sum(len(p.optional) for p in self.passages)}",
             "traps_fallen": sum(len(p.traps) for p in self.passages),
             "attribution_errors": sum(1 for p in self.passages if not p.attribution_ok),
             "claims": f"{sum(p.claims_found for p in self.passages)}/{sum(p.claims_expected for p in self.passages)}",
@@ -171,6 +192,7 @@ class Report:
             "stability": round(sum(stabilities) / len(stabilities), 3) if stabilities else None,
             "seconds": round(self.elapsed if self.elapsed is not None else sum(p.seconds for p in self.passages), 1),
             "per_op": self.per_op(),
+            **({"usage": summarize(self.calls, input_budget())} if self.calls is not None else {}),
         }
 
 
@@ -209,6 +231,8 @@ def evaluate(extractor: Extractor, oracle: Extractor, gold_dir: Path, documents:
     dans l'ordre. Noms des entités nouvelles et créations répétées se lisent à l'échelle du lot.
     """
     start = time.perf_counter()
+    meter = meter_of(extractor)
+    first_call = len(meter.calls) if meter is not None else 0
     groups = [documents] if documents and not isinstance(documents[0], (list, tuple)) else documents
     gold = _gold_index(Path(gold_dir))
     batches = [_prepare(oracle, gold, list(group), context) for group in groups]
@@ -217,7 +241,7 @@ def evaluate(extractor: Extractor, oracle: Extractor, gold_dir: Path, documents:
     pending: list[KnownEntity] = []
     for batch in batches:
         ctx = replace(context, entities=context.entities + tuple(pending))
-        results += _measure(extractor, batch, ctx, repeat, state, gold_names)
+        results += _measure(extractor, batch, ctx, repeat, state, gold_names, meter)
         for *_, ex in batch.items:  # les créations du lot deviennent « en attente » pour les suivants
             for d in ex.drafts:
                 e = d.get("entity")
@@ -225,7 +249,17 @@ def evaluate(extractor: Extractor, oracle: Extractor, gold_dir: Path, documents:
                     label = e.split(":", 1)[1]
                     if not any(k.id == label for k in pending):
                         pending.append(KnownEntity(label, str(d.get("type")), (gold_names.get(label, label),)))
-    return Report(getattr(extractor, "version", type(extractor).__name__), results, time.perf_counter() - start)
+    calls = meter.calls[first_call:] if meter is not None else None
+    if calls is not None:
+        budget = input_budget()
+        for r in results:
+            r.usage = summarize([c for c in calls if c.label == f"{r.doc} p{r.index}"], budget)
+    return Report(getattr(extractor, "version", type(extractor).__name__), results, time.perf_counter() - start, calls)
+
+
+def meter_of(extractor: Any) -> Any:
+    """Compteur d'usage de l'extracteur, ou de celui qu'il enveloppe (cache) ; None pour l'oracle."""
+    return getattr(extractor, "meter", None) or getattr(getattr(extractor, "inner", None), "meter", None)
 
 
 def _expand(drafts: tuple[dict[str, Any], ...], state: Any, sheets: dict[tuple[str, str], str]) -> list[dict[str, Any]]:
@@ -243,7 +277,7 @@ def _expand(drafts: tuple[dict[str, Any], ...], state: Any, sheets: dict[tuple[s
 
 
 def _measure(extractor: Extractor, batch: _Batch, context: ExtractionContext, repeat: int, state: Any,
-             gold_names: dict[str, str]) -> list[PassageResult]:
+             gold_names: dict[str, str], meter: Any = None) -> list[PassageResult]:
     def one(item: tuple[Any, Any, dict[str, Any], Extraction]) -> tuple[list[Extraction], str | None, float]:
         doc, p, _, _ = item
         speakers = p.speakers()
@@ -252,12 +286,13 @@ def _measure(extractor: Extractor, batch: _Batch, context: ExtractionContext, re
         runs: list[Extraction] = []
         error = None
         start = time.perf_counter()
-        for attempt in range(max(1, repeat)):
-            try:
-                target = extractor if attempt == 0 else getattr(extractor, "inner", extractor)  # stabilité hors cache
-                runs.append(target.extract(doc.doc_id, p.text, ctx))
-            except Exception as e:  # une erreur d'extraction compte, sans arrêter la mesure
-                error = str(e)
+        with meter.label(f"{doc.doc_id} p{p.index}") if meter is not None else nullcontext():
+            for attempt in range(max(1, repeat)):
+                try:
+                    target = extractor if attempt == 0 else getattr(extractor, "inner", extractor)  # stabilité hors cache
+                    runs.append(target.extract(doc.doc_id, p.text, ctx))
+                except Exception as e:  # une erreur d'extraction compte, sans arrêter la mesure
+                    error = str(e)
         return runs, error, time.perf_counter() - start
 
     workers = max(1, int(getattr(extractor, "concurrency", 1)))
@@ -280,8 +315,9 @@ def _measure(extractor: Extractor, batch: _Batch, context: ExtractionContext, re
             if repeated:
                 created.add(k)
             found.add(k)
-        r = PassageResult(doc.doc_id, p.index, {key(d, gold_names) for d in expected.drafts}, found,
-                          error=error, seconds=seconds)
+        optional = {key(d, gold_names) for i, d in enumerate(expected.drafts) if i in expected.optional}
+        r = PassageResult(doc.doc_id, p.index, {key(d, gold_names) for d in expected.drafts} - optional, found,
+                          error=error, seconds=seconds, optional=optional)
         r.supports = {k for k in r.expected | r.found if is_support(k, state)}
         r.traps = [str(t) for t in g.get("must_not") or [] if any(matches(t, k, names) for k in found)]
         r.attribution_ok = ("attribution" in first.flags) == ("attribution" in expected.flags)
@@ -291,6 +327,7 @@ def _measure(extractor: Extractor, batch: _Batch, context: ExtractionContext, re
         r.claimed_expected, r.claimed_matched = len(expected_claimed), len(expected_claimed & found_claimed)
         if len(runs) > 1:
             other = {key(d, names) for d in runs[1].drafts}
+            r.variant = other
             union = found | other
             r.stability = len(found & other) / len(union) if union else 1.0
         results.append(r)

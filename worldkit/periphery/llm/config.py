@@ -5,7 +5,7 @@ Fichier YAML (par défaut `worldkit-llm.yaml` dans le dossier courant), par exem
     profiles:
       haiku:     { adapter: claude-code, model: claude-haiku-4-5 }
       sonnet:    { adapter: claude-code, model: claude-sonnet-5 }
-      api-haiku: { adapter: anthropic-api, model: claude-haiku-4-5 }
+      api-haiku: { adapter: anthropic-api, model: claude-haiku-4-5, temperature: 0, price: { input: 1.0, output: 5.0 } }
       local:     { adapter: ollama, model: qwen2.5:7b }
     tasks:
       extraction: haiku
@@ -24,14 +24,15 @@ import yaml
 from .adapters import ADAPTERS, LLMError, Profile
 
 DEFAULT_PATH = "worldkit-llm.yaml"
-TASKS = ("extraction",)
+TASKS = ("extraction", "mentions", "facts")
 
 DEFAULT: dict[str, Any] = {
     "profiles": {
         "haiku": {"adapter": "claude-code", "model": "claude-haiku-4-5"},
         "sonnet": {"adapter": "claude-code", "model": "claude-sonnet-5"},
-        "api-haiku": {"adapter": "anthropic-api", "model": "claude-haiku-4-5"},
-        "api-sonnet": {"adapter": "anthropic-api", "model": "claude-sonnet-5"},
+        "api-haiku": {"adapter": "anthropic-api", "model": "claude-haiku-4-5", "temperature": 0,
+                      "price": {"input": 1.0, "output": 5.0}},
+        "api-sonnet": {"adapter": "anthropic-api", "model": "claude-sonnet-5", "price": {"input": 2.0, "output": 10.0}},
         "local": {"adapter": "ollama", "model": "qwen2.5:7b"},
     },
     "tasks": {"extraction": "haiku"},
@@ -45,7 +46,7 @@ class LLMConfig:
     max_calls_per_run: int = 30  # plafond d'appels au modèle par exécution (I-LLM-01)
 
     def profile(self, name: str | None = None, task: str = "extraction") -> Profile:
-        name = name or self.tasks.get(task)
+        name = name or self.tasks.get(task) or self.tasks.get("extraction")  # une tâche sans profil : celui de l'extraction
         if name is None:
             raise LLMError(f"aucun profil pour la tâche « {task} » : préciser --profile ou tasks.{task}")
         if name not in self.profiles:

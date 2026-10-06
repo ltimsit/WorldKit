@@ -192,7 +192,8 @@ def test_ollama_adapter_against_a_fake_server():
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
             received.update(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
-            body = json.dumps({"message": {"content": '{"ok": true}'}}).encode()
+            body = json.dumps({"message": {"content": '{"ok": true}'}, "prompt_eval_count": 812,
+                               "eval_count": 40}).encode()
             self.send_response(200)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -207,6 +208,8 @@ def test_ollama_adapter_against_a_fake_server():
         adapter = OllamaAdapter("qwen2.5:7b", base_url=f"http://127.0.0.1:{server.server_port}")
         assert adapter.complete("s", "p", {"type": "object"}) == {"ok": True}
         assert received["format"] == {"type": "object"} and received["messages"][0]["role"] == "system"
+        [call] = adapter.meter.calls
+        assert (call.input_tokens, call.output_tokens, call.cost) == (812, 40, 0.0)
     finally:
         server.shutdown()
 
@@ -214,6 +217,125 @@ def test_ollama_adapter_against_a_fake_server():
 def test_ollama_unreachable_is_an_llm_error():
     with pytest.raises(LLMError):
         OllamaAdapter("m", base_url="http://127.0.0.1:9", timeout=2).complete("s", "p", {})
+
+
+# --- Usage des appels et budget d'entrée (T-LLM-01 ; chantier ingestion §8.2) ---
+
+
+def _api_response(input_tokens=1000, read=3000, write=0, output=200):
+    usage = SimpleNamespace(input_tokens=input_tokens, cache_read_input_tokens=read,
+                            cache_creation_input_tokens=write, output_tokens=output)
+    return SimpleNamespace(stop_reason="end_turn", usage=usage,
+                           content=[SimpleNamespace(type="text", text='{"ok": true}')])
+
+
+def test_anthropic_api_adapter_records_usage_and_cost():
+    adapter = AnthropicApiAdapter("claude-haiku-4-5", price={"input": 1.0, "output": 5.0},
+                                  client=SimpleNamespace(messages=SimpleNamespace(create=lambda **_: _api_response())))
+    adapter.complete("s", "p", {})
+    [call] = adapter.meter.calls
+    assert (call.input_tokens, call.cache_read_tokens, call.output_tokens) == (4000, 3000, 200)  # tout le prompt
+    assert call.cost == pytest.approx((1000 * 1.0 + 3000 * 0.1 + 200 * 5.0) / 1e6)  # lecture du cache à 0,1
+
+
+def test_temperature_is_sent_only_when_the_profile_gives_it():
+    seen = []
+    client = SimpleNamespace(messages=SimpleNamespace(create=lambda **kw: seen.append(kw) or _api_response()))
+    AnthropicApiAdapter("claude-sonnet-5", client=client).complete("s", "p", {})  # Sonnet 5 refuse temperature
+    AnthropicApiAdapter("claude-haiku-4-5", client=client, temperature=0.0).complete("s", "p", {})
+    assert "extra_body" not in seen[0] and seen[1]["extra_body"] == {"temperature": 0.0}  # le SDK 1.x n'a plus ce paramètre
+    profile = load_config(None).profile("api-haiku")
+    adapter = adapters.make_adapter(profile)
+    assert adapter.temperature == 0.0 and adapter.price == {"input": 1.0, "output": 5.0}
+    assert profile.signature.endswith(":t0")  # l'échantillonnage entre dans la version de l'extracteur (cache)
+
+
+def test_api_schema_stays_under_the_union_limit_and_restores_nulls():
+    """L'API refuse plus de 16 champs de type union ; le schéma de l'extracteur en a 27 (chaîne ou null)."""
+    from worldkit.periphery.llm.adapters import api_schema, api_value
+    sent = json.dumps(api_schema(OUTPUT_SCHEMA))
+    assert sent.count('"anyOf"') <= 16 and sent.count('"anyOf"') < json.dumps(OUTPUT_SCHEMA).count('"anyOf"')
+    raw = {"changes": [{"op": "set_attribute", "entity": "odon", "type": "", "value": "baron", "values": None}],
+           "claims": [{"text": "t", "claimed": {"op": "add_relation", "from": "odon", "entity": ""}}], "attribution": False}
+    out = api_value(raw, OUTPUT_SCHEMA)
+    assert out["changes"][0]["type"] is None and out["changes"][0]["value"] == "baron"
+    assert out["claims"][0]["claimed"]["entity"] is None and out["claims"][0]["text"] == "t"
+
+
+def test_calls_are_traced_exactly_as_sent_when_asked(tmp_path, monkeypatch):
+    """WORLDKIT_LLM_LOG_DIR : chaque appel écrit tel qu'il part (schéma réécrit pour l'API compris) et sa réponse."""
+    monkeypatch.setenv("WORLDKIT_LLM_LOG_DIR", str(tmp_path / "log"))
+    adapter = AnthropicApiAdapter("claude-haiku-4-5", temperature=0.0,
+                                  client=SimpleNamespace(messages=SimpleNamespace(create=lambda **_: _api_response())))
+    with adapter.meter.label("notes-baron p1"):
+        adapter.complete("système exact", "message exact", OUTPUT_SCHEMA)
+    [trace] = (tmp_path / "log").iterdir()
+    text = trace.read_text(encoding="utf-8")
+    assert "notes-baron-p1" in trace.name and "système exact" in text and "message exact" in text
+    assert '"temperature": 0.0' in text and '"anyOf"' in text and '{"ok": true}' in text
+    monkeypatch.delenv("WORLDKIT_LLM_LOG_DIR")
+    adapter.complete("s", "p", {})
+    assert len(list((tmp_path / "log").iterdir())) == 1  # sans la variable, rien n'est écrit
+
+
+def test_haiku_refuses_effort_before_any_call():
+    def create(**_):
+        raise AssertionError("aucun appel ne doit partir")
+    adapter = AnthropicApiAdapter("claude-haiku-4-5", "low", client=SimpleNamespace(messages=SimpleNamespace(create=create)))
+    with pytest.raises(LLMError, match="effort"):
+        adapter.complete("s", "p", {})
+
+
+def test_claude_code_adapter_records_usage(tmp_path):
+    fake = tmp_path / "fake_claude.py"
+    fake.write_text("import json\nprint(json.dumps({'is_error': False, 'structured_output': {'ok': True}, "
+                    "'total_cost_usd': 0.0042, 'usage': {'input_tokens': 9, 'cache_read_input_tokens': 4880, "
+                    "'cache_creation_input_tokens': 0, 'output_tokens': 372}}))\n", encoding="utf-8")
+    adapter = ClaudeCodeAdapter("m", command=[sys.executable, str(fake)])
+    adapter.complete("s", "p", {})
+    [call] = adapter.meter.calls
+    assert (call.input_tokens, call.output_tokens, call.cost) == (4889, 372, 0.0042)
+
+
+def test_input_budget_defaults_to_4000_and_is_set_by_environment(monkeypatch):
+    from worldkit.periphery.llm import input_budget
+    monkeypatch.delenv("WORLDKIT_LLM_INPUT_BUDGET", raising=False)
+    assert input_budget() == 4000
+    monkeypatch.setenv("WORLDKIT_LLM_INPUT_BUDGET", "8000")
+    assert input_budget() == 8000
+    monkeypatch.setenv("WORLDKIT_LLM_INPUT_BUDGET", "off")
+    assert input_budget() is None
+
+
+class MeteredAdapter(FakeAdapter):
+    """Comme FakeAdapter, et note un appel dont l'entrée vaut `tokens`."""
+
+    def __init__(self, answers, tokens):
+        super().__init__(answers)
+        from worldkit.periphery.llm import UsageMeter
+        self.meter, self.tokens = UsageMeter(), tokens
+
+    def complete(self, system, prompt, schema):
+        from worldkit.periphery.llm import CallUsage
+        self.meter.record(CallUsage("fake", self.tokens, 50, cost=0.001))
+        return super().complete(system, prompt, schema)
+
+
+def test_measure_reports_usage_and_budget_excess_per_passage(monkeypatch, caplog):
+    """Le dépassement du budget d'entrée n'est pas refusé : signalé une fois, et mesuré (chantier §8.2)."""
+    monkeypatch.setenv("WORLDKIT_LLM_INPUT_BUDGET", "4000")
+    world = base_world()
+    with caplog.at_level("WARNING", logger="worldkit.llm"):
+        report = evaluate(LLMExtractor(MeteredAdapter(NOTES, 4889), PROFILE), OracleExtractor(VALMONT / "gold"),
+                          VALMONT / "gold", B1, extraction_context(world, world.state()))
+    usage, n = report.summary()["usage"], len(report.passages)
+    assert (usage["calls"], usage["over_budget"], usage["max_excess"]) == (n, n, 889)
+    assert usage["excess_tokens"] == 889 * n and usage["cost"] == pytest.approx(0.001 * n)
+    assert all(r.usage["calls"] == 1 for r in report.passages)  # chaque appel rattaché à son passage
+    assert sum("budget d'entrée" in m for m in caplog.messages) == 1
+    oracle = OracleExtractor(VALMONT / "gold")
+    assert "usage" not in evaluate(oracle, oracle, VALMONT / "gold", B1,
+                                   extraction_context(world, world.state())).summary()
 
 
 # --- Extracteur LLM ---
@@ -315,6 +437,40 @@ def test_measure_counts_misses_extras_and_traps():
     assert summary["traps_fallen"] == 1 and 0 < summary["recall"] < 1
     lieux_p4 = next(r for r in report.passages if r.doc == "lieux-de-valmont" and r.index == 4)
     assert lieux_p4.traps and not (lieux_p4.found & lieux_p4.expected)
+
+
+def test_optional_gold_changes_are_neutral_T_ING_19():
+    """Facultatifs du gold : ni manqués quand ils manquent, ni en trop quand ils sont trouvés (chantier §9)."""
+    world = base_world()
+    taverne = [change("create_entity", entity="new:heron", type="Place"),
+               change("set_attribute", entity="new:heron", attribute="name", value="la taverne du Héron"),
+               change("add_relation", from_="new:heron", relation="located_in", to="brume")]
+    category = [change("set_attribute", entity="new:heron", attribute="category", value="taverne")]
+    passages = {}
+    for answer in (taverne, taverne + category):
+        report = evaluate(LLMExtractor(FakeAdapter({"La taverne du Héron": {
+            "changes": answer, "claims": [], "attribution": False}}), PROFILE),
+            OracleExtractor(VALMONT / "gold"), VALMONT / "gold", B1, extraction_context(world, world.state()))
+        passages[len(answer)] = next(r for r in report.passages if r.doc == "lieux-de-valmont" and r.index == 3)
+    without, with_category = passages[3], passages[4]
+    assert len(without.optional) == 4 and without.expected <= without.found and not without.extra
+    assert not with_category.extra and len(with_category.found & with_category.optional) == 1
+    assert report.summary()["optional"] == "1/4"
+
+
+def test_stability_keeps_what_the_second_extraction_found():
+    """Une stabilité inférieure à 1 ne suffit pas : la mesure garde la variante pour la lire (chantier §9)."""
+    world = base_world()
+
+    class Alternating(FakeAdapter):
+        def complete(self, system, prompt, schema):
+            answer = super().complete(system, prompt, schema)
+            seen = sum(1 for _, p in self.calls if p == prompt)  # deuxième extraction du même passage
+            return {**answer, "changes": []} if "Odon de Brume est le baron" in prompt and seen > 1 else answer
+    report = evaluate(LLMExtractor(Alternating(NOTES), PROFILE), OracleExtractor(VALMONT / "gold"), VALMONT / "gold",
+                      B1, extraction_context(world, world.state()), repeat=2)
+    p1 = next(r for r in report.passages if r.doc == "notes-baron" and r.index == 1)
+    assert p1.found and p1.variant == set() and p1.stability == 0.0
 
 
 def test_batch_merges_new_entities_by_type_and_name_T_ING_07():

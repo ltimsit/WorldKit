@@ -1,0 +1,23 @@
+# Gold de Corbelle (voir ../../README.md et l'en-tête de c1-brouillon-corbelle.yaml).
+document: persos
+version: 1
+batch: c1
+axes: { mode: source, nature: diegetic, voice: author, visibility: unqualified }
+
+passages:
+  - index: 1
+    starts_with: "- Jehan Marcastel : bourgmèstre"
+    test_axes: [AX-T1, AX-T2, AX-S1, AX-S2, AX-S5, AX-R1, AX-R3, AX-D2, AX-E1, AX-C3]
+    mentions: { "Jehan Marcastel": jehan-marcastel, "Clémence": "new:clemence", "Ysolde": ysolde-marcastel,
+                "la Rouquine": ysolde-marcastel, "Jehan L.": jehan-leblond, "Bertrand Ostrell": "new:bertrand-ostrel",
+                "GdB": bateliers }
+    changes:
+      - { op: set_attribute, entity: jehan-marcastel, attribute: title, value: "bourgmestre" }
+      - { op: create_entity, entity: "new:clemence", type: Character }
+      - { op: set_attribute, entity: "new:clemence", attribute: name, value: "Clémence" }
+      - { op: add_relation, from: jehan-marcastel, relation: spouse_of, to: "new:clemence" }
+      - { op: set_attribute, entity: ysolde-marcastel, attribute: title, value: "apothicaire" }
+      - { op: add_value, entity: ysolde-marcastel, attribute: aliases, value: "la Rouquine" }
+      - { op: add_relation, from: "new:bertrand-ostrel", relation: member_of, to: bateliers }
+      - { op: set_attribute, entity: jehan-leblond, attribute: title, value: "batelier", optional: true }
+    note: "Pièges, lus dans la mesure des mentions (fausses créations) : « Bertrand Ostrell » est une faute sur une entité nouvelle d'un autre document (AX-S1, AX-C3), à rattacher à Bertrand Ostrel ; « Jehan L. » abrège Jehan Leblond. « bourgmèstre » : faute (AX-S2), valeur juste « bourgmestre ». « ~45 ans » : aucun attribut. « (à créer) » : note de travail dans la ligne. « passeur → batelier » : changement d'état, facultatif."
