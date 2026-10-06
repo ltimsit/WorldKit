@@ -1,6 +1,6 @@
 # X-015 — Critique v3 : fait plus faible impliqué, nom commun pluriel pour une faction
 
-- **Statut** : en cours : mesure sur données non vues, critère fixé d'avance (ci-dessous)
+- **Statut** : conclue, **non adoptée** : sur données non vues, la v3 met de côté deux faits justes que la v2 gardait (critère fixé d'avance non tenu)
 - **Hypothèse** : deux règles de plus au critique suppriment les faux rejets d'E-013 sans relâcher les motifs qui écartent les inférences (E-010, E-004).
 - **Couches et modèles** : C5 et question ciblée (configuration adoptée d'X-008) **rejouées** depuis les traces d'X-013 (Corbelle) et d'X-014 (Valmont b1) ; énonciation ; critique v3 seul en direct. Claude Haiku 4.5 par l'API (`api-haiku`, température 0, substitut).
 - **Écarts liés** : E-013 (cible), E-010, E-004 (à ne pas rouvrir).
@@ -54,3 +54,30 @@ La v3 a été écrite **pour** les deux faux rejets de Corbelle, puis mesurée *
 - **Unité** : les faits **jugés** par le critique (seuls ceux-là peuvent changer), classés justes ou faux contre le gold ; un fait hors gold est lu à la main et dit tel quel.
 - **Critère d'adoption, fixé d'avance** : la v3 est adoptée si, sur l'ensemble, elle (1) ne met de côté **aucun fait juste** que la v2 gardait, et (2) écarte **au moins autant de faits faux** que la v2. Sinon, elle reste une option. Le résultat est rapporté quel qu'il soit.
 - **Limite qui demeure** : Valmont et les pièges sont eux aussi synthétiques et écrits par Claude ; seul le second jet de l'auteur tranchera (T-TST-01).
+
+### Résultats (6 octobre 2026)
+
+Passe de référence : 10 lots (b2 à b8, l1-b1, l2-b1, p1), C5, question ciblée, énonciation, critique v2 ; puis critique v3 sur les mêmes réponses de l'amont. 39 faits jugés. ~0,12 $ (référence ~0,08 $, critique v3 ~0,04 $). Traces : `llm-log/x015-ref-*`, `llm-log/x015-v3-*`.
+
+| | Faits mis de côté | dont justes (faux rejets) | Faux écartés |
+|---|---|---|---|
+| critique v2 | 7 | 0 | 7 |
+| critique v3 | 9 | **2** | 7 |
+
+Tous les verdicts sont identiques, sauf deux, et ce sont les mêmes :
+
+| Lot | Fait | v2 | v3 |
+|---|---|---|---|
+| l1-b1 | `taverne-heron located_in brume` (« La taverne du héron, sur le port de Brme… ») | soutenu | **mis de côté** : « la proximité au port n'affirme pas une localisation dans la ville » |
+| l2-b1 | le même (« sur le port de Burme ») | soutenu | **mis de côté** : « la proximité n'implique pas une résidence dans la ville » |
+
+Rappel : l1-b1 0,765 → 0,706 ; l2-b1 0,824 → 0,765. Aucun autre lot ne bouge.
+
+**Critère non tenu** (point 1 : aucun fait juste perdu) : la v3 **n'est pas adoptée**.
+
+### Lecture
+
+1. **La remarque de l'auteur était fondée.** La phrase qui avait « renforcé » E-010 sur Corbelle (« une proximité n'implique pas une résidence ») est celle qui fait rejeter « sur le port de Brume » : être sur le port d'une ville, c'est bien y être. Le gain mesuré sur Corbelle était un réglage sur Corbelle.
+2. **Sur ces 10 lots, la v2 ne fait aucun faux rejet** : ses 7 mises de côté sont justes (meurtres inventés d'un personnage par lui-même, rumeur, relation tirée d'une vieille note, faction absente du passage). E-013 n'apparaît pas hors de Corbelle : c'est peut-être un écart propre à ce corpus (notes brouillon, « maître de la GdB », « les bateliers »), à revoir sur les notes de l'auteur.
+3. **Méthode** : un remède se mesure sur des données qui n'ont pas servi à l'écrire, avec un critère posé avant. Les mesures « sur le corpus qui a montré l'écart » restent utiles pour vérifier qu'un correctif fait ce qu'il vise, jamais pour l'adopter.
+
