@@ -1,6 +1,6 @@
 # I9 — L'atelier d'ingestion, deuxième incrément : les faits
 
-**Statut :** fiche de jalon, version 0.1 — 6 octobre 2026. Décisions de l'auteur Q1 à Q4 actées le 6 octobre 2026.
+**Statut :** fait, 6 octobre 2026 (branche `atelier-rattacher-nouvelle`). Décisions de l'auteur Q1 à Q4 actées ; décisions d'interface I-ATL-06 à I-ATL-08 au cadre d'interface.
 **Contexte :** I8 a rendu réelle la couche « mentions » : l'auteur confirme les entités d'une source sur le texte. Le chantier a construit et mesuré la chaîne des faits (C5, question ciblée, énonciation, critique ; X-004 à X-016), toujours en simulant l'auteur. Ce jalon la met à l'écran : l'auteur **voit en pratique** ce que les couches proposent, pourquoi, et le décide.
 
 ## 1. Objectif
@@ -44,3 +44,11 @@ Sur une source dont les entités sont confirmées, l'auteur lance la couche « f
 3. « Proposer » étendu aux faits.
 4. Écran : faits sous les passages, pastilles, gestes.
 5. Documents et guide (exécuté par les tests).
+
+## 7. Choix faits sans validation explicite
+
+- **Entités de la couche « faits »** : les entités connues rattachées par la couche « mentions » y entrent sans geste de l'auteur (sauf retirées, ignorées, en doute) ; les entités nouvelles seulement si l'auteur les a confirmées. Le chantier (§6.5) disait « entités gardées, corrigées ou ajoutées » : on applique ici à l'entrée de la couche la logique de Q1 (le silence de l'auteur vaut accord), sauf pour ce qui serait créé.
+- **Lot de faits et T-ING-10** : le second lot rouvre les passages de sa version (`ingest(..., reopen=True)`) ; sans cela, l'ingestion les aurait tenus pour déjà ingérés et n'aurait rien proposé.
+- **Estimation** : 1 + 3 appels par passage (C5 ; au plus une question ciblée et deux jugements du critique par passage), un majorant grossier, pas un compte.
+- **Critique et question ciblée** : configuration adoptée du chantier (critique v2, question avec relations connues et signal par paire), pas les variantes non adoptées (critique v3, candidats classés, pivot).
+

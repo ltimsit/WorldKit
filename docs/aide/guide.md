@@ -479,6 +479,18 @@ bertille.name = 'Bertille'
 
 L'atelier écrit dans le monde de travail (son magasin d'annotations, hors journal) : c'est votre travail d'auteur, pas un essai. Le monde lui-même ne change qu'à la revue, quand vous acceptez la proposition.
 
+### Les faits
+
+Une fois les entités confirmées, la **couche « faits »** relève ce que le texte dit d'elles : C5 sur le document entier, la question ciblée sur les phrases muettes, l'énonciation (une rumeur ou une note de travail ne donne pas de fait), puis le critique, qui juge chaque fait contre son passage. Elle travaille entre les entités connues que la couche « mentions » a rattachées, et les entités nouvelles que vous avez confirmées. Elle fait toujours appel au modèle : l'écran donne d'abord l'estimation (environ 1 + 3 appels par passage), puis vous confirmez.
+
+```powershell sans-test
+worldkit --db valmont.db call atelier.run --param doc_id=l-echoppe-de-bertille --param layer=facts
+```
+
+À l'écran, chaque fait s'affiche **sous son passage**, en français (« Bertille — habite — Brume »), avec une pastille : **soutenu**, **douteux**, **mis de côté** par le critique (sa raison au survol), **rumeur** ou **note** (retenu par l'énonciation), **déjà connu** (un support), ou ce que vous en avez décidé. Les faits écartés restent visibles, grisés : c'est là qu'on repère un faux rejet. Au survol d'un fait, sa preuve est surlignée dans le texte. Un clic ouvre son panneau : **garder**, **reprendre** (un fait écarté), **retirer**, **corriger** (sujet, relation ou attribut, objet ou valeur, dans des listes). **Ajouter un fait** couvre ce que les couches ont manqué : vous choisissez le passage, puis le fait.
+
+« Proposer » envoie, avec les entités et les alias, **tous les faits non écartés** : la revue les re-décide un par un. Si les entités de la source sont déjà parties, le bouton devient **« Proposer les faits »** : un second lot, qui ne porte que les faits.
+
 ## 13. Pour aller plus loin
 
 - `worldkit explain <code ou mot>` et l'écran **Aide** : toute règle, décision, étape, opération, statut ou code de signalement.
