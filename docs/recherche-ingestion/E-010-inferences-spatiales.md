@@ -1,6 +1,6 @@
 # E-010 — Des relations inférées d'une proximité (« sur », « près de », « traverse »)
 
-- **Statut** : résolue sur Corbelle par le critique (X-009), à éprouver ailleurs
+- **Statut** : en cours (résolue en X-009 ; en X-013, « habite près du » est jugé douteux et gardé)
 - **Classe** : I (inféré, au-delà du texte)
 - **Où** : Corbelle c1, `brouillon-corbelle` p1 et p4, `la-sorgue` p1 et p2 ; couche C5
 - **Observé avec** : Claude Haiku 4.5, C5 à entités du gold et de la chaîne, 4 octobre 2026 ([X-006](X-006-corbelle-chaine.md)) ; une passe
@@ -29,3 +29,4 @@ Le schéma n'a pas de relation pour « au bord de », « traverse », « près d
 
 - **4 octobre 2026, [X-008](X-008-consignes-et-question.md)** : consigne stricte de C5 (« être au bord, près, traverser n'est pas être situé ; travailler n'est pas habiter ; sinon ne rien produire ») : **aucun effet** sur Corbelle, et régression sur Valmont (rappel 0,82 → 0,71). Écartée. Les relations devinées viennent aussi de la question ciblée (« habite près du »). Prochain candidat : le critique C6 (un fait contre sa preuve).
 - **4 octobre 2026, [X-009](X-009-critique.md)** : le critique C6 met de côté `corbelle located_in la-sorgue`, `ysolde lives_in pont-aux-anes` (deux fois) et `vieux lives_in corbelle` (« proximité ≠ résidence ») ; rien de mis de côté sur Valmont. Juger un fait contre son passage marche là où la consigne d'écriture ne marchait pas.
+- **6 octobre 2026, [X-013](X-013-stabilite-faits-corbelle.md)** : sur trois passes identiques, le critique écarte toujours `corbelle located_in la-sorgue` et `vieux lives_in corbelle`, mais juge `ysolde lives_in pont-aux-anes` douteux (`unsure`) : le fait est gardé. La question ciblée le formule elle-même « habite près du ». Un verdict `unsure` sur un motif de proximité pourrait aussi mettre de côté (remède 5 d'E-013).

@@ -27,4 +27,5 @@ Le critique juge le fait tel qu'il est formulé contre le texte, au pied de la l
 
 ## Essais
 
-Aucun au-delà de v1 et v2.
+- v1 et v2 (X-009).
+- **6 octobre 2026, [X-013](X-013-stabilite-faits-corbelle.md)** : trois passes identiques ; deux faits justes mis de côté à chaque passe : `bertrand-ostrel member_of bateliers` (« maître de la GdB ») et `ysolde detests bateliers` (« les bateliers, des gens, pas la Guilde », alors que le critique reçoit l'autre nom « les Bateliers » ; gardé en X-009 v2). C'est le premier coût de rappel de la chaîne sur Corbelle (2 manques sur 3).
