@@ -197,9 +197,18 @@ def test_a_known_relation_with_wrong_types_is_not_chosen_X_014():
     types = {e.id: e.type for e in entities}
     chosen, _ = choose_candidate([
         {"subject": "agathe", "relation": "parent_of", "object": "la-sorgue", "link": "same"},
-        {"subject": "agathe", "relation": "knows_of", "object": "la-sorgue", "link": "broader"}],
+        {"subject": "agathe", "relation": "knows_of", "object": "la-sorgue", "link": "same"}],
         {**types, "la-sorgue": "Place"}, context.schema)
     assert chosen["relation"] == "knows_of"  # parent_of va d'un personnage vers un personnage
+
+
+def test_a_broader_candidate_alone_is_an_inference_and_is_dropped_X_014():
+    """« tient l'apothicairerie près du pont » : lives_in marqué « plus général », sans sens exact → rien (E-010)."""
+    from worldkit.periphery.facts import choose_candidate
+    context, entities = corbelle_setup()
+    chosen, exact = choose_candidate([{"subject": "agathe", "relation": "lives_in", "object": "saint-fiacre",
+                                       "link": "broader"}], {e.id: e.type for e in entities}, context.schema)
+    assert chosen is None and exact == ""
 
 
 def test_ranked_probe_asks_for_candidates_and_the_critic_hears_the_exact_form_X_014():

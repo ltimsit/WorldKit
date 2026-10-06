@@ -404,18 +404,27 @@ def ranked_probe_schema() -> dict[str, Any]:
             "properties": {"relations": {"type": "array", "items": item}}}
 
 
-def choose_candidate(candidates: list[dict[str, Any]], types: dict[str, str], schema: Any) -> tuple[dict[str, Any], str]:
+def choose_candidate(candidates: list[dict[str, Any]], types: dict[str, str],
+                     schema: Any) -> tuple[dict[str, Any] | None, str]:
     """Règle sans modèle (X-014, T-ARC-01) : le premier candidat connu du schéma dont les types conviennent ; sinon le
     premier candidat hors schéma (que l'auteur fixera, §6.6), à défaut le premier. Rend aussi la relation exacte
-    quand la retenue est plus générale (« leads » quand member_of est retenue), pour le critique."""
+    quand la retenue est plus générale (« leads » quand member_of est retenue), pour le critique.
+
+    Garde (X-014, deuxième version) : un candidat « plus général » ne compte que s'il suit un candidat « même sens » ;
+    seul, c'est une inférence (« près du » donnant `lives_in`, E-010 ; « depuis la Chute » donnant `involved_in`,
+    E-004) : rien n'est retenu."""
+    first_same = next((i for i, c in enumerate(candidates) if c.get("link") == "same"), None)
+    if first_same is None:
+        return None, ""
+    eligible = candidates[first_same:]
+
     def fits(c: dict[str, Any]) -> bool:
         r = schema.relations.get(c["relation"]) if schema is not None else None
         a, b = types.get(c["subject"]), types.get(c["object"])
         return r is not None and a is not None and b is not None and _is_a(schema, a, r.from_) and _is_a(schema, b, r.to)
-    unknown = (c for c in candidates if schema is None or c["relation"] not in schema.relations)
-    chosen = next((c for c in candidates if fits(c)), None) or next(unknown, candidates[0])
-    first = candidates[0]
-    exact = first["relation"] if chosen is not first and first.get("link") == "same" else ""
+    unknown = (c for c in eligible if schema is None or c["relation"] not in schema.relations)
+    chosen = next((c for c in eligible if fits(c)), None) or next(unknown, eligible[0])
+    exact = eligible[0]["relation"] if chosen is not eligible[0] else ""
     return chosen, exact
 
 
@@ -526,6 +535,11 @@ class RelationProbe:
             if not candidates:
                 continue
             chosen, exact = choose_candidate(candidates, types, schema)
+            if chosen is None:  # « plus général » seul : une inférence, rien n'est retenu (garde d'X-014)
+                silent.answer.append({**candidates[0], "relation": "(écarté : plus général seul)",
+                                      "phrase": item.get("phrase", ""), "exact": "",
+                                      "candidates": [f"{c['relation']} ({c['link']})" for c in candidates]})
+                continue
             silent.answer.append({**chosen, "phrase": item.get("phrase", ""), "exact": exact,
                                   "candidates": [f"{c['relation']} ({c['link']})" for c in candidates]})
             facts.append(Fact({"op": "add_relation", "from": chosen["subject"], "relation": chosen["relation"],
