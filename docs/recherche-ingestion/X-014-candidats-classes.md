@@ -1,6 +1,6 @@
 # X-014 — Question ciblée à candidats classés, choix sans modèle
 
-- **Statut** : conclue ; première version **non adoptée**, version gardée **neutre ou meilleure**, à départager sur Valmont (option `--probe-ranked`)
+- **Statut** : conclue, **non adoptée** : la version gardée fait jeu égal avec la configuration adoptée sur les deux corpus, pour ~30 % de tokens de plus dans la question ciblée (option `--probe-ranked` conservée)
 - **Hypothèse** : si la question ciblée rend plusieurs relations classées, de la plus exacte à la plus générale, une règle sans modèle peut retenir la première connue du schéma (« la mère de » : `mother_of`, puis `parent_of`). Et le critique, informé de la forme exacte, cesse de mettre de côté un fait plus faible que le texte (« maître de la GdB » : `member_of`, E-013).
 - **Couches et modèles** : C5, question ciblée v1 + relations connues + signal par paire + **candidats classés**, énonciation, critique v2 (qui reçoit la forme exacte quand le fait retenu est plus général) ; Claude Haiku 4.5 par l'API (`api-haiku`, température 0, substitut).
 - **Idée** : de l'auteur, 6 octobre 2026, à la lecture d'X-013.
@@ -55,7 +55,20 @@ Règle changée, réponses du modèle rejouées depuis les traces : un candidat 
 - Corbelle ne bouge pas : C5 produit lui-même `ysolde lives_in pont-aux-anes`, que le critique garde (`unsure`, E-010).
 - Ce qui reste sur Valmont relève de C5, pas de la question ciblée : titres « baron de brume », « régent de brume » (E-005), alias « le Roi Gris » (E-002), `cendrelande.category`. L'écart avec 0,82 (X-010) ne se départage qu'en remesurant la configuration adoptée sur b1 aujourd'hui (une passe, ~0,025 $).
 
+## Départage sur Valmont
+
+Configuration adoptée remesurée sur b1 le même jour (16 appels, 0,019 $, `llm-log/x014-b1-adopted/`) : **0,875 / 0,82** (questions 0,89 / 0,80). L'écart avec la version gardée (0,76 / 0,76) vient surtout de **C5**, qui n'a pas répondu à l'identique d'une passe à l'autre malgré la température 0 (titre « baron de brume » en p1 dans une passe, pas dans l'autre). À **réponses de C5 identiques** (rejeu croisé, sans appel) :
+
+| Valmont b1, mêmes réponses de C5 | Faits | Questions |
+|---|---|---|
+| configuration adoptée | 0,875 / 0,82 | 0,89 / 0,80 |
+| candidats classés + garde | 0,82 / 0,82 | 0,89 / 0,80 |
+
+Seule différence : un support de plus (`regent_of` → `rules`, déjà dans l'état, sans coût en revue). **Jeu égal**, comme sur Corbelle. La variante coûte plus de tokens (question ciblée : 4 017 contre 2 869 en entrée sur b1, 6 232 contre 5 194 sur Corbelle) sans rien rapporter de mesurable : **non adoptée**.
+
+Leçon de mesure : à température 0, C5 est stable sur Corbelle (X-013, trois passes identiques) mais **pas parfaitement sur b1**. Pour comparer deux variantes d'une couche aval, rejouer les mêmes réponses de l'amont plutôt que relancer toute la chaîne.
+
 ## Suite
 
-- Garde faite (ci-dessus). Pour l'adopter : remesurer la configuration adoptée sur b1 le même jour ; adopter si la version gardée fait au moins aussi bien sur les deux corpus.
+- La garde reste utile si l'on revient aux candidats classés (un corpus où les relations du schéma sont plus générales que les tournures du texte : là, la variante pourrait rapporter).
 - Pour E-013, reste la consigne du critique (« un fait plus faible que le passage est soutenu »).

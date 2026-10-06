@@ -59,4 +59,4 @@ Le critique écarte bien trois inférences fausses à chaque passe : `corbelle l
 - **Nouveaux écarts, à ficher** :
   - (a) titre manqué dans une phrase brouillon « le <titre> c <nom> » ;
   - (b) valeurs d'attribut en forme brute : sigle non développé, âge versé dans `condition`.
-- Les mesures de la chaîne à température 0 peuvent se faire **en une passe** ; garder une seconde passe de contrôle quand un prompt change.
+- Les mesures de la chaîne à température 0 peuvent se faire **en une passe** sur Corbelle ; sur Valmont b1, C5 a varié d'une passe à l'autre ([X-014](X-014-candidats-classes.md)) : pour comparer deux variantes d'une couche aval, rejouer les mêmes réponses de l'amont.

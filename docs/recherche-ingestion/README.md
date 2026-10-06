@@ -53,7 +53,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [X-011](X-011-bruit-et-chaine-reelle.md) | Valmont bruité (texte non vu) et chaîne complète de Corbelle | conclue (diagnostic) |
 | [X-012](X-012-signaler-et-pieges.md) | Signaler sans décider, et un contre-corpus de pièges | conclue, résultat mitigé |
 | [X-013](X-013-stabilite-faits-corbelle.md) | Stabilité de la chaîne des faits sur Corbelle (entités du gold) | conclue |
-| [X-014](X-014-candidats-classes.md) | Question ciblée à candidats classés, choix sans modèle (et garde « plus général seul ») | conclue, adoption à départager sur Valmont |
+| [X-014](X-014-candidats-classes.md) | Question ciblée à candidats classés, choix sans modèle (et garde « plus général seul ») | conclue, non adoptée (jeu égal) |
 
 Statuts : **ouverte** (observée, non traitée), **en cours** (remède essayé), **résolue** (remède mesuré, sans régression), **acceptée** (on vit avec, avec la raison), **transformée** (devenue une expérience ou une question du chantier).
 
