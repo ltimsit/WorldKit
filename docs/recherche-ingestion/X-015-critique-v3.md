@@ -1,6 +1,6 @@
 # X-015 — Critique v3 : fait plus faible impliqué, nom commun pluriel pour une faction
 
-- **Statut** : conclue ; **proposée à l'adoption** (option `--critic-v3`, en attente de l'accord de l'auteur)
+- **Statut** : en cours : mesure sur données non vues, critère fixé d'avance (ci-dessous)
 - **Hypothèse** : deux règles de plus au critique suppriment les faux rejets d'E-013 sans relâcher les motifs qui écartent les inférences (E-010, E-004).
 - **Couches et modèles** : C5 et question ciblée (configuration adoptée d'X-008) **rejouées** depuis les traces d'X-013 (Corbelle) et d'X-014 (Valmont b1) ; énonciation ; critique v3 seul en direct. Claude Haiku 4.5 par l'API (`api-haiku`, température 0, substitut).
 - **Écarts liés** : E-013 (cible), E-010, E-004 (à ne pas rouvrir).
@@ -41,3 +41,16 @@ Verdicts : Corbelle 8 soutenus, 2 incertains, 6 mis de côté ; Valmont 10 soute
 
 - Adopter la v3 comme critique par défaut si l'auteur l'accepte (chantier §16), puis la vérifier sur le contre-corpus de pièges (X-012) avant de la passer au cadre.
 - « maître de la GdB » : ni la question ciblée ni le critique ne le règlent ; à reprendre avec la relation de direction au schéma de Corbelle (choix de l'auteur), ou à laisser au geste « reprendre ».
+
+## Limite de la mesure ci-dessus (remarque de l'auteur, 6 octobre 2026)
+
+La v3 a été écrite **pour** les deux faux rejets de Corbelle, puis mesurée **sur** Corbelle : la mesure vérifie que le correctif corrige ce qu'il visait, pas qu'il généralise. Les exemples du prompt, « hors corpus », en sont des calques (« les tisserands » pour « les bateliers »). Corbelle c1 compte 12 faits attendus : ±1 fait vaut ±0,08. Sur Valmont b1, le critique ne met rien de côté, ni en v2 ni en v3 : la « non-régression » n'y prouve presque rien. Corbelle est écrit par Claude (T-TST-01) : il sert à construire, pas à décider.
+
+## Mesure sur données non vues (protocole fixé avant la mesure)
+
+- **v3 gelée** : prompt inchangé depuis le commit `d15d833`. Aucune retouche pendant ni après cette mesure.
+- **Données** : non utilisées pour régler le critique : Valmont **b2 à b8** (aucune couche des faits n'y a été réglée), Valmont bruité **l1, l2** (texte dérivé de b1, bruit non vu), contre-corpus de **pièges** p1. Entités du gold, monde à l'état de base.
+- **Comparaison appariée** : une passe de référence complète (C5, question ciblée de la configuration adoptée, énonciation, critique v2) ; puis le critique v3 seul, sur **les mêmes réponses** de C5 et de la question ciblée (rejeu).
+- **Unité** : les faits **jugés** par le critique (seuls ceux-là peuvent changer), classés justes ou faux contre le gold ; un fait hors gold est lu à la main et dit tel quel.
+- **Critère d'adoption, fixé d'avance** : la v3 est adoptée si, sur l'ensemble, elle (1) ne met de côté **aucun fait juste** que la v2 gardait, et (2) écarte **au moins autant de faits faux** que la v2. Sinon, elle reste une option. Le résultat est rapporté quel qu'il soit.
+- **Limite qui demeure** : Valmont et les pièges sont eux aussi synthétiques et écrits par Claude ; seul le second jet de l'auteur tranchera (T-TST-01).
