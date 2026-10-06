@@ -192,3 +192,14 @@ def test_atelier_facts_by_the_service_and_the_screen(tmp_path):
     assert "Couche « faits »" in page and "rumeur" in page and "fact-off" in page  # écarté, grisé (Q3)
     assert "Ajouter un fait" in page
     assert doc.doc_id == doc_id
+
+
+def test_the_same_fact_in_two_passages_keeps_both_proofs_T_ING_11():
+    """Le même fait relevé dans deux passages : deux preuves, deux annotations."""
+    world, doc = source_with_ostrel()
+    twice = ({"op": "add_relation", "from": "odon", "relation": "member_of", "to": "new:bertrand-ostrel"},
+             "On dit que le Loup de cendre hante Hautval.")
+    layers.run_facts(world, "reference", doc.doc_id, FakeFinder([MEMBER, twice]))
+    passages = sorted(a.passage for a in facts_of(world, doc) if a.value["draft"].get("relation") == "member_of")
+    assert len(passages) == 2 and passages[0] != passages[1]
+

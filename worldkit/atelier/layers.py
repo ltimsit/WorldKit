@@ -199,12 +199,12 @@ def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = No
                if a.kind == "fact" and a.by_author}
     texts = window.passage_texts
     origin = _layer_origin(report.run, FACTS)
-    seen: set[str] = set()
+    seen: set[tuple[str, int | None]] = set()
     for f in result.kept + [f for f, _ in result.judged if f not in result.kept] + [f for f, _ in result.withheld]:
         signature = json.dumps(f.draft, sort_keys=True)
-        if signature in seen:
-            continue
-        seen.add(signature)
+        if (signature, f.passage) in seen:
+            continue  # un même fait dans deux passages : deux preuves, deux annotations (T-ING-11)
+        seen.add((signature, f.passage))
         if f.passage is None:
             report.unplaced += 1
             continue
