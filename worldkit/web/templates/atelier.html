@@ -32,9 +32,16 @@
     <button{{ ' disabled' if job and job.live }}>{{ "Relancer" if view.run else "Lancer" }}</button>
   </form>
   · {{ indicators.to_review }} à revoir · {{ indicators.decided }} décidée(s)
+  {% if view.proposed %}<span class="small muted" style="float:right">déjà proposée (une version ne se propose qu'une fois)</span>{% else %}
   <form method="post" action="/atelier/{{ view.doc_id }}/propose" hx-boost="false" style="display:inline; float:right">
     <button title="Les entités nouvelles confirmées et les alias retenus partent en un lot vers la revue">Proposer</button>
-  </form>
+  </form>{% endif %}
+  {% set unretained = view.attachments|rejectattr("retained")|list %}
+  {% if unretained and not view.proposed %}<div class="small" id="unretained"><b>Rattachements non retenus</b> : « Proposer » n'en fera pas des alias (ils valent pour cette source).
+    {% for t in unretained %}<form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false" style="display:inline">
+      <input type="hidden" name="ann_id" value="{{ t.ann_id }}"><input type="hidden" name="scope" value="world">
+      « {{ t.text }} » → {{ t.name }} <button name="action" value="keep" title="en faire un alias de {{ t.name }}">retenir</button></form>{{ " ·" if not loop.last }}
+    {% endfor %}</div>{% endif %}
 </div>
 <p class="small legend"><span class="ann ann-known">connue</span><span class="ann ann-new">nouvelle</span><span class="ann ann-doubt">doute</span><span class="ann ann-off">retirée, ignorée</span><span class="ann ann-known ann-author">décidée par l'auteur</span> · Cliquer une mention pour la traiter ; sélectionner un mot pour ajouter une mention.</p>
 
@@ -53,6 +60,7 @@
   <h3>« {{ v.text }} » <span class="small muted">p{{ chosen.passage }}</span></h3>
   <p class="small">{% if v.entity and not v.entity.startswith('new:') %}rattachée à <b>{{ names[v.entity].name if v.entity in names else v.entity }}</b> <span class="mono">({{ v.entity }})</span>{% elif v.new or (v.entity or '').startswith('new:') %}entité <b>nouvelle</b>{% else %}<b>doute</b>{% endif %}
   · type {{ v.type or "?" }} · règle {{ v.rule or "?" }} · {{ chosen.origin }} · {{ chosen.status }}{% if v.reason %} · {{ v.reason }}{% endif %}</p>
+  {% for t in view.attachments if chosen.id in t.ann_ids %}<p class="small">alias proposé : {% if t.retained %}<b>oui</b> (retenu pour le monde : « {{ t.text }} » deviendra un autre nom de {{ t.name }}){% else %}<b>non</b> (« {{ t.text }} » désigne {{ t.name }} dans cette source seulement ; « retenir pour le monde » pour en faire un alias){% endif %}</p>{% endfor %}
   {% if v.candidates %}<p class="small">candidats : {% for c in v.candidates %}<b>{{ names[c].name if c in names else c }}</b> <span class="mono">({{ c }})</span>{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
   <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
     <input type="hidden" name="ann_id" value="{{ chosen.id }}">

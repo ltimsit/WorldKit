@@ -84,12 +84,13 @@ def atelier_view(ctx: Context, p: SourceParams) -> Output:
     state = ctx.world.state(branch)
     entities = [{"id": e.id, "type": e.type, "name": e.names[0] if e.names else e.id}
                 for e in extraction_context(ctx.world, state).entities]
-    from worldkit.atelier.propose import new_entities
+    from worldkit.atelier.propose import attachments, new_entities, proposed
     news = [{"id": e["id"], "type": e["type"], "name": e["name"]}
             for e in sorted(new_entities(ctx.world, branch, doc).values(), key=lambda e: e["name"].casefold())]
     return Output({"doc_id": doc.doc_id, "version": doc.fingerprint, "title": doc.title, "branch": branch,
                    "passages": passages, "rules": [r.__dict__ for r in store.rules(ctx.world, branch)],
                    "run": layers.runs_of(current), "entities": entities, "new_entities": news,
+                   "attachments": attachments(ctx.world, branch, doc), "proposed": proposed(ctx.world, doc),
                    "types": sorted(state.world.types)},
                   [], {"to_review": to_review, "decided": sum(1 for a in current if a.by_author)})
 

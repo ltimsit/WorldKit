@@ -268,6 +268,34 @@ def test_an_unknown_new_entity_is_refused_E_014():
                          end=start + len("Ostrel"), entity="new:marianne", type_="Character")
 
 
+def test_attachments_show_which_forms_will_become_aliases_E_014():
+    """« Roi Gris » → Aldren II à la portée de la source : rattaché, pas retenu ; « retenir » en fait un alias."""
+    world = base_world()
+    doc = store.import_source(world, ROI)
+    layers.run_mentions(world, "reference", doc.doc_id, FakeFinder([("Roi Gris", "Character")]))
+    first = next(a for a in layers.effective(world, "reference", doc) if a.value["text"] == "Roi Gris")
+    gestures.gesture(world, "reference", doc.doc_id, "correct", ann_id=first.ann_id, entity="aldren-ii")
+    rows = proposing.attachments(world, "reference", doc)
+    assert [(r["text"], r["entity"], r["retained"], len(r["ann_ids"])) for r in rows] ==         [("Roi Gris", "aldren-ii", False, 2)]
+    gestures.gesture(world, "reference", doc.doc_id, "keep", "world", rows[0]["ann_id"])
+    assert proposing.attachments(world, "reference", doc)[0]["retained"]
+    flat = [d for ds in proposing.drafts_of(world, "reference", doc).values() for d in ds]
+    assert {"op": "add_value", "entity": "aldren-ii", "attribute": "aliases", "value": "Roi Gris"} in flat
+
+
+def test_a_form_already_named_is_not_an_attachment_and_a_proposed_source_is_flagged_E_014():
+    world, doc, passage, start = ostrel_source()
+    gestures.gesture(world, "reference", doc.doc_id, "add", passage=passage, start=start,
+                     end=start + len("Ostrel"), entity="new:bertrand-ostrel", type_="Character")
+    keep = next(a for a in layers.effective(world, "reference", doc) if a.value["text"] == "Bertrand Ostrel")
+    gestures.gesture(world, "reference", doc.doc_id, "keep", ann_id=keep.ann_id)
+    rows = proposing.attachments(world, "reference", doc)
+    assert [(r["text"], r["entity"], r["name"], r["retained"]) for r in rows] ==         [("Ostrel", "new:bertrand-ostrel", "Bertrand Ostrel", False)]  # « Bertrand Ostrel » est son nom
+    assert not proposing.proposed(world, doc)
+    proposing.propose(world, "reference", doc.doc_id)
+    assert proposing.proposed(world, doc)
+
+
 # --- Étape 5 : opérations du service (T3) ---
 
 def test_atelier_operations_by_the_service(tmp_path):
@@ -318,8 +346,19 @@ def test_atelier_screen_import_run_annotate_and_propose(tmp_path):
     page = c.get(doc_url).text
     assert page.count("ann-new ann-author") == 2  # les deux occurrences
     assert 'value="new:roi-gris">Roi Gris (Character, nouvelle)' in page  # rattachable à une nouvelle (E-014)
+    # un rattachement non retenu (« tavernes » → Brume, pour l'essai) est montré avant « Proposer » (E-014)
+    view = Session_view(db, doc_url)
+    second = next(p for p in view["passages"] if "Brume" in p["text"])
+    start = second["text"].index("tavernes")
+    c.post(doc_url + "/annotate", data={"action": "add", "passage": second["index"], "start": start,
+                                         "end": start + len("tavernes"), "entity": "brume", "type": "Place",
+                                         "scope": "occurrence"})
+    page = c.get(doc_url).text
+    assert "Rattachements non retenus" in page and "« tavernes » → Brume" in page
     done = c.post(doc_url + "/propose").text
     assert "proposition(s) dans la file de revue" in done
+    page = c.get(doc_url).text
+    assert "déjà proposée" in page and "Rattachements non retenus" not in page
 
 
 def Session_view(db, doc_url):

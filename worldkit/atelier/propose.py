@@ -113,6 +113,57 @@ def drafts_of(world: Any, branch: str, doc: Any) -> dict[int, list[dict[str, Any
     return {i: out[i] for i in sorted(out)}
 
 
+def batch_id_of(doc: Any) -> str:
+    return f"atelier-{doc.doc_id}-{doc.fingerprint[:8]}"
+
+
+def proposed(world: Any, doc: Any) -> bool:
+    """La version de la source a-t-elle déjà été proposée (son lot existe) ?"""
+    from worldkit.ingest.batch import ensure_tables
+    ensure_tables(world.store.conn)
+    return world.store.conn.execute("SELECT 1 FROM batches WHERE batch_id = ?", (batch_id_of(doc),)).fetchone()         is not None
+
+
+def attachments(world: Any, branch: str, doc: Any) -> list[dict[str, Any]]:
+    """Rattachements de l'auteur dont la forme n'est pas encore un nom de l'entité visée (« Ostrel » pour Bertrand
+    Ostrel, « jehan » pour Jehan Marcastel), avec `retained` : l'alias ne part que retenu pour le monde (Q4). Rend
+    visible ce que « Proposer » enverra ou non (E-014)."""
+    from worldkit.ingest.batch import extraction_context
+    from worldkit.periphery.matching import fold
+    context = extraction_context(world, world.state(branch))
+    known = {e.id: (e.names[0] if e.names else e.id, {fold(n) for n in e.names}) for e in context.entities}
+    groups = new_entities(world, branch, doc)
+    out: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()  # (entité, forme pliée)
+    for a in sorted(layers.effective(world, branch, doc), key=lambda a: (a.passage or 0, a.start or 0)):
+        if not a.by_author or a.kind != "mention" or a.status not in ("kept", "corrected") or a.passage is None:
+            continue
+        v = a.value
+        label = _label(v)
+        if label is not None:
+            group = groups.get(label)
+            if group is None:
+                continue
+            target, name, names = f"new:{label}", group["name"], {fold(group["name"])}
+        elif v.get("entity") in known:
+            target = v["entity"]
+            name, names = known[target]
+        else:
+            continue
+        if fold(v["text"]) in names:
+            continue
+        key = (target, fold(v["text"]))
+        if key in seen:
+            row = next(r for r in out if (r["entity"], fold(r["text"])) == key)
+            row["ann_ids"].append(a.ann_id)
+            row["retained"] = row["retained"] or bool(v.get("retained"))
+            continue
+        seen.add(key)
+        out.append({"ann_id": a.ann_id, "ann_ids": [a.ann_id], "passage": a.passage, "text": v["text"],
+                    "entity": target, "name": name, "retained": bool(v.get("retained"))})
+    return out
+
+
 def propose(world: Any, branch: str, doc_id: str) -> Any:
     """Crée le lot de la source et l'enregistre (E1 à E9+) ; rend le compte rendu du lot."""
     from worldkit.ingest.batch import BatchError, ingest
@@ -125,6 +176,6 @@ def propose(world: Any, branch: str, doc_id: str) -> Any:
     digest = hashlib.sha256(json.dumps(drafts, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:8]
     row = world.store.conn.execute("SELECT text FROM atelier_sources WHERE doc_id = ? AND version_fp = ?",
                                    (doc.doc_id, doc.fingerprint)).fetchone()
-    batch_id = f"atelier-{doc.doc_id}-{doc.fingerprint[:8]}"
+    batch_id = batch_id_of(doc)
     return ingest(world, batch_id, [SourceText(f"atelier:{doc.doc_id}", row[0])],
                   AtelierExtractor(drafts, f"atelier:{digest}"), branch)
