@@ -154,6 +154,6 @@ Un signalement (`Issue`) porte un code, une sévérité, un message et la règle
 | Proposée | `proposed` | Annotation écrite par une couche, pas encore touchée par l'auteur : « à revoir ». |
 | Gardée | `kept` | Annotation que l'auteur confirme telle quelle. |
 | Corrigée | `corrected` | Annotation que l'auteur a changée : autre entité, entité nouvelle, autre type. |
-| Portée | `scope` | Étendue d'un geste de l'auteur (I8, Q4) : `occurrence` (cette annotation seule), `source` (toutes les occurrences de la forme dans la source, par défaut), `world` (retenu pour le monde : un rattachement devient un alias proposé, un geste négatif devient une règle d'atelier). |
+| Portée | `scope` | Étendue d'un geste de l'auteur (I8, Q4) : `occurrence` (cette annotation seule), `source` (toutes les occurrences de la forme dans la source, par défaut), `world` (retenu pour le monde : un rattachement devient un alias proposé, y compris vers une entité nouvelle de la source, un geste négatif devient une règle d'atelier). |
 | Règle d'atelier | `atelier_rule` | Correction négative retenue pour le monde, par branche, appliquée aux sources suivantes : `not_entity` (« vallée n'est pas une entité »), `not_entity_of` (« les veilleurs de nuit ne sont pas les Veilleurs »). Elle n'écrit rien au journal : le monde ne reçoit que des faits (I8, Q4). |
 | À revoir | `to_review` | Nombre d'annotations courantes d'une source que l'auteur n'a pas encore décidées ; « décidées » (`decided`) : celles qu'il a posées ou confirmées. |

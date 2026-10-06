@@ -36,6 +36,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [E-011](E-011-controles-c5.md) | faits de C5 qu'un contrôle sans modèle écarterait | S | résolue sur Corbelle |
 | [E-012](E-012-question-ciblee-limites.md) | limites de la question ciblée : synonymes, phrases non muettes | — | en grande partie résolue |
 | [E-013](E-013-critique-litteral.md) | le critique trop littéral met de côté un fait juste | — | ouverte |
+| [E-014](E-014-forme-courte-nouvelle.md) | la forme courte d'une entité nouvelle n'est pas repérée, et l'auteur ne peut pas l'y rattacher (« Ostrel ») | R | en cours (geste fait, repérage ouvert) |
 
 | Expérience | Titre | Statut |
 |---|---|---|
