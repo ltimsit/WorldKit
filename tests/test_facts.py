@@ -231,3 +231,13 @@ def test_ranked_probe_asks_for_candidates_and_the_critic_hears_the_exact_form_X_
     assert silent.answer[0]["candidates"] == ["mother_of (same)", "parent_of (broader)"]
     _, critic_prompt = Critic(None, PROFILE).prompt(facts[0], silent.sentence, entities, context.schema)
     assert "plus précisément « est la mère de » (mother_of)" in critic_prompt
+
+
+def test_critic_v3_adds_two_rules_without_dropping_the_proximity_motive_X_015():
+    from worldkit.periphery.facts import CRITIC_SYSTEM, Critic, Fact
+    context, entities = corbelle_setup()
+    fact = Fact({"op": "add_relation", "from": "agathe", "relation": "parent_of", "to": "new:bertrand-ostrel"}, "x", 3)
+    v2 = Critic(None, PROFILE).prompt(fact, "x", entities, context.schema)[0]
+    v3 = Critic(None, PROFILE, v3=True).prompt(fact, "x", entities, context.schema)[0]
+    assert v2 == CRITIC_SYSTEM and v3.startswith(CRITIC_SYSTEM) and "tisserands" in v3 and "près de" in v3
+    assert Critic(None, PROFILE, v3=True).version.startswith("critic-3")

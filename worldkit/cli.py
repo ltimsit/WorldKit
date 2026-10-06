@@ -302,7 +302,8 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
     critic = None
     if args.critic:
         from worldkit.periphery.facts import Critic
-        critic = Critic(ReplayAdapter(args.critic_replay) if args.critic_replay else make_adapter(profile), profile)
+        critic = Critic(ReplayAdapter(args.critic_replay) if args.critic_replay else make_adapter(profile), profile,
+                        args.critic_v3)
     report = evaluate_facts(finder, windows, entities, Path(args.oracle), context, state, args.entities, probe, forms,
                             critic, args.enunciation, new_aliases)
     summary = report.summary()
@@ -983,6 +984,8 @@ def build_parser() -> argparse.ArgumentParser:
                      help="question ciblée : relations connues données comme préférence (X-008)")
     evf.add_argument("--probe-pairs", action="store_true",
                      help="question ciblée : signal par paire d'entités non reliées (X-008)")
+    evf.add_argument("--critic-v3", action="store_true",
+                     help="critique v3 : fait plus faible impliqué, nom commun pluriel pour une faction (X-015, E-013)")
     evf.add_argument("--probe-ranked", action="store_true",
                      help="question ciblée : candidats classés (exact puis plus général), choix sans modèle (X-014)")
     evf.add_argument("--out", default=None, help="rapport JSON détaillé")

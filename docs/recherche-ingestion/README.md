@@ -35,7 +35,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [E-010](E-010-inferences-spatiales.md) | relations inférées d'une proximité (« sur », « près de ») | I | en cours (« près du » douteux, gardé : X-013) |
 | [E-011](E-011-controles-c5.md) | faits de C5 qu'un contrôle sans modèle écarterait | S | résolue sur Corbelle |
 | [E-012](E-012-question-ciblee-limites.md) | limites de la question ciblée : synonymes, phrases non muettes | — | en grande partie résolue |
-| [E-013](E-013-critique-litteral.md) | le critique trop littéral met de côté un fait juste | — | ouverte (deux cas stables, X-013) |
+| [E-013](E-013-critique-litteral.md) | le critique trop littéral met de côté un fait juste | — | en cours (« les bateliers » réglé par la v3 du critique ; « maître de la GdB » reste, X-015) |
 | [E-014](E-014-forme-courte-nouvelle.md) | la forme courte d'une entité nouvelle n'est pas repérée, et l'auteur ne peut pas l'y rattacher (« Ostrel ») | R | en cours (geste fait, repérage ouvert) |
 
 | Expérience | Titre | Statut |
@@ -54,6 +54,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [X-012](X-012-signaler-et-pieges.md) | Signaler sans décider, et un contre-corpus de pièges | conclue, résultat mitigé |
 | [X-013](X-013-stabilite-faits-corbelle.md) | Stabilité de la chaîne des faits sur Corbelle (entités du gold) | conclue |
 | [X-014](X-014-candidats-classes.md) | Question ciblée à candidats classés, choix sans modèle (et garde « plus général seul ») | conclue, non adoptée (jeu égal) |
+| [X-015](X-015-critique-v3.md) | Critique v3 : fait plus faible impliqué, nom commun pluriel pour une faction | conclue, proposée à l'adoption |
 
 Statuts : **ouverte** (observée, non traitée), **en cours** (remède essayé), **résolue** (remède mesuré, sans régression), **acceptée** (on vit avec, avec la raison), **transformée** (devenue une expérience ou une question du chantier).
 

@@ -570,6 +570,17 @@ reason : quelques mots.
 """
 
 
+# Variante (X-015, E-013) : deux règles contre le faux rejet, exemples pris hors des corpus. Elles ne relâchent pas
+# les motifs de not_supported (proximité, temps, rumeur…) : « plus faible » veut dire « impliqué nécessairement ».
+CRITIC_V3_RULES = """Deux précisions :
+- Un fait plus faible que ce que dit le passage est soutenu, s'il en découle nécessairement : « commande la
+  compagnie » soutient « membre de la compagnie » ; « est l'oncle de » soutient « de la famille de ». Une proximité
+  n'implique pas une résidence ; un repère de temps n'implique pas une participation.
+- Un nom commun au pluriel peut désigner une faction par ses membres : « déteste les tisserands » soutient
+  « déteste la Guilde des tisserands ».
+"""
+
+
 def critic_schema() -> dict[str, Any]:
     return {"type": "object", "additionalProperties": False, "required": ["verdict", "reason"],
             "properties": {"verdict": {"type": "string", "enum": ["supported", "not_supported", "unsure"]},
@@ -583,10 +594,11 @@ class Critic:
 
     adapter: Any
     profile: Any
+    v3: bool = False  # deux règles contre le faux rejet (X-015, E-013)
 
     @property
     def version(self) -> str:
-        return f"critic-{CRITIC_PROMPT_VERSION}:{self.profile.signature}"
+        return f"critic-{3 if self.v3 else CRITIC_PROMPT_VERSION}:{self.profile.signature}"
 
     @property
     def meter(self) -> Any:
@@ -617,7 +629,8 @@ class Critic:
         if fact.exact:  # X-014 : la phrase dit plus que le fait retenu, qui en est une forme plus générale
             more = (f"\n\nLe passage dit plus précisément « {fact.phrase or fact.exact} » ({fact.exact}) ; le fait proposé "
                     "en est une forme plus générale, qu'il implique nécessairement.")
-        return CRITIC_SYSTEM, f"Passage :\n{passage}\n\nFait proposé :\n{proposed}{more}"
+        system = CRITIC_SYSTEM + CRITIC_V3_RULES if self.v3 else CRITIC_SYSTEM
+        return system, f"Passage :\n{passage}\n\nFait proposé :\n{proposed}{more}"
 
     def judge(self, fact: Fact, passage: str, entities: list[Confirmed], schema: Any,
               other_names: dict[str, tuple[str, ...]] | None = None) -> dict[str, Any]:
