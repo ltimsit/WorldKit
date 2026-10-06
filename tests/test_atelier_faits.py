@@ -203,3 +203,16 @@ def test_the_same_fact_in_two_passages_keeps_both_proofs_T_ING_11():
     passages = sorted(a.passage for a in facts_of(world, doc) if a.value["draft"].get("relation") == "member_of")
     assert len(passages) == 2 and passages[0] != passages[1]
 
+
+def test_a_proof_that_does_not_name_an_entity_is_flagged_and_judged_even_if_known_E_015():
+    """« Il est baron de Brume » : le passage ne nomme pas Odon (« Il ») : preuve indirecte, signalée, jamais déplacée ;
+    déjà connu, le fait passe quand même par le critique."""
+    world = base_world()
+    doc = store.import_source(world, "# Odon\n\nOdon de Brume siège à Hautval.\n\nIl est baron de Brume.\n")
+    layers.run_mentions(world, "reference", doc.doc_id)
+    indirect = ({"op": "set_attribute", "entity": "odon", "attribute": "title", "value": "baron"},
+                "Il est baron de Brume.")
+    layers.run_facts(world, "reference", doc.doc_id, FakeFinder([indirect]), critic=FakeCritic({"title": "unsure"}))
+    title = facts_of(world, doc)[0]
+    assert title.value["support"] and title.value["indirect"] == ["odon"] and title.value["verdict"] == "unsure"
+    assert title.passage == 2  # rien n'est déplacé : nommer deux entités n'est pas affirmer un fait

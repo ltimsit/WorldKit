@@ -7,7 +7,8 @@ option ; puis les décisions de l'auteur et les règles d'atelier.
 Couche « faits » (I9) : la chaîne du chantier (C5, question ciblée, énonciation, critique ; `facts_chain`) entre les
 entités de la source : connues et rattachées (sauf retirées, ignorées, en doute), nouvelles **confirmées par
 l'auteur**. Chaque fait devient une annotation `fact` : brouillon, preuve, couche, verdict du critique et sa raison,
-voix retenue (rumeur, note). Rien n'est caché : un fait mis de côté ou retenu est écrit, l'écran le grise (Q3).
+voix retenue (rumeur, note), entités que le passage ne nomme pas (preuve indirecte, E-015 : jugée par le critique même
+si le fait est déjà connu). Rien n'est caché : un fait mis de côté ou retenu est écrit, l'écran le grise (Q3).
 
 **Règle de relance** : chaque lancement a un numéro ; une annotation d'une couche, encore `proposed` et non
 remplacée, n'est courante que si elle vient du **dernier** lancement de cette couche sur la source. Une annotation de
@@ -149,6 +150,7 @@ def confirmed_entities(world: Any, branch: str, doc: Any) -> tuple[list[Any], di
         elif v.get("entity") in known and known[v["entity"]].names:
             eid = v["entity"]
             out.setdefault(eid, Confirmed(eid, known[eid].type, known[eid].names[0]))
+            forms.setdefault(eid, set(known[eid].names))  # noms et alias connus
         else:
             continue
         forms.setdefault(eid, {out[eid].name}).add(v["text"])
@@ -162,6 +164,7 @@ class FactsReport:
     proposed: int = 0
     set_aside: int = 0
     withheld: int = 0
+    indirect: int = 0
     doubts: int = 0
     skipped_by_author: int = 0
     unplaced: int = 0
@@ -180,7 +183,7 @@ def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = No
 
     from worldkit.ingest.batch import extraction_context
     from worldkit.periphery.evaluation import is_support, key
-    from worldkit.periphery.facts import facts_chain
+    from worldkit.periphery.facts import facts_chain, missing_entities
     from worldkit.periphery.mentions import window_of
     doc = store.source(world, doc_id)
     state = world.state(branch)
@@ -194,10 +197,17 @@ def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = No
     result = facts_chain(window, entities, context.schema, state, finder, probe, forms, critic, True, {},
                          {e.id: e.names for e in context.entities})
     verdicts = {id(f): v for f, v in result.judged}
+    texts = window.passage_texts
+    every = result.kept + [f for f, _ in result.judged] + [f for f, _ in result.withheld]
+    missing = {id(f): missing_entities(f, texts.get(f.passage, ""), forms) for f in every if f.passage is not None}
+    if critic is not None:  # une preuve indirecte est jugée même si le fait est déjà connu (E-015)
+        for f in result.kept:
+            if missing.get(id(f)) and id(f) not in verdicts:
+                verdicts[id(f)] = critic.judge(f, texts[f.passage], entities, context.schema,
+                                               {e.id: e.names for e in context.entities})
     voices = {id(f): voice for f, voice in result.withheld}
     decided = {json.dumps(a.value.get("origin_draft") or a.value.get("draft"), sort_keys=True) for a in now
                if a.kind == "fact" and a.by_author}
-    texts = window.passage_texts
     origin = _layer_origin(report.run, FACTS)
     seen: set[tuple[str, int | None]] = set()
     for f in result.kept + [f for f, _ in result.judged if f not in result.kept] + [f for f, _ in result.withheld]:
@@ -216,12 +226,13 @@ def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = No
         start, end = _span(texts.get(f.passage, ""), f.evidence)
         value = {"draft": f.draft, "evidence": f.evidence, "layer": f.layer, "phrase": f.phrase, "exact": f.exact,
                  "verdict": verdict.get("verdict"), "reason": verdict.get("reason"), "voice": voice,
-                 "support": is_support(key(f.draft, {}), state)}
+                 "support": is_support(key(f.draft, {}), state), "indirect": missing.get(id(f), [])}
         confidence = "doubt" if verdict.get("verdict") == "unsure" else "sure"
         store.add_annotation(world, branch, doc, "fact", value, origin, f.passage, start, end, confidence)
         report.proposed += 1
         report.set_aside += verdict.get("verdict") == "not_supported"
         report.withheld += voice is not None
+        report.indirect += bool(value["indirect"])
         report.doubts += confidence == "doubt"
     if meter is not None:
         report.calls = meter.calls[first:]

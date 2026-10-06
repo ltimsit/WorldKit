@@ -146,6 +146,7 @@ def _facts_view(world: Any, branch: str, doc: Any, current: list[Any]) -> dict[s
                       "origin_label": label(v["origin_draft"]) if v.get("origin_draft") else None,
                       "evidence": v.get("evidence"), "layer": v.get("layer"), "verdict": v.get("verdict"),
                       "reason": v.get("reason"), "voice": v.get("voice"), "exact": v.get("exact"),
+                      "indirect": [name(e) for e in v.get("indirect") or []],
                       "state": _fact_state(a), "excluded": excluded, "by_author": a.by_author, "status": a.status})
     relations = [{"id": r, "label": (d.labels or {}).get("fr", r)} for r, d in sorted(schema.relations.items())]
     attributes = sorted({(attr, (d.labels or {}).get("fr", attr)) for t in schema.types

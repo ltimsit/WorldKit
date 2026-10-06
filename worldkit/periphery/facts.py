@@ -808,6 +808,17 @@ def _sentence_of(fact: Fact, passage: str) -> str:
     return fact.evidence
 
 
+def missing_entities(fact: Fact, passage_text: str, forms: dict[str, set[str]]) -> list[str]:
+    """Les entités d'un fait que son passage ne nomme pas (E-015) : aucune de leurs formes (noms, alias, mentions)
+    n'y paraît. Signal sans décision : une preuve indirecte tient par une coréférence (« sa soeur », « elle »), que
+    rien ne résout ; on ne déplace pas le fait, car nommer deux entités n'est pas affirmer un fait entre elles."""
+    from .mentions import _occurrences
+    d = fact.draft
+    ids = [d["from"], d["to"]] if d.get("op") == "add_relation" else [d.get("entity")]
+    return [eid for eid in ids if eid and forms.get(eid)
+            and not any(_occurrences(passage_text, f) for f in forms[eid] if f.strip())]
+
+
 @dataclass
 class ChainResult:
     """Ce que la chaîne des faits produit sur une fenêtre : les faits gardés, et ce qui a été écarté et pourquoi."""
