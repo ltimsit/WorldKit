@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -138,6 +138,7 @@ class Fact:
     passage: int | None
     phrase: str = ""  # tournure française d'une relation proposée par la question ciblée
     exact: str = ""   # relation au sens exact quand la retenue est plus générale (« leads » pour member_of, X-014)
+    layer: str = "c5"  # couche qui l'a trouvé : « c5 » ou « probe » (question ciblée)
 
 
 def _is_a(schema: Any, type_name: str, accepted: list[str]) -> bool:
@@ -645,15 +646,15 @@ class RelationProbe:
         if self.pivot_map is not None:
             silent.answer = self.adapter.complete(system, user,
                                                   pivot_probe_schema(list(self.pivot_map.pivot.relations)))["relations"]
-            return [pivot_relation_fact(r["subject"].strip(), r["relation"].strip(), r["object"].strip(),
-                                        silent.sentence, silent.passage, self.pivot_map)
+            return [replace(pivot_relation_fact(r["subject"].strip(), r["relation"].strip(), r["object"].strip(),
+                                                silent.sentence, silent.passage, self.pivot_map), layer="probe")
                     for r in silent.answer
                     if r["subject"].strip() in silent.entities and r["object"].strip() in silent.entities]
         if self.ranked:
             return self._ask_ranked(silent, entities, schema, system, user)
         silent.answer = self.adapter.complete(system, user, probe_schema())["relations"]
         return [Fact({"op": "add_relation", "from": r["subject"].strip(), "relation": r["relation"].strip(),
-                      "to": r["object"].strip()}, silent.sentence, silent.passage, r.get("phrase", ""))
+                      "to": r["object"].strip()}, silent.sentence, silent.passage, r.get("phrase", ""), layer="probe")
                 for r in silent.answer if r["subject"].strip() in silent.entities and r["object"].strip() in silent.entities]
 
     def _ask_ranked(self, silent: Silent, entities: list[Confirmed], schema: Any, system: str, user: str) -> list[Fact]:
@@ -675,7 +676,8 @@ class RelationProbe:
             silent.answer.append({**chosen, "phrase": item.get("phrase", ""), "exact": exact,
                                   "candidates": [f"{c['relation']} ({c['link']})" for c in candidates]})
             facts.append(Fact({"op": "add_relation", "from": chosen["subject"], "relation": chosen["relation"],
-                               "to": chosen["object"]}, silent.sentence, silent.passage, item.get("phrase", ""), exact))
+                               "to": chosen["object"]}, silent.sentence, silent.passage, item.get("phrase", ""), exact,
+                              "probe"))
         return facts
 
 
@@ -806,6 +808,59 @@ def _sentence_of(fact: Fact, passage: str) -> str:
     return fact.evidence
 
 
+@dataclass
+class ChainResult:
+    """Ce que la chaîne des faits produit sur une fenêtre : les faits gardés, et ce qui a été écarté et pourquoi."""
+
+    kept: list[Fact] = field(default_factory=list)
+    judged: list[tuple[Fact, dict[str, Any]]] = field(default_factory=list)  # verdicts du critique (C6)
+    withheld: list[tuple[Fact, str]] = field(default_factory=list)           # retenus par l'énonciation (C4)
+    silents: list[Silent] = field(default_factory=list)                      # phrases soumises à la question ciblée
+
+
+def facts_chain(window: Window, entities: list[Confirmed], schema: Any, state: Any, finder: FactFinder,
+                probe: RelationProbe | None = None, forms: dict[str, set[str]] | None = None,
+                critic: Critic | None = None, with_enunciation: bool = False, names: dict[str, str] | None = None,
+                other_names: dict[str, tuple[str, ...]] | None = None) -> ChainResult:
+    """C5, puis la question ciblée sur les phrases muettes, l'énonciation (rumeur et note de travail retenues), et le
+    critique sur ce qui pose une question (pas les supports) : la chaîne du chantier (§6.5), une fenêtre à la fois.
+    Sert à la mesure (`evaluate_facts`) et à l'atelier (couche « faits », I9)."""
+    out = ChainResult()
+    meter = finder.meter
+    with meter.label(window.doc_id) if meter is not None else nullcontext():
+        facts = finder.find(window, entities, schema, state)
+    if probe is not None:
+        probe_meter = probe.meter
+        for silent in silent_sentences(window, facts, forms or {}, probe.by_pair):
+            out.silents.append(silent)
+            with probe_meter.label(f"{window.doc_id} p{silent.passage}") if probe_meter is not None else nullcontext():
+                facts += check_facts(probe.ask(silent, entities, schema), entities, schema, state, finder.rejected)
+    if with_enunciation:  # après la question ciblée (ses prompts ne changent pas), avant le critique
+        kept_by_voice = []
+        for f in facts:
+            voice = enunciation(_sentence_of(f, window.passage_texts.get(f.passage, ""))) \
+                if f.passage is not None else None
+            if voice is None:
+                kept_by_voice.append(f)
+            else:
+                out.withheld.append((f, voice))
+        facts = kept_by_voice
+    if critic is None:
+        out.kept = facts
+        return out
+    critic_meter = critic.meter
+    for f in facts:
+        if f.passage is None or is_support(key(f.draft, names or {}), state):
+            out.kept.append(f)  # le critique ne juge que ce qui pose une question
+            continue
+        with critic_meter.label(f"{window.doc_id} p{f.passage}") if critic_meter is not None else nullcontext():
+            verdict = critic.judge(f, window.passage_texts[f.passage], entities, schema, other_names)
+        out.judged.append((f, verdict))
+        if verdict.get("verdict") != "not_supported":
+            out.kept.append(f)
+    return out
+
+
 def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str, list[Confirmed]], gold_dir: Path,
                    context: ExtractionContext, state: Any, label: str, probe: RelationProbe | None = None,
                    forms: dict[str, dict[str, set[str]]] | None = None, critic: Critic | None = None,
@@ -838,38 +893,13 @@ def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str
     silents: list[Silent] = []
 
     def run(window: Window) -> list[Fact]:
-        with meter.label(window.doc_id) if meter is not None else nullcontext():
-            facts = finder.find(window, entities.get(window.doc_id, []), context.schema, state)
-        if probe is not None:
-            for s in silent_sentences(window, facts, (forms or {}).get(window.doc_id, {}), probe.by_pair):
-                silents.append(s)
-                with probe_meter.label(f"{window.doc_id} p{s.passage}") if probe_meter is not None else nullcontext():
-                    facts += check_facts(probe.ask(s, entities.get(window.doc_id, []), context.schema),
-                                         entities.get(window.doc_id, []), context.schema, state, finder.rejected)
-        if with_enunciation:  # après la question ciblée (ses prompts ne changent pas), avant le critique
-            kept_by_voice = []
-            for f in facts:
-                voice = enunciation(_sentence_of(f, window.passage_texts.get(f.passage, ""))) \
-                    if f.passage is not None else None
-                if voice is None:
-                    kept_by_voice.append(f)
-                else:
-                    withheld.append((f, voice))
-            facts = kept_by_voice
-        if critic is None:
-            return facts
-        kept = []
-        for f in facts:
-            if f.passage is None or is_support(key(f.draft, names), state):
-                kept.append(f)  # le critique ne juge que ce qui pose une question
-                continue
-            with critic_meter.label(f"{window.doc_id} p{f.passage}") if critic_meter is not None else nullcontext():
-                verdict = critic.judge(f, window.passage_texts[f.passage], entities.get(window.doc_id, []),
-                                       context.schema, {e.id: e.names for e in context.entities})
-            judged.append((f, verdict))
-            if verdict.get("verdict") != "not_supported":
-                kept.append(f)
-        return kept
+        result = facts_chain(window, entities.get(window.doc_id, []), context.schema, state, finder, probe,
+                             (forms or {}).get(window.doc_id, {}), critic, with_enunciation, names,
+                             {e.id: e.names for e in context.entities})
+        silents.extend(result.silents)
+        withheld.extend(result.withheld)
+        judged.extend(result.judged)
+        return result.kept
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         found = list(pool.map(run, windows))
