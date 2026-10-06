@@ -26,11 +26,12 @@ Sur une source dont les entités sont confirmées, l'auteur lance la couche « f
 | Q | Décision | Raison |
 |---|---|---|
 | Q1 | **(b)** « Proposer » envoie tous les faits proposés, sauf ceux que l'auteur a retirés et ceux que le critique a mis de côté (sauf repris) | l'atelier sert à voir et corriger ; la revue re-décide chaque fait : pas de travail en double |
+| Q2 | **(b)** un second lot par version, réservé aux faits (`atelier-<source>-<version>-faits`), qui s'appuie sur les entités déjà proposées (acceptées : identifiant réel ; en attente : dépendance, comme entre deux lots) | les entités sont le point d'arrêt avant les faits (chantier §6.5) ; l'historique ne fait que s'allonger (R-HIS-01) |
 
 ## 5. Questions pour l'auteur
 
 1. ~~Quels faits partent avec « Proposer » ?~~ Tranché (Q1).
-2. **Une source déjà proposée** (les entités de `corbelle-notes-en-vrac` sont parties) : (a) la règle « une version ne se propose qu'une fois » (T-ING-10) tient, il faut réimporter ; (b) un second lot par version pour les faits (`atelier-<source>-<version>-faits`), qui s'appuie sur les entités déjà acceptées.
+2. ~~Une source déjà proposée~~ Tranché (Q2).
 3. **Ce que l'écran montre par défaut** : (a) tous les faits, y compris mis de côté et retenus, grisés ; (b) seulement ceux à décider, les autres derrière un filtre.
 4. **Ajouter un fait à la main** : dans ce jalon, ou au suivant ?
 
