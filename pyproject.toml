@@ -26,6 +26,7 @@ include = ["worldkit*"]
 
 [tool.setuptools.package-data]
 "worldkit.web" = ["templates/*.html", "static/*"]
+"worldkit.periphery.pivot" = ["*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

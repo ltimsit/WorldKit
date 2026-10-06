@@ -294,11 +294,16 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
         entities = {d: chain_entities(ms, context) for d, ms in found.items()}
         forms = {d: chain_forms(ms, entities[d]) for d, ms in found.items()}
     profile = config.profile(args.profile, "facts")
-    finder = FactFinder(ReplayAdapter(args.replay) if args.replay else make_adapter(profile), profile, args.strict)
+    pivot_map = None
+    if args.pivot_map:
+        from worldkit.periphery.pivot import load_map
+        pivot_map = load_map(args.pivot_map)
+    finder = FactFinder(ReplayAdapter(args.replay) if args.replay else make_adapter(profile), profile, args.strict,
+                        pivot_map, args.pivot_hint)
     probe = None
     if args.probe:
         probe = RelationProbe(ReplayAdapter(args.probe_replay) if args.probe_replay else make_adapter(profile), profile,
-                              args.probe_relations, args.probe_pairs, args.probe_ranked)
+                              args.probe_relations, args.probe_pairs, args.probe_ranked, pivot_map, args.pivot_hint)
     critic = None
     if args.critic:
         from worldkit.periphery.facts import Critic
@@ -984,6 +989,11 @@ def build_parser() -> argparse.ArgumentParser:
                      help="question ciblée : relations connues données comme préférence (X-008)")
     evf.add_argument("--probe-pairs", action="store_true",
                      help="question ciblée : signal par paire d'entités non reliées (X-008)")
+    evf.add_argument("--pivot-map", default=None,
+                     help="schéma de genre (pivot) : correspondance du schéma du monde, ex. corpus/.../pivot-map.yaml "
+                          "(X-016) ; C5 et la question ciblée répondent dans le pivot")
+    evf.add_argument("--pivot-hint", action="store_true",
+                     help="pivot : rappeler en fin de message les relations compatibles avec les types (X-016)")
     evf.add_argument("--critic-v3", action="store_true",
                      help="critique v3 : fait plus faible impliqué, nom commun pluriel pour une faction (X-015, E-013)")
     evf.add_argument("--probe-ranked", action="store_true",

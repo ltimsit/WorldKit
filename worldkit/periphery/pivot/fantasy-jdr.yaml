@@ -1,0 +1,422 @@
+# Schéma de genre « fantasy jdr », version 1 : ontologie pivot de l'extraction (X-016, voie A).
+#
+# Il ne remplace pas le schéma du monde : le modèle répond dans ce vocabulaire, puis une table de correspondance
+# sans modèle (`maps/<schéma du monde>.yaml`) ramène chaque relation au schéma de l'auteur, en remontant la hiérarchie
+# (`broader`) quand le monde n'a pas la relation exacte ; sans correspondant, la relation est proposée hors schéma
+# (R-SCH-06), l'auteur décide.
+#
+# Sources : ACE 2005 (types et sous-types, `Located` distinct de `Near`), ARF 2025 (relations de fiction), usages du
+# genre (cultes, créatures, malédictions). Exemples tirés de la fiction connue, jamais des corpus de test : ce schéma
+# est figé avant la mesure (X-016).
+#
+# Direction : chaque relation a un sens canonique (sujet → objet) ; il n'y a pas d'inverse (« Arwen est la fille
+# d'Elrond » s'écrit elrond parent_of arwen).
+pivot: fantasy-jdr
+version: 1
+
+types:
+  Person: "un être doué de raison, humain ou non (personnage, héros, roi, prêtre)"
+  Group: "un ensemble organisé de personnes (faction, guilde, ordre, famille noble, armée, conseil, peuple organisé)"
+  Place: "un lieu (royaume, ville, quartier, bâtiment, forêt, rivière, région)"
+  Creature: "un être non doué de raison ou monstrueux (bête, monstre, esprit, dragon)"
+  Deity: "un dieu, une puissance divine ou un culte personnifié"
+  Object: "un objet (arme, artefact, relique, trésor, navire)"
+  Event: "un événement (bataille, guerre, catastrophe, fête, cérémonie, siège)"
+  Concept: "une idée, une croyance, une force, une magie, un serment"
+  Work: "une œuvre ou un écrit (livre, chronique, chant, carte, lettre)"
+
+relations:
+  # --- Famille ---
+  kin_of:
+    from: Person
+    to: Person
+    symmetric: true
+    fr: "de la même famille que"
+    def: "lien de famille, quel qu'il soit, sans plus de précision (cousin, oncle, parent éloigné)"
+    ex: "« Bilbon est un cousin éloigné de Frodon » → bilbon kin_of frodon"
+  parent_of:
+    from: Person
+    to: Person
+    broader: kin_of
+    fr: "parent de"
+    def: "le sujet est le père ou la mère de l'objet"
+    ex: "« Arwen est la fille d'Elrond » → elrond parent_of arwen"
+  mother_of:
+    from: Person
+    to: Person
+    broader: parent_of
+    fr: "mère de"
+    def: "le sujet est la mère de l'objet"
+    ex: "« Catelyn est la mère de Robb » → catelyn mother_of robb"
+  father_of:
+    from: Person
+    to: Person
+    broader: parent_of
+    fr: "père de"
+    def: "le sujet est le père de l'objet"
+    ex: "« Denethor, père de Boromir » → denethor father_of boromir"
+  sibling_of:
+    from: Person
+    to: Person
+    symmetric: true
+    broader: kin_of
+    fr: "frère ou sœur de"
+    def: "même parents, ou demi-frère, demi-sœur"
+    ex: "« Thor et son frère Loki » → thor sibling_of loki"
+  spouse_of:
+    from: Person
+    to: Person
+    symmetric: true
+    broader: kin_of
+    fr: "époux ou épouse de"
+    def: "mariage actuel"
+    ex: "« Aragorn épousa Arwen » → aragorn spouse_of arwen"
+  guardian_of:
+    from: Person
+    to: Person
+    fr: "tuteur de"
+    def: "élève, recueille ou a la garde d'un autre (adoption, tutelle, pupille)"
+    ex: "« Ned Stark élève Jon Snow » → ned guardian_of jon"
+
+  descends_from:
+    from: [Person, Group]
+    to: [Person, Group]
+    broader: kin_of
+    fr: "descend de"
+    def: "ascendance lointaine, lignée, maison d'origine"
+    ex: "« Aragorn, descendant d'Isildur » → aragorn descends_from isildur"
+  heir_of:
+    from: Person
+    to: [Person, Group, Place]
+    fr: "héritier de"
+    def: "désigné pour succéder à l'objet (trône, titre, domaine, maison)"
+    ex: "« Faramir, héritier de l'Intendance » → faramir heir_of intendance"
+  successor_of:
+    from: Person
+    to: Person
+    fr: "successeur de"
+    def: "a pris la place ou la charge de l'objet"
+    ex: "« Éomer succéda à Théoden » → eomer successor_of theoden"
+
+  # --- Liens personnels ---
+  friend_of:
+    from: Person
+    to: Person
+    symmetric: true
+    fr: "ami de"
+    def: "amitié déclarée"
+    ex: "« Frodon et son ami Sam » → frodon friend_of sam"
+  lover_of:
+    from: Person
+    to: Person
+    fr: "amoureux de"
+    def: "amour, liaison, fiançailles, réciproque ou non"
+    ex: "« Roméo aime Juliette » → romeo lover_of juliette"
+  companion_of:
+    from: Person
+    to: Person
+    symmetric: true
+    fr: "compagnon de"
+    def: "voyage, combat ou vit aux côtés de l'autre, sans amitié dite"
+    ex: "« Sancho accompagne Don Quichotte » → sancho companion_of don-quichotte"
+  mentor_of:
+    from: Person
+    to: Person
+    fr: "mentor de"
+    def: "guide, conseille ou enseigne à l'objet"
+    ex: "« Dumbledore guide Harry » → dumbledore mentor_of harry"
+  protector_of:
+    from: [Person, Group, Creature, Deity]
+    to: [Person, Group, Place]
+    fr: "protecteur de"
+    def: "veille sur l'objet, le défend (garde du corps, gardien d'un lieu)"
+    ex: "« Hagrid veille sur Harry » → hagrid protector_of harry"
+  serves:
+    from: [Person, Group]
+    to: [Person, Group, Deity]
+    fr: "au service de"
+    def: "sert l'objet : domestique, soldat, employé, prêtre d'un dieu, agent"
+    ex: "« Sam est le jardinier de Frodon » → sam serves frodon"
+  vassal_of:
+    from: [Person, Group]
+    to: [Person, Group]
+    broader: serves
+    fr: "vassal de"
+    def: "lien féodal : a prêté allégeance, tient ses terres de l'objet"
+    ex: "« le seigneur de Winterfell, vassal du roi » → ned vassal_of robert"
+  ally_of:
+    from: [Person, Group]
+    to: [Person, Group]
+    symmetric: true
+    fr: "allié de"
+    def: "alliance, pacte, cause commune déclarée"
+    ex: "« les elfes s'allient aux hommes » → elfes ally_of hommes"
+  conspires_with:
+    from: [Person, Group]
+    to: [Person, Group]
+    symmetric: true
+    broader: ally_of
+    fr: "complote avec"
+    def: "alliance secrète ou intrigue commune, affirmée par le texte"
+    ex: "« Littlefinger complote avec Lysa » → littlefinger conspires_with lysa"
+  hostile_to:
+    from: [Person, Group, Creature, Deity]
+    to: [Person, Group, Creature, Deity]
+    fr: "hostile à"
+    def: "haine, mépris, méfiance déclarée envers l'objet, sans conflit ouvert"
+    ex: "« Gimli se méfie des elfes » → gimli hostile_to elfes"
+  enemy_of:
+    from: [Person, Group, Creature, Deity]
+    to: [Person, Group, Creature, Deity]
+    broader: hostile_to
+    fr: "ennemi de"
+    def: "conflit ouvert, guerre, vendetta"
+    ex: "« Harry, ennemi juré de Voldemort » → harry enemy_of voldemort"
+  rival_of:
+    from: [Person, Group]
+    to: [Person, Group]
+    symmetric: true
+    fr: "rival de"
+    def: "concurrence pour un même but (pouvoir, amour, marché), pas forcément hostile"
+    ex: "« Holmes et son rival Moriarty » → holmes rival_of moriarty"
+
+  spy_for:
+    from: Person
+    to: [Person, Group]
+    broader: serves
+    fr: "espion de"
+    def: "renseigne l'objet en secret, agent infiltré"
+    ex: "« Varys, l'Araignée, espionne pour le Conseil » → varys spy_for conseil"
+  betrayed:
+    from: [Person, Group]
+    to: [Person, Group]
+    fr: "a trahi"
+    def: "a rompu sa loyauté envers l'objet (trahison, parjure, désertion)"
+    ex: "« Saroumane trahit le Conseil blanc » → saroumane betrayed conseil-blanc"
+  controls:
+    from: [Person, Group, Deity, Object]
+    to: [Person, Group, Creature]
+    fr: "contrôle"
+    def: "tient l'objet sous sa coupe (marionnettiste, chantage, envoûtement, domination)"
+    ex: "« Saroumane tient Théoden sous son charme » → saroumane controls theoden"
+  owes:
+    from: [Person, Group]
+    to: [Person, Group, Deity]
+    fr: "a une dette envers"
+    def: "doit de l'argent, un service ou la vie à l'objet"
+    ex: "« Gollum doit la vie à Bilbon » → gollum owes bilbon"
+  bonded_to:
+    from: Creature
+    to: Person
+    fr: "lié à"
+    def: "monture, familier, compagnon animal attaché à une personne"
+    ex: "« Gripoil, le cheval de Gandalf » → gripoil bonded_to gandalf"
+  captive_of:
+    from: [Person, Creature]
+    to: [Person, Group, Creature]
+    fr: "prisonnier de"
+    def: "retenu captif, otage ou esclave de l'objet"
+    ex: "« Merry et Pippin, prisonniers des orques » → merry captive_of orques"
+  seeks:
+    from: [Person, Group, Creature]
+    to: [Person, Object, Place, Concept, Creature]
+    fr: "cherche"
+    def: "poursuit l'objet comme but de quête (retrouver, capturer, obtenir, venger)"
+    ex: "« les Nazgûl cherchent l'Anneau » → nazgul seeks anneau"
+
+  # --- Groupes ---
+  member_of:
+    from: [Person, Group]
+    to: Group
+    fr: "membre de"
+    def: "appartient au groupe (adhérent, soldat d'une armée, membre d'une famille noble)"
+    ex: "« Legolas, de la Communauté » → legolas member_of communaute"
+  leader_of:
+    from: Person
+    to: Group
+    broader: member_of
+    fr: "à la tête de"
+    def: "dirige le groupe (chef, capitaine, grand prêtre, roi d'un peuple)"
+    ex: "« Aragorn mène la Communauté » → aragorn leader_of communaute"
+  founder_of:
+    from: [Person, Group]
+    to: Group
+    fr: "fondateur de"
+    def: "a fondé le groupe"
+    ex: "« Salazar fonda sa maison » → salazar founder_of serpentard"
+  part_of:
+    from: Group
+    to: Group
+    fr: "fait partie de"
+    def: "sous-groupe d'un groupe plus large (une compagnie dans une armée, une branche d'un ordre)"
+    ex: "« la Garde de la Cité, au sein de l'armée du Gondor » → garde part_of armee"
+
+  trades_with:
+    from: [Person, Group]
+    to: [Person, Group]
+    symmetric: true
+    fr: "commerce avec"
+    def: "échanges marchands réguliers, contrat, fournisseur"
+    ex: "« les nains de la Montagne commercent avec Esgaroth » → nains trades_with esgaroth"
+
+  # --- Lieux ---
+  located_in:
+    from: [Place, Object]
+    to: Place
+    fr: "situé dans"
+    def: "le sujet est dans l'objet, ou en fait partie (un quartier dans une ville, une ville dans un royaume)"
+    ex: "« Fondcombe, dans les vallées des Monts Brumeux » → fondcombe located_in monts-brumeux"
+  near:
+    from: [Place, Person, Group, Creature, Object]
+    to: Place
+    fr: "près de"
+    def: "proximité dite par le texte (près de, au bord de, à côté de, en face de), sans inclusion ni résidence"
+    ex: "« une auberge au bord de la route de l'Est » → auberge near route-de-l-est"
+  lives_in:
+    from: [Person, Creature]
+    to: Place
+    fr: "habite"
+    def: "le sujet habite, vit ou réside dans l'objet"
+    ex: "« Bilbon vit à Cul-de-Sac » → bilbon lives_in cul-de-sac"
+  works_at:
+    from: Person
+    to: Place
+    fr: "travaille à"
+    def: "y exerce son métier, y tient boutique ou charge (sans y habiter forcément)"
+    ex: "« Poiredebeurré tient le Poney Fringant » → poiredebeurre works_at poney-fringant"
+  based_in:
+    from: Group
+    to: Place
+    fr: "a son siège à"
+    def: "le groupe y siège ou y a son quartier général"
+    ex: "« l'ordre des Templiers, établi à Jérusalem » → templiers based_in jerusalem"
+  born_in:
+    from: Person
+    to: Place
+    fr: "né à"
+    def: "lieu de naissance"
+    ex: "« Napoléon, né en Corse » → napoleon born_in corse"
+  rules:
+    from: [Person, Group, Deity]
+    to: Place
+    fr: "gouverne"
+    def: "exerce aujourd'hui le pouvoir sur le lieu (roi, seigneur, conseil)"
+    ex: "« Théoden règne sur le Rohan » → theoden rules rohan"
+  haunts:
+    from: [Creature, Person, Deity]
+    to: Place
+    fr: "hante"
+    def: "rôde, apparaît ou a son repaire dans le lieu (esprit, monstre, fantôme)"
+    ex: "« un dragon hante la Montagne Solitaire » → smaug haunts montagne-solitaire"
+
+  # --- Biens, œuvres, créations ---
+  owns:
+    from: [Person, Group, Deity]
+    to: [Object, Place, Creature]
+    fr: "possède"
+    def: "propriété actuelle (arme, domaine, monture, navire)"
+    ex: "« Bilbon possède l'Anneau » → bilbon owns anneau"
+  created:
+    from: [Person, Group, Deity]
+    to: [Object, Work, Creature, Place]
+    fr: "a créé"
+    def: "a forgé, bâti, écrit, enfanté par magie, fondé un lieu"
+    ex: "« Sauron forgea l'Anneau unique » → sauron created anneau"
+  author_of:
+    from: [Person, Group]
+    to: Work
+    broader: created
+    fr: "auteur de"
+    def: "a écrit ou composé l'œuvre"
+    ex: "« Bilbon écrivit le Livre Rouge » → bilbon author_of livre-rouge"
+  commissioned:
+    from: [Person, Group]
+    to: [Work, Object, Place]
+    fr: "a commandé"
+    def: "a fait faire l'œuvre ou l'objet par un autre"
+    ex: "« le roi fit rédiger la chronique » → roi commissioned chronique"
+  wields:
+    from: [Person, Creature]
+    to: Object
+    broader: owns
+    fr: "porte, manie"
+    def: "porte ou utilise l'objet comme le sien (arme, artefact)"
+    ex: "« Aragorn brandit Andúril » → aragorn wields anduril"
+  about:
+    from: Work
+    to: [Person, Group, Place, Creature, Deity, Object, Event, Concept]
+    fr: "parle de"
+    def: "l'œuvre a pour sujet l'objet"
+    ex: "« une chanson sur la chute de Gondolin » → chanson about chute-de-gondolin"
+
+  # --- Événements ---
+  participates_in:
+    from: [Person, Group, Creature, Deity]
+    to: Event
+    fr: "participe à"
+    def: "a pris part à l'événement (combattant, invité, victime) ; un repère de temps (« depuis la guerre ») n'est pas une participation"
+    ex: "« Éowyn combattit aux Champs du Pelennor » → eowyn participates_in pelennor"
+  died_in:
+    from: [Person, Creature]
+    to: Event
+    broader: participates_in
+    fr: "mort lors de"
+    def: "a péri pendant l'événement"
+    ex: "« Théoden tomba au Pelennor » → theoden died_in pelennor"
+  caused:
+    from: [Person, Group, Creature, Deity, Object]
+    to: Event
+    fr: "a causé"
+    def: "a déclenché ou provoqué l'événement"
+    ex: "« Macbeth causa la mort de Duncan » → macbeth caused meurtre-de-duncan"
+  occurred_in:
+    from: Event
+    to: Place
+    fr: "a eu lieu à"
+    def: "lieu de l'événement"
+    ex: "« la bataille du gouffre de Helm » → bataille-du-gouffre occurred_in gouffre-de-helm"
+  killed:
+    from: [Person, Creature, Deity]
+    to: [Person, Creature]
+    fr: "a tué"
+    def: "le sujet a tué l'objet"
+    ex: "« Éowyn tua le Roi-Sorcier » → eowyn killed roi-sorcier"
+
+  # --- Croyances, magie ---
+  believes_in:
+    from: [Person, Group]
+    to: [Concept, Deity, Creature]
+    fr: "croit en"
+    def: "adhère à une idée, une foi, une prophétie"
+    ex: "« Atticus croit en la justice » → atticus believes_in justice"
+  worships:
+    from: [Person, Group]
+    to: [Deity, Concept, Creature]
+    broader: believes_in
+    fr: "vénère"
+    def: "culte, prière, adoration"
+    ex: "« les Numenóréens vénéraient Eru » → numenoreens worships eru"
+  patron_of:
+    from: Deity
+    to: [Person, Group, Place]
+    fr: "patron de"
+    def: "la puissance divine protège ou parraine l'objet"
+    ex: "« Tyr, dieu des guerriers » → tyr patron_of guerriers"
+  cursed:
+    from: [Person, Creature, Deity]
+    to: [Person, Group, Place, Object]
+    fr: "a maudit"
+    def: "a jeté une malédiction sur l'objet"
+    ex: "« la fée maudit la princesse » → fee cursed princesse"
+  bound_by:
+    from: [Person, Group, Creature]
+    to: Concept
+    fr: "lié par"
+    def: "tenu par un serment, un pacte, une malédiction, un geis"
+    ex: "« les Morts sont liés par leur serment » → morts bound_by serment"
+  embodies:
+    from: [Person, Creature, Deity, Object]
+    to: Concept
+    fr: "incarne"
+    def: "est la figure ou le symbole de l'idée"
+    ex: "« Beowulf incarne le courage » → beowulf embodies courage"

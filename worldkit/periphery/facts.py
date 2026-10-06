@@ -53,6 +53,64 @@ SYSTEM_STRICT = SYSTEM.replace(
    de temps (« depuis la guerre », « avant l'incendie ») n'est ni un fait ni une relation.""")
 
 
+# Variante pivot (X-016) : le schéma de genre entier dans le prompt système (stable : mis en cache), une énumération
+# des relations en sortie (le modèle ne peut pas en sortir), la correspondance vers le monde sans modèle.
+PIVOT_SYSTEM = """Tu relèves les faits qu'un texte de notes de jeu de rôle (français) affirme sur des entités déjà identifiées.
+
+Règles :
+1. Seulement ce que le texte affirme. N'invente pas, ne déduis pas au-delà du texte.
+2. subject et object sont des identifiants de la liste d'entités, jamais autre chose.
+3. Une relation : la plus précise du schéma de genre ci-dessous qui dit ce que dit le texte, dans son sens
+   canonique. Si aucune ne le dit, ne produis pas de relation.
+4. Un attribut : un de ceux donnés pour le type du sujet, avec une valeur courte recopiée du texte, sans
+   complément (« capitaine », pas « capitaine du port »).
+5. Un fait révolu (« régnait autrefois ») n'est pas un fait actuel ; un repère de temps (« depuis la guerre »)
+   n'est pas une relation.
+6. evidence : la phrase du texte qui affirme le fait, recopiée exactement.
+
+"""
+
+
+def pivot_output_schema(relations: list[str]) -> dict[str, Any]:
+    relation = {"type": "object", "additionalProperties": False,
+                "required": ["subject", "relation", "object", "evidence"],
+                "properties": {"subject": {"type": "string"}, "relation": {"type": "string", "enum": relations},
+                               "object": {"type": "string"}, "evidence": {"type": "string"}}}
+    attribute = {"type": "object", "additionalProperties": False,
+                 "required": ["subject", "attribute", "value", "evidence"],
+                 "properties": {k: {"type": "string"} for k in ("subject", "attribute", "value", "evidence")}}
+    return {"type": "object", "additionalProperties": False, "required": ["relations", "attributes"],
+            "properties": {"relations": {"type": "array", "items": relation},
+                           "attributes": {"type": "array", "items": attribute}}}
+
+
+def pivot_entity_lines(entities: list[Confirmed], pivot_map: Any) -> list[str]:
+    return [f"- {e.id} ({e.type} → {pivot_map.type_of(e.type) or '?'}) : {e.name}"
+            for e in sorted(entities, key=lambda e: e.id)]
+
+
+def pivot_hint(entities: list[Confirmed], pivot_map: Any) -> list[str]:
+    """Les relations du pivot dont les types conviennent à au moins une paire d'entités (variante « indice »)."""
+    types = sorted({t for e in entities if (t := pivot_map.type_of(e.type))})
+    found: list[str] = []
+    for a in types:
+        for b in types:
+            for r in pivot_map.pivot.compatible(a, b):
+                if r not in found:
+                    found.append(r)
+    return [r for r in pivot_map.pivot.relations if r in found]
+
+
+def pivot_relation_fact(subject: str, relation: str, obj: str, evidence: str, passage: int | None,
+                        pivot_map: Any) -> Fact:
+    """Une relation du pivot ramenée au monde : exacte, plus générale (la forme exacte gardée pour le critique), ou
+    hors schéma (identifiant du pivot, l'auteur décide : R-SCH-06)."""
+    world, exact = pivot_map.to_world(relation)
+    phrase = pivot_map.pivot.relations[relation].fr if relation in pivot_map.pivot.relations else ""
+    return Fact({"op": "add_relation", "from": subject, "relation": world or relation, "to": obj},
+                evidence, passage, phrase, exact)
+
+
 def output_schema() -> dict[str, Any]:
     fact = {"type": "object", "additionalProperties": False,
             "required": ["kind", "subject", "predicate", "object", "value", "evidence"],
@@ -93,16 +151,21 @@ class FactFinder:
     adapter: Any
     profile: Any
     strict: bool = False  # variante stricte (X-008)
+    pivot_map: Any = None  # schéma de genre et correspondance (X-016)
+    hint: bool = False     # variante pivot : relations compatibles rappelées en fin de message
 
     @property
     def version(self) -> str:
-        return f"facts-{PROMPT_VERSION}{'+strict' if self.strict else ''}:{self.profile.signature}"
+        pivot = f"+pivot:{self.pivot_map.pivot.signature}{'+hint' if self.hint else ''}" if self.pivot_map else ""
+        return f"facts-{PROMPT_VERSION}{'+strict' if self.strict else ''}{pivot}:{self.profile.signature}"
 
     @property
     def meter(self) -> Any:
         return getattr(self.adapter, "meter", None)
 
     def prompt(self, window: Window, entities: list[Confirmed], schema: Any) -> tuple[str, str]:
+        if self.pivot_map is not None:
+            return self.pivot_prompt(window, entities, schema)
         types = {e.type for e in entities}
         lines = [f"- {e.id} ({e.type}) : {e.name}" for e in sorted(entities, key=lambda e: e.id)]
         relations = []
@@ -123,13 +186,43 @@ class FactFinder:
                 + "\n\nTexte :\n" + window.text)
         return (SYSTEM_STRICT if self.strict else SYSTEM), user
 
+    def pivot_prompt(self, window: Window, entities: list[Confirmed], schema: Any) -> tuple[str, str]:
+        """Système : règles puis schéma de genre entier (identique d'un appel à l'autre). Message : entités avec leur
+        type pivot, attributs du monde par type, indice éventuel, texte."""
+        attributes = []
+        for t in sorted({e.type for e in entities}):
+            if t in schema.types:
+                names = [f"{a} ({(d.labels or {}).get('fr', a)})" for a, d in schema.attributes_of(t).items()
+                         if a != "name"]
+                if names:
+                    attributes.append(f"- {t} : {', '.join(names)}")
+        user = ("Entités (identifiant, type du monde → type du schéma de genre : nom) :\n"
+                + "\n".join(pivot_entity_lines(entities, self.pivot_map))
+                + "\n\nAttributs par type du monde :\n" + ("\n".join(attributes) or "- (aucun)"))
+        if self.hint:
+            user += "\n\nRelations du schéma de genre qui conviennent à ces types : " \
+                    + ", ".join(pivot_hint(entities, self.pivot_map))
+        return PIVOT_SYSTEM + self.pivot_map.pivot.render(), user + "\n\nTexte :\n" + window.text
+
     def find(self, window: Window, entities: list[Confirmed], schema: Any, state: Any = None) -> list[Fact]:
         system, user = self.prompt(window, entities, schema)
+        if self.pivot_map is not None:
+            raw = self.adapter.complete(system, user, pivot_output_schema(list(self.pivot_map.pivot.relations)))
+            return check_facts(self._pivot_facts(raw, window, entities, schema), entities, schema, state,
+                               self.rejected)
         raw = self.adapter.complete(system, user, output_schema())
         return check_facts(self._facts(raw, window, entities, schema), entities, schema, state, self.rejected)
 
     def __post_init__(self) -> None:
         self.rejected: list[tuple[Fact, str]] = []  # écartés par les contrôles sans modèle (E-011), avec la raison
+
+    def _pivot_facts(self, raw: dict[str, Any], window: Window, entities: list[Confirmed], schema: Any) -> list[Fact]:
+        facts = [pivot_relation_fact(r["subject"].strip(), r["relation"].strip(), r["object"].strip(), r["evidence"],
+                                     _locate(window, r["evidence"]), self.pivot_map) for r in raw["relations"]]
+        attributes = {"facts": [{"kind": "attribute", "subject": a["subject"], "predicate": a["attribute"],
+                                 "object": "", "value": a["value"], "evidence": a["evidence"]}
+                                for a in raw["attributes"]]}
+        return facts + self._facts(attributes, window, entities, schema)
 
     def _facts(self, raw: dict[str, Any], window: Window, entities: list[Confirmed], schema: Any) -> list[Fact]:
         types = {e.id: e.type for e in entities}
@@ -428,6 +521,28 @@ def choose_candidate(candidates: list[dict[str, Any]], types: dict[str, str],
     return chosen, exact
 
 
+PIVOT_PROBE_SYSTEM = """Une phrase de notes de jeu de rôle (français) cite plusieurs entités. Dis quelle relation durable et actuelle
+la phrase affirme entre deux d'entre elles, s'il y en a une.
+
+Règles :
+1. Seulement ce que la phrase affirme. Un fait révolu (« régnait autrefois ») ou un repère de temps (« depuis la
+   guerre ») n'est pas une relation.
+2. relation : la plus précise du schéma de genre ci-dessous qui dit ce que dit la phrase, dans son sens canonique.
+3. subject et object sont des identifiants de la liste donnée ; phrase : la tournure française de la phrase qui
+   l'exprime.
+4. Aucune relation affirmée : liste vide.
+
+"""
+
+
+def pivot_probe_schema(relations: list[str]) -> dict[str, Any]:
+    item = {"type": "object", "additionalProperties": False, "required": ["subject", "relation", "object", "phrase"],
+            "properties": {"subject": {"type": "string"}, "relation": {"type": "string", "enum": relations},
+                           "object": {"type": "string"}, "phrase": {"type": "string"}}}
+    return {"type": "object", "additionalProperties": False, "required": ["relations"],
+            "properties": {"relations": {"type": "array", "items": item}}}
+
+
 def probe_schema() -> dict[str, Any]:
     item = {"type": "object", "additionalProperties": False, "required": ["subject", "relation", "object", "phrase"],
             "properties": {k: {"type": "string"} for k in ("subject", "relation", "object", "phrase")}}
@@ -490,11 +605,14 @@ class RelationProbe:
     with_relations: bool = False  # relations connues données comme préférence (X-008)
     by_pair: bool = False         # signal par paire d'entités non reliées, plutôt que par phrase muette (X-008)
     ranked: bool = False          # candidats classés, choix sans modèle (X-014) ; implique les relations connues
+    pivot_map: Any = None         # schéma de genre et correspondance (X-016) ; remplace les relations connues
+    hint: bool = False            # variante pivot : relations compatibles rappelées en fin de message
 
     @property
     def version(self) -> str:
         flags = ("+rel" if self.with_relations or self.ranked else "") + ("+pairs" if self.by_pair else "") \
-            + ("+ranked" if self.ranked else "")
+            + ("+ranked" if self.ranked else "") \
+            + (f"+pivot:{self.pivot_map.pivot.signature}{'+hint' if self.hint else ''}" if self.pivot_map else "")
         return f"probe-{PROBE_PROMPT_VERSION}{flags}:{self.profile.signature}"
 
     @property
@@ -502,6 +620,13 @@ class RelationProbe:
         return getattr(self.adapter, "meter", None)
 
     def prompt(self, silent: Silent, entities: list[Confirmed], schema: Any = None) -> tuple[str, str]:
+        if self.pivot_map is not None:
+            chosen = [e for e in entities if e.id in silent.entities]
+            user = "Entités :\n" + "\n".join(pivot_entity_lines(chosen, self.pivot_map))
+            if self.hint:
+                user += "\n\nRelations du schéma de genre qui conviennent à ces types : " \
+                        + ", ".join(pivot_hint(chosen, self.pivot_map))
+            return PIVOT_PROBE_SYSTEM + self.pivot_map.pivot.render(), user + "\n\nPhrase :\n" + silent.sentence
         known = {e.id: e for e in entities}
         lines = [f"- {eid} ({known[eid].type}) : {known[eid].name}" for eid in silent.entities if eid in known]
         user = "Entités :\n" + "\n".join(lines)
@@ -517,6 +642,13 @@ class RelationProbe:
 
     def ask(self, silent: Silent, entities: list[Confirmed], schema: Any = None) -> list[Fact]:
         system, user = self.prompt(silent, entities, schema)
+        if self.pivot_map is not None:
+            silent.answer = self.adapter.complete(system, user,
+                                                  pivot_probe_schema(list(self.pivot_map.pivot.relations)))["relations"]
+            return [pivot_relation_fact(r["subject"].strip(), r["relation"].strip(), r["object"].strip(),
+                                        silent.sentence, silent.passage, self.pivot_map)
+                    for r in silent.answer
+                    if r["subject"].strip() in silent.entities and r["object"].strip() in silent.entities]
         if self.ranked:
             return self._ask_ranked(silent, entities, schema, system, user)
         silent.answer = self.adapter.complete(system, user, probe_schema())["relations"]
