@@ -62,7 +62,8 @@
     <p><button name="action" value="keep">Garder</button> <button name="action" value="remove">Retirer</button> <button name="action" value="ignore" title="ce n'est pas une entité">Ignorer</button></p>
     <p>Corriger : <select name="entity"><option value="">— entité —</option><option value="new">nouvelle entité</option>
       {% for c in v.candidates %}<option value="{{ c }}">{{ names[c].name if c in names else c }} (candidat)</option>{% endfor %}
-      {% for e in view.entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type }})</option>{% endfor %}</select>
+      {% if view.new_entities %}<optgroup label="nouvelles de cette source">{% for e in view.new_entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type or "?" }}, nouvelle)</option>{% endfor %}</optgroup>{% endif %}
+      <optgroup label="du monde">{% for e in view.entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type }})</option>{% endfor %}</optgroup></select>
       <select name="type"><option value="">— type —</option>{% for t in view.types %}<option{{ ' selected' if t == v.type }}>{{ t }}</option>{% endfor %}</select>
       <button name="action" value="correct">Corriger</button></p>
   </form>
@@ -74,7 +75,7 @@
     <input type="hidden" name="action" value="add"><input type="hidden" name="passage" id="add-passage">
     <input type="hidden" name="start" id="add-start"><input type="hidden" name="end" id="add-end">
     <p>sélection : <b id="add-text" class="muted">sélectionner un mot dans le texte</b></p>
-    <p><select name="entity"><option value="new">nouvelle entité</option>{% for e in view.entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type }})</option>{% endfor %}</select>
+    <p><select name="entity"><option value="new">nouvelle entité</option>{% if view.new_entities %}<optgroup label="nouvelles de cette source">{% for e in view.new_entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type or "?" }}, nouvelle)</option>{% endfor %}</optgroup>{% endif %}<optgroup label="du monde">{% for e in view.entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type }})</option>{% endfor %}</optgroup></select>
        <select name="type">{% for t in view.types %}<option>{{ t }}</option>{% endfor %}</select></p>
     <p>portée <label><input type="radio" name="scope" value="occurrence"> cette occurrence</label>
       <label><input type="radio" name="scope" value="source" checked> toute la source</label>

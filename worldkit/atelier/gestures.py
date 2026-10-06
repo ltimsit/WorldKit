@@ -33,14 +33,20 @@ def gesture(world: Any, branch: str, doc_id: str, action: str, scope: str = "sou
     """Applique un geste ; rend les identifiants des annotations écrites (et des règles, en négatif si portée monde).
 
     - `keep`, `remove`, `ignore` : visent `ann_id` ;
-    - `correct` : vise `ann_id`, avec `entity` (un identifiant, ou « new » pour une entité nouvelle) et/ou `type_` ;
-    - `add` : une portion choisie (`passage`, `start`, `end`), avec `entity` et `type_`.
+    - `correct` : vise `ann_id`, avec `entity` (un identifiant connu, « new » pour une entité nouvelle, ou
+      « new:<étiquette> » pour une entité nouvelle déjà repérée dans la source) et/ou `type_` ;
+    - `add` : une portion choisie (`passage`, `start`, `end`), avec `entity` et `type_` ; à la portée de la source,
+      une autre occurrence contenue dans une mention plus longue (« Ostrel » dans « Bertrand Ostrel ») est laissée.
     """
     from worldkit.periphery.matching import fold
     from worldkit.periphery.mentions import _occurrences
     if action not in ACTIONS or scope not in SCOPES:
         raise ValueError(f"geste inconnu : {action} / {scope}")
     doc = store.source(world, doc_id)
+    if entity and entity.startswith("new:"):
+        from .propose import new_entities
+        if entity[len("new:"):].replace(" ", "-") not in new_entities(world, branch, doc):
+            raise ValueError(f"entité nouvelle inconnue dans cette source : {entity}")
     texts = {p.index: p.text for p in doc.passages}
     retained = scope == "world"
     written: list[int] = []
@@ -56,6 +62,8 @@ def gesture(world: Any, branch: str, doc_id: str, action: str, scope: str = "sou
         for i, s, e in spans:
             covered = next((a for a in existing if a.passage == i and a.start is not None
                             and a.start < e and s < a.end), None)
+            if covered is not None and (i, s) != (passage, start) and covered.start <= s and e <= covered.end                     and covered.end - covered.start > e - s:
+                continue  # « Ostrel » ne remplace pas « Bertrand Ostrel » qui le contient (portion la plus longue)
             value = {"text": texts[i][s:e], "type": type_, "entity": None if entity == "new" else entity,
                      "new": entity == "new", "candidates": [], "rule": "author", "source": "author",
                      "retained": retained}

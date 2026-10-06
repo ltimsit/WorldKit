@@ -203,6 +203,71 @@ def test_nothing_is_proposed_without_an_author_decision_Q3():
         proposing.propose(world, "reference", doc.doc_id)
 
 
+# --- Rattacher une forme à une entité nouvelle de la source (E-014) ---
+
+GUILDE = """# Guilde
+
+Le maître de la guilde, c'est Bertrand Ostrel. Ostrel est pas fiable.
+"""
+
+
+def ostrel_source():
+    world = base_world()
+    doc = store.import_source(world, GUILDE)
+    layers.run_mentions(world, "reference", doc.doc_id, FakeFinder([("Bertrand Ostrel", "Character")]))
+    passage = doc.passages[0]
+    start = passage.text.index("Ostrel est")
+    return world, doc, passage.index, start
+
+
+def test_new_entities_of_the_source_are_listed_with_their_reference_name_E_014():
+    world, doc, _, _ = ostrel_source()
+    groups = proposing.new_entities(world, "reference", doc)
+    assert list(groups) == ["bertrand-ostrel"]
+    assert groups["bertrand-ostrel"]["name"] == "Bertrand Ostrel" and groups["bertrand-ostrel"]["type"] == "Character"
+
+
+def test_a_short_form_attached_to_a_new_entity_becomes_its_alias_E_014():
+    """« Ostrel » rattaché à Bertrand Ostrel (nouvelle) et retenu : une création, un alias, pas deux entités."""
+    world, doc, passage, start = ostrel_source()
+    gestures.gesture(world, "reference", doc.doc_id, "add", "world", passage=passage, start=start,
+                     end=start + len("Ostrel"), entity="new:bertrand-ostrel", type_="Character")
+    flat = [d for ds in proposing.drafts_of(world, "reference", doc).values() for d in ds]
+    assert flat == [{"op": "create_entity", "entity": "new:bertrand-ostrel", "type": "Character"},
+                    {"op": "set_attribute", "entity": "new:bertrand-ostrel", "attribute": "name",
+                     "value": "Bertrand Ostrel"},
+                    {"op": "add_value", "entity": "new:bertrand-ostrel", "attribute": "aliases", "value": "Ostrel"}]
+    proposing.propose(world, "reference", doc.doc_id)
+    from worldkit.ingest.queue import load
+    changes = [c.change for p in load(world) for c in p.changes]
+    created = next(c.entity for c in changes if c.op == "create_entity")
+    assert any(c.op == "add_value" and c.entity == created and c.value == "Ostrel" for c in changes)
+
+
+def test_attaching_at_source_scope_confirms_the_entity_without_alias_Q4():
+    """Portée de la source : « Ostrel » est Bertrand Ostrel ici ; l'alias n'est proposé que retenu pour le monde."""
+    world, doc, passage, start = ostrel_source()
+    gestures.gesture(world, "reference", doc.doc_id, "add", passage=passage, start=start,
+                     end=start + len("Ostrel"), entity="new:bertrand-ostrel", type_="Character")
+    flat = [d for ds in proposing.drafts_of(world, "reference", doc).values() for d in ds]
+    assert [d["op"] for d in flat] == ["create_entity", "set_attribute"] and flat[1]["value"] == "Bertrand Ostrel"
+
+
+def test_adding_a_word_does_not_shrink_a_longer_mention_that_contains_it_E_014():
+    world, doc, passage, start = ostrel_source()
+    gestures.gesture(world, "reference", doc.doc_id, "add", passage=passage, start=start,
+                     end=start + len("Ostrel"), entity="new", type_="Character")
+    texts = sorted(t for _, t, _ in mention_values(world, doc))
+    assert texts == ["Bertrand Ostrel", "Ostrel"]
+
+
+def test_an_unknown_new_entity_is_refused_E_014():
+    world, doc, passage, start = ostrel_source()
+    with pytest.raises(ValueError, match="entité nouvelle inconnue"):
+        gestures.gesture(world, "reference", doc.doc_id, "add", passage=passage, start=start,
+                         end=start + len("Ostrel"), entity="new:marianne", type_="Character")
+
+
 # --- Étape 5 : opérations du service (T3) ---
 
 def test_atelier_operations_by_the_service(tmp_path):
@@ -252,6 +317,7 @@ def test_atelier_screen_import_run_annotate_and_propose(tmp_path):
                                          "scope": "source"})
     page = c.get(doc_url).text
     assert page.count("ann-new ann-author") == 2  # les deux occurrences
+    assert 'value="new:roi-gris">Roi Gris (Character, nouvelle)' in page  # rattachable à une nouvelle (E-014)
     done = c.post(doc_url + "/propose").text
     assert "proposition(s) dans la file de revue" in done
 
