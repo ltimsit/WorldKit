@@ -61,3 +61,12 @@
 {% if p.drafts %}<h3>Pistes ouvertes</h3><ul>{% for d in p.drafts %}<li>{{ d }}</li>{% endfor %}</ul>{% endif %}
 {% if p.documents %}<p class="small muted">documents sources : {{ p.documents|join(", ") }}</p>{% endif %}
 {% endmacro %}
+
+{# Champs d'un fait de l'atelier (I9) : sujet, relation ou attribut, objet ou valeur, choisis dans des listes. #}
+{% macro fact_fields(view, d) -%}
+<select name="subject">{% for e in view.fact_entities %}<option value="{{ e.id }}"{{ ' selected' if e.id == (d.get('from') or d.get('entity')) }}>{{ e.name }}</option>{% endfor %}</select>
+<select name="predicate"><optgroup label="relations">{% for r in view.relations %}<option value="rel:{{ r.id }}"{{ ' selected' if r.id == d.get('relation') }}>{{ r.label }}</option>{% endfor %}</optgroup>
+<optgroup label="attributs">{% for a in view.attributes %}<option value="attr:{{ a.id }}"{{ ' selected' if a.id == d.get('attribute') }}>{{ a.label }}</option>{% endfor %}</optgroup></select>
+<select name="object"><option value="">— objet (relation) —</option>{% for e in view.fact_entities %}<option value="{{ e.id }}"{{ ' selected' if e.id == d.get('to') }}>{{ e.name }}</option>{% endfor %}</select>
+<input name="value" placeholder="valeur (attribut)" value="{{ d.get('value', '') }}" size="14">
+{%- endmacro %}

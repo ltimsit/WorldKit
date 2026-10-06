@@ -58,7 +58,7 @@ def gesture(world: Any, branch: str, doc_id: str, action: str, scope: str = "sou
         if scope != "occurrence":
             spans += [(i, s, s + len(text)) for i, t in sorted(texts.items()) for s in _occurrences(t, text)
                       if (i, s) != (passage, start)]
-        existing = layers.effective(world, branch, doc)
+        existing = [a for a in layers.effective(world, branch, doc) if a.kind == "mention"]
         for i, s, e in spans:
             covered = next((a for a in existing if a.passage == i and a.start is not None
                             and a.start < e and s < a.end), None)
@@ -70,7 +70,8 @@ def gesture(world: Any, branch: str, doc_id: str, action: str, scope: str = "sou
             written.append(store.add_annotation(world, branch, doc, "mention", value, "author", i, s, e, "sure",
                                                 "kept", covered.ann_id if covered else None))
         return written
-    target = next((a for a in layers.effective(world, branch, doc) if a.ann_id == ann_id), None)
+    target = next((a for a in layers.effective(world, branch, doc) if a.ann_id == ann_id and a.kind == "mention"),
+                  None)
     if target is None:
         raise ValueError(f"annotation inconnue ou remplacée : {ann_id}")
     form = fold(target.value.get("text", ""))
@@ -94,3 +95,51 @@ def gesture(world: Any, branch: str, doc_id: str, action: str, scope: str = "sou
     if retained and action == "correct" and target.value.get("entity") and entity != target.value.get("entity"):
         store.add_rule(world, branch, target.value.get("text", ""), "not_entity_of", target.value["entity"])
     return written
+
+
+# ---------------------------------------------------------------------------
+# Gestes sur un fait (I9) : garder, retirer, reprendre (= garder un fait écarté), corriger, ajouter
+# ---------------------------------------------------------------------------
+
+FACT_ACTIONS = ("keep", "remove", "correct", "add")
+FACT_OPS = ("add_relation", "set_attribute", "add_value")
+
+
+def _check_draft(draft: dict[str, Any] | None) -> dict[str, Any]:
+    if not draft or draft.get("op") not in FACT_OPS:
+        raise ValueError("fait : brouillon invalide (relation ou attribut attendu)")
+    needed = ("from", "relation", "to") if draft["op"] == "add_relation" else ("entity", "attribute", "value")
+    if any(not str(draft.get(k) or "").strip() for k in needed):
+        raise ValueError(f"fait : il manque {', '.join(k for k in needed if not str(draft.get(k) or '').strip())}")
+    return {"op": draft["op"], **{k: str(draft[k]).strip() for k in needed}}
+
+
+def fact_gesture(world: Any, branch: str, doc_id: str, action: str, ann_id: int | None = None,
+                 passage: int | None = None, draft: dict[str, Any] | None = None) -> list[int]:
+    """Un geste sur un fait (Q1, Q4 d'I9) ; écrit une annotation d'origine « auteur » (ajout seul, R-HIS-01).
+
+    - `keep` : garder ; sur un fait mis de côté par le critique ou retenu par l'énonciation, c'est le **reprendre** ;
+    - `remove` : retirer (il ne partira pas) ;
+    - `correct` : remplacer le brouillon (`draft`), le brouillon d'origine est gardé (`origin_draft`) ;
+    - `add` : un fait manqué, sur un passage (`passage`, `draft`) ; sa preuve est le passage.
+    """
+    if action not in FACT_ACTIONS:
+        raise ValueError(f"geste inconnu sur un fait : {action}")
+    doc = store.source(world, doc_id)
+    if action == "add":
+        texts = {p.index: p.text for p in doc.passages}
+        if passage not in texts:
+            raise ValueError("ajout d'un fait : passage invalide")
+        value = {"draft": _check_draft(draft), "evidence": texts[passage], "layer": "author", "phrase": "",
+                 "exact": "", "verdict": None, "reason": None, "voice": None, "support": False}
+        return [store.add_annotation(world, branch, doc, "fact", value, "author", passage, None, None, "sure", "kept")]
+    target = next((a for a in layers.effective(world, branch, doc) if a.ann_id == ann_id and a.kind == "fact"), None)
+    if target is None:
+        raise ValueError(f"fait inconnu ou remplacé : {ann_id}")
+    value = dict(target.value)
+    if action == "correct":
+        value["origin_draft"] = value.get("origin_draft") or value["draft"]
+        value["draft"] = _check_draft(draft)
+    status = {"keep": "kept", "remove": "removed", "correct": "corrected"}[action]
+    return [store.add_annotation(world, branch, doc, "fact", value, "author", target.passage, target.start,
+                                 target.end, "sure", status, target.ann_id)]

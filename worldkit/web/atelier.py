@@ -83,10 +83,14 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
         selected = request.query_params.get("ann")
         annotations = {a["id"]: a for p in view.output["passages"] for a in p["annotations"]}
         chosen = annotations.get(int(selected)) if selected and selected.isdigit() else None
+        picked = request.query_params.get("fact")
+        facts = {f["id"]: f for p in view.output["passages"] for f in p["facts"]}
+        chosen_fact = facts.get(int(picked)) if picked and picked.isdigit() else None
         names = {e["id"]: e for e in view.output["entities"]}
         job = job_view(request.query_params.get("job"))
         return render(request, "atelier.html", page, view=view.output, indicators=view.indicators, chosen=chosen,
-                      names=names, job=job, **{"estimate": None, "message": None, "error": None, **extra})
+                      chosen_fact=chosen_fact, names=names, job=job,
+                      **{"estimate": None, "message": None, "error": None, **extra})
 
     def job_view(raw: str | None) -> dict[str, Any] | None:
         """Lancement avec modèle en tâche de fond (I4, I-LLM-01) : en cours, ou son résultat."""
@@ -110,8 +114,9 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
     async def atelier_run(doc_id: str, request: Request) -> Any:
         form = await request.form()
         page = page_factory()
-        params = {"doc_id": doc_id, "model": bool(form.get("model")), "signals": bool(form.get("signals")),
-                  "confirm": bool(form.get("confirm"))}
+        layer = str(form.get("layer") or "mentions")
+        params = {"doc_id": doc_id, "layer": layer, "model": bool(form.get("model")) or layer == "facts",
+                  "signals": bool(form.get("signals")), "confirm": bool(form.get("confirm"))}
         if params["model"] and params["confirm"]:  # le modèle prend des minutes : en tâche de fond
             try:
                 run_id = jobs.start(db, "atelier.run", params)
@@ -130,10 +135,24 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
         form = await request.form()
         page = page_factory()
         params: dict[str, Any] = {"doc_id": doc_id, "action": str(form.get("action")),
-                                  "scope": str(form.get("scope") or "source")}
+                                  "scope": str(form.get("scope") or "source"),
+                                  "kind": str(form.get("kind") or "mention")}
         for key in ("ann_id", "passage", "start", "end"):
             if form.get(key) not in (None, ""):
                 params[key] = int(str(form.get(key)))
+        if params["kind"] == "fact":
+            predicate = str(form.get("predicate") or "")  # « rel:<relation> » ou « attr:<attribut> »
+            if predicate.startswith("rel:"):
+                params["relation"] = predicate[4:]
+            elif predicate.startswith("attr:"):
+                params["attribute"] = predicate[5:]
+            for key in ("subject", "object", "value"):
+                if form.get(key):
+                    params[key] = str(form.get(key))
+            result = page.call("atelier.annotate", params)
+            if not result.ok:
+                return source_page(request, page, doc_id, error="; ".join(i.message for i in result.issues))
+            return RedirectResponse(f"/atelier/{quote(doc_id)}", status_code=303)
         entity = str(form.get("entity") or form.get("entity_free") or "").strip()
         if entity:
             params["entity"] = entity

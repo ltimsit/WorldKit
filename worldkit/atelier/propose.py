@@ -121,7 +121,7 @@ def proposed(world: Any, doc: Any) -> bool:
     """La version de la source a-t-elle déjà été proposée (son lot existe) ?"""
     from worldkit.ingest.batch import ensure_tables
     ensure_tables(world.store.conn)
-    return world.store.conn.execute("SELECT 1 FROM batches WHERE batch_id = ?", (batch_id_of(doc),)).fetchone()         is not None
+    return _batch_exists(world, batch_id_of(doc))
 
 
 def attachments(world: Any, branch: str, doc: Any) -> list[dict[str, Any]]:
@@ -164,18 +164,92 @@ def attachments(world: Any, branch: str, doc: Any) -> list[dict[str, Any]]:
     return out
 
 
-def propose(world: Any, branch: str, doc_id: str) -> Any:
-    """Crée le lot de la source et l'enregistre (E1 à E9+) ; rend le compte rendu du lot."""
-    from worldkit.ingest.batch import BatchError, ingest
-    doc = store.source(world, doc_id)
-    by_passage = drafts_of(world, branch, doc)
-    if not by_passage:
-        raise BatchError("rien à proposer : aucune entité nouvelle confirmée, aucun alias retenu")
+def _batch_exists(world: Any, batch_id: str) -> bool:
+    from worldkit.ingest.batch import ensure_tables
+    ensure_tables(world.store.conn)
+    return world.store.conn.execute("SELECT 1 FROM batches WHERE batch_id = ?", (batch_id,)).fetchone() is not None
+
+
+def facts_batch_id_of(doc: Any) -> str:
+    return f"{batch_id_of(doc)}-faits"
+
+
+def facts_proposed(world: Any, doc: Any) -> bool:
+    return _batch_exists(world, facts_batch_id_of(doc))
+
+
+def fact_drafts(world: Any, branch: str, doc: Any) -> dict[int, list[dict[str, Any]]]:
+    """Les faits qui partent (Q1 d'I9) : tous ceux de la couche ou de l'auteur, sauf retirés et écartés non repris."""
+    out: dict[int, list[dict[str, Any]]] = {}
+    for a in sorted(layers.effective(world, branch, doc), key=lambda a: (a.passage or 0, a.ann_id)):
+        if a.kind != "fact" or a.passage is None or layers.fact_excluded(a):
+            continue
+        draft = dict(a.value["draft"])
+        if draft not in out.get(a.passage, []):
+            out.setdefault(a.passage, []).append(draft)
+    return out
+
+
+def _settled(world: Any, branch: str, drafts: dict[int, list[dict[str, Any]]]) -> tuple[dict[int, list[dict[str, Any]]], int]:
+    """Lot de faits après le lot des entités (Q2 d'I9) : une entité nouvelle de la source (`new:<étiquette>`) est
+    désignée par son identifiant si sa création est acceptée, par `pending:<étiquette>` si elle attend encore en revue
+    (T-ING-07) ; un fait sur une entité refusée ne part pas. Rend les brouillons et le nombre de faits écartés."""
+    from worldkit.ingest.queue import pending_new_entities
+    head = world.state(branch)
+    pending = pending_new_entities(world, head)
+    created = {label: eid for label, eid in world.store.conn.execute("SELECT label, entity_id FROM new_entities")}
+    dropped = 0
+    out: dict[int, list[dict[str, Any]]] = {}
+
+    def settle(v: Any) -> Any:
+        if isinstance(v, str) and v.startswith("new:"):
+            label = v[len("new:"):]
+            if label in pending:
+                return f"pending:{label}"
+            if created.get(label) in head.entities:
+                return created[label]
+            raise LookupError(label)
+        return v
+    for passage, ds in drafts.items():
+        for d in ds:
+            try:
+                out.setdefault(passage, []).append({k: settle(v) for k, v in d.items()})
+            except LookupError:
+                dropped += 1
+    return out, dropped
+
+
+def _ingest(world: Any, branch: str, doc: Any, batch_id: str, by_passage: dict[int, list[dict[str, Any]]],
+            reopen: bool = False) -> Any:
+    from worldkit.ingest.batch import ingest
     texts = {p.index: p.text for p in doc.passages}
     drafts = {texts[i]: d for i, d in by_passage.items()}
     digest = hashlib.sha256(json.dumps(drafts, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:8]
     row = world.store.conn.execute("SELECT text FROM atelier_sources WHERE doc_id = ? AND version_fp = ?",
                                    (doc.doc_id, doc.fingerprint)).fetchone()
-    batch_id = batch_id_of(doc)
     return ingest(world, batch_id, [SourceText(f"atelier:{doc.doc_id}", row[0])],
-                  AtelierExtractor(drafts, f"atelier:{digest}"), branch)
+                  AtelierExtractor(drafts, f"atelier:{digest}"), branch, reopen)
+
+
+def propose(world: Any, branch: str, doc_id: str) -> Any:
+    """Crée le lot de la source et l'enregistre (E1 à E9+) ; rend le compte rendu du lot.
+
+    Premier « Proposer » d'une version : entités, alias **et faits** en un lot. Si les entités sont déjà parties, un
+    second lot, `…-faits`, ne porte que les faits (Q2 d'I9) ; une version ne se propose qu'une fois de chaque sorte."""
+    from worldkit.ingest.batch import BatchError
+    doc = store.source(world, doc_id)
+    facts = fact_drafts(world, branch, doc)
+    if proposed(world, doc):
+        if facts_proposed(world, doc):
+            raise BatchError("déjà proposée : entités et faits de cette version sont partis")
+        settled, dropped = _settled(world, branch, facts)
+        if not settled:
+            raise BatchError("rien à proposer : aucun fait à envoyer" + (f" ({dropped} sur des entités refusées)"
+                                                                         if dropped else ""))
+        return _ingest(world, branch, doc, facts_batch_id_of(doc), settled, reopen=True)
+    by_passage = drafts_of(world, branch, doc)
+    for passage, ds in facts.items():
+        by_passage.setdefault(passage, []).extend(ds)
+    if not by_passage:
+        raise BatchError("rien à proposer : aucune entité nouvelle confirmée, aucun alias retenu, aucun fait")
+    return _ingest(world, branch, doc, batch_id_of(doc), dict(sorted(by_passage.items())))
