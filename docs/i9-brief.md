@@ -1,6 +1,6 @@
 # I9 — L'atelier d'ingestion, deuxième incrément : les faits
 
-**Statut :** fiche de jalon, version 0.1 — 6 octobre 2026. Plan et questions **à trancher** par l'auteur (une à la fois) avant de coder.
+**Statut :** fiche de jalon, version 0.1 — 6 octobre 2026. Décisions de l'auteur Q1 à Q4 actées le 6 octobre 2026.
 **Contexte :** I8 a rendu réelle la couche « mentions » : l'auteur confirme les entités d'une source sur le texte. Le chantier a construit et mesuré la chaîne des faits (C5, question ciblée, énonciation, critique ; X-004 à X-016), toujours en simulant l'auteur. Ce jalon la met à l'écran : l'auteur **voit en pratique** ce que les couches proposent, pourquoi, et le décide.
 
 ## 1. Objectif
@@ -28,13 +28,14 @@ Sur une source dont les entités sont confirmées, l'auteur lance la couche « f
 | Q1 | **(b)** « Proposer » envoie tous les faits proposés, sauf ceux que l'auteur a retirés et ceux que le critique a mis de côté (sauf repris) | l'atelier sert à voir et corriger ; la revue re-décide chaque fait : pas de travail en double |
 | Q2 | **(b)** un second lot par version, réservé aux faits (`atelier-<source>-<version>-faits`), qui s'appuie sur les entités déjà proposées (acceptées : identifiant réel ; en attente : dépendance, comme entre deux lots) | les entités sont le point d'arrêt avant les faits (chantier §6.5) ; l'historique ne fait que s'allonger (R-HIS-01) |
 | Q3 | **(a)** l'écran montre tous les faits, les écartés (mis de côté par le critique, retenus par l'énonciation) **grisés**, raison au survol | voir la pratique des couches : un faux rejet (E-013) ou une rumeur prise pour un fait se repère là ; filtre plus tard si l'écran se charge |
+| Q4 | **(a)** ajouter un fait à la main dans ce jalon : sujet, relation ou attribut, objet ou valeur, choisis dans des listes (entités confirmées, schéma du monde) ; preuve = le passage | un fait manqué reste dans le champ de vision et se compte (geste « ajout ») |
 
 ## 5. Questions pour l'auteur
 
 1. ~~Quels faits partent avec « Proposer » ?~~ Tranché (Q1).
 2. ~~Une source déjà proposée~~ Tranché (Q2).
 3. ~~Ce que l'écran montre par défaut~~ Tranché (Q3).
-4. **Ajouter un fait à la main** : dans ce jalon, ou au suivant ?
+4. ~~Ajouter un fait à la main~~ Tranché (Q4).
 
 ## 6. Étapes (après les réponses)
 
