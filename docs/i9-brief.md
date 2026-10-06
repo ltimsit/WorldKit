@@ -21,14 +21,20 @@ Sur une source dont les entités sont confirmées, l'auteur lance la couche « f
 5. **Mesure réelle** : les gestes sur les faits sont des annotations ; leur nombre donne l'effort réel, à comparer aux gestes simulés du chantier.
 6. **Documents** : cadre d'interface (I-ATL), glossaire, carte des outils, guide pas à pas, chantier, CLAUDE.md.
 
-## 4. Questions pour l'auteur
+## 4. Décisions de l'auteur
 
-1. **Quels faits partent avec « Proposer » ?** (a) seulement ceux que l'auteur a gardés, un par un, comme pour les entités (Q3 d'I8) ; (b) tous les faits proposés, sauf ceux qu'il a retirés et ceux que le critique a mis de côté (non repris) : la revue reste le second filet.
+| Q | Décision | Raison |
+|---|---|---|
+| Q1 | **(b)** « Proposer » envoie tous les faits proposés, sauf ceux que l'auteur a retirés et ceux que le critique a mis de côté (sauf repris) | l'atelier sert à voir et corriger ; la revue re-décide chaque fait : pas de travail en double |
+
+## 5. Questions pour l'auteur
+
+1. ~~Quels faits partent avec « Proposer » ?~~ Tranché (Q1).
 2. **Une source déjà proposée** (les entités de `corbelle-notes-en-vrac` sont parties) : (a) la règle « une version ne se propose qu'une fois » (T-ING-10) tient, il faut réimporter ; (b) un second lot par version pour les faits (`atelier-<source>-<version>-faits`), qui s'appuie sur les entités déjà acceptées.
 3. **Ce que l'écran montre par défaut** : (a) tous les faits, y compris mis de côté et retenus, grisés ; (b) seulement ceux à décider, les autres derrière un filtre.
 4. **Ajouter un fait à la main** : dans ce jalon, ou au suivant ?
 
-## 5. Étapes (après les réponses)
+## 6. Étapes (après les réponses)
 
 1. `atelier.run layer=facts` : annotations de faits, relance qui respecte l'auteur, tâche de fond.
 2. `atelier.annotate` sur un fait : garder, retirer, reprendre, corriger (et ajouter selon Q4).
