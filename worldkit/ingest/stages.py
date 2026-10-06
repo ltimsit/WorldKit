@@ -213,6 +213,9 @@ class Run:
     max_calls: int | None = None
     progress: Callable[[str, dict[str, Any]], None] = lambda stage, info: None
     cancel: threading.Event = field(default_factory=threading.Event)
+    # Lot de faits de l'atelier (I9, Q2) : les passages déjà ingérés par le lot des entités de la même version sont
+    # rouverts. T-ING-10 évite de réextraire un même contenu ; ici rien n'est réextrait, une autre couche est proposée.
+    reopen: bool = False
     _head: Any = None
 
     def head(self, art: PipelineArt) -> Any:
@@ -277,7 +280,7 @@ def e3_nature(run: Run, art: PipelineArt) -> PipelineArt:
                 art.counters.removed += 1
         for p, dp in zip(d.passages, doc.passages):
             p.nature = passage_nature(doc, dp)
-            p.unchanged = p.fingerprint in known
+            p.unchanged = p.fingerprint in known and not run.reopen
     return _done(art, "E3")
 
 

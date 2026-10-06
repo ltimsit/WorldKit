@@ -32,10 +32,12 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [E-007](E-007-hors-schema-omis.md) | une relation hors schéma est omise (« vassal du roi Mervin ») | — | résolue sur b1 |
 | [E-008](E-008-variantes-de-surface.md) | une variante de surface d'un nom devient une entité nouvelle (Corbelle) | R | en cours (8 → 3) |
 | [E-009](E-009-texte-barre.md) | un texte barré est lu comme une mention | — | résolue sur Corbelle |
-| [E-010](E-010-inferences-spatiales.md) | relations inférées d'une proximité (« sur », « près de ») | I | résolue sur Corbelle par le critique |
+| [E-010](E-010-inferences-spatiales.md) | relations inférées d'une proximité (« sur », « près de ») | I | en cours (« près du » douteux, gardé : X-013) |
 | [E-011](E-011-controles-c5.md) | faits de C5 qu'un contrôle sans modèle écarterait | S | résolue sur Corbelle |
 | [E-012](E-012-question-ciblee-limites.md) | limites de la question ciblée : synonymes, phrases non muettes | — | en grande partie résolue |
-| [E-013](E-013-critique-litteral.md) | le critique trop littéral met de côté un fait juste | — | ouverte |
+| [E-013](E-013-critique-litteral.md) | le critique trop littéral met de côté un fait juste | — | ouverte (la v3 du critique, qui réglait « les bateliers », n'est pas adoptée : X-015 ; aucun faux rejet hors de Corbelle) |
+| [E-014](E-014-forme-courte-nouvelle.md) | la forme courte d'une entité nouvelle n'est pas repérée, et l'auteur ne peut pas l'y rattacher (« Ostrel ») | R | en cours (geste fait, repérage ouvert) |
+| [E-015](E-015-preuve-indirecte.md) | un fait est rattaché à un passage qui ne nomme pas ses deux entités (« sa soeur » en p2) | R | en cours (signalé sans décider dans l'atelier : 6 sur 106, tous à raison) |
 
 | Expérience | Titre | Statut |
 |---|---|---|
@@ -51,6 +53,10 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [X-010](X-010-enonciation.md) | Énonciation sans modèle (C4) : rumeur → attribution, note → silence | conclue (première itération) |
 | [X-011](X-011-bruit-et-chaine-reelle.md) | Valmont bruité (texte non vu) et chaîne complète de Corbelle | conclue (diagnostic) |
 | [X-012](X-012-signaler-et-pieges.md) | Signaler sans décider, et un contre-corpus de pièges | conclue, résultat mitigé |
+| [X-013](X-013-stabilite-faits-corbelle.md) | Stabilité de la chaîne des faits sur Corbelle (entités du gold) | conclue |
+| [X-014](X-014-candidats-classes.md) | Question ciblée à candidats classés, choix sans modèle (et garde « plus général seul ») | conclue, non adoptée (jeu égal) |
+| [X-015](X-015-critique-v3.md) | Critique v3 : fait plus faible impliqué, nom commun pluriel pour une faction | conclue, non adoptée (deux faux rejets sur données non vues) |
+| [X-016](X-016-schema-de-genre-pivot.md) | Schéma de genre « fantasy jdr » comme ontologie pivot de l'extraction (correspondance sans modèle, cache) | conclue, non adoptée (plus de faits faux) ; cache confirmé |
 
 Statuts : **ouverte** (observée, non traitée), **en cours** (remède essayé), **résolue** (remède mesuré, sans régression), **acceptée** (on vit avec, avec la raison), **transformée** (devenue une expérience ou une question du chantier).
 

@@ -1,0 +1,30 @@
+# Correspondance du schéma de Corbelle avec le schéma de genre « fantasy jdr » (X-016, voie A).
+# Types du monde → types du pivot ; relations du pivot → relations du monde. Une relation du pivot absente ici est
+# ramenée à la plus proche relation plus générale qui y figure (hiérarchie du pivot), sinon proposée hors schéma.
+# Figée avant la mesure : elle ne reprend que le schéma du monde, pas les textes.
+pivot: fantasy-jdr
+schema: corbelle
+types:
+  Character: Person
+  Place: Place
+  Faction: Group
+  Creature: Creature
+  Item: Object
+  Event: Event
+  Concept: Concept
+  Text: Work
+relations:
+  located_in: located_in
+  rules: rules
+  member_of: member_of
+  based_in: based_in
+  sibling_of: sibling_of
+  spouse_of: spouse_of
+  parent_of: parent_of
+  owns: owns
+  participates_in: involved_in
+  haunts: haunts
+  killed: killed
+  worships: worships
+  commissioned: commissioned
+  lives_in: lives_in

@@ -163,3 +163,81 @@ def test_critic_judges_only_what_raises_a_question_and_sets_aside_without_decidi
     assert not any(dict(k).get("relation") == "member_of" for k in p4.found)  # mis de côté : absent des faits
     assert all("titre : baron" not in p for _, p, _ in critic_adapter.calls)  # « odon title baron » : support, pas jugé
     assert "Un fait secret" in critic_adapter.calls[0][0]
+
+
+# --- X-014 : candidats classés, choix sans modèle ---
+
+def corbelle_setup():
+    from test_corpus_corbelle import CORBELLE, corbelle_world
+    from test_corpus_corbelle import documents as corbelle_documents
+    world = corbelle_world()
+    context = extraction_context(world, world.state())
+    w = next(document_window(p) for p in corbelle_documents() if "la-sorgue" in str(p))
+    return context, gold_entities(w, CORBELLE / "gold", context)
+
+
+def test_choice_takes_the_first_known_candidate_and_keeps_the_exact_form_X_014():
+    """« la mère de » : mother_of (exact, hors schéma) puis parent_of (plus général, connu) → parent_of retenue."""
+    from worldkit.periphery.facts import choose_candidate
+    context, entities = corbelle_setup()
+    types = {e.id: e.type for e in entities}
+    chosen, exact = choose_candidate([
+        {"subject": "agathe", "relation": "mother_of", "object": "new:bertrand-ostrel", "link": "same"},
+        {"subject": "agathe", "relation": "parent_of", "object": "new:bertrand-ostrel", "link": "broader"}],
+        types, context.schema)
+    assert chosen["relation"] == "parent_of" and exact == "mother_of"
+    alone, none = choose_candidate([{"subject": "agathe", "relation": "conspires_with",
+                                     "object": "new:bertrand-ostrel", "link": "same"}], types, context.schema)
+    assert alone["relation"] == "conspires_with" and none == ""  # rien de connu : hors schéma, l'auteur fixera
+
+
+def test_a_known_relation_with_wrong_types_is_not_chosen_X_014():
+    from worldkit.periphery.facts import choose_candidate
+    context, entities = corbelle_setup()
+    types = {e.id: e.type for e in entities}
+    chosen, _ = choose_candidate([
+        {"subject": "agathe", "relation": "parent_of", "object": "la-sorgue", "link": "same"},
+        {"subject": "agathe", "relation": "knows_of", "object": "la-sorgue", "link": "same"}],
+        {**types, "la-sorgue": "Place"}, context.schema)
+    assert chosen["relation"] == "knows_of"  # parent_of va d'un personnage vers un personnage
+
+
+def test_a_broader_candidate_alone_is_an_inference_and_is_dropped_X_014():
+    """« tient l'apothicairerie près du pont » : lives_in marqué « plus général », sans sens exact → rien (E-010)."""
+    from worldkit.periphery.facts import choose_candidate
+    context, entities = corbelle_setup()
+    chosen, exact = choose_candidate([{"subject": "agathe", "relation": "lives_in", "object": "saint-fiacre",
+                                       "link": "broader"}], {e.id: e.type for e in entities}, context.schema)
+    assert chosen is None and exact == ""
+
+
+def test_ranked_probe_asks_for_candidates_and_the_critic_hears_the_exact_form_X_014():
+    from worldkit.periphery.facts import Critic, RelationProbe, Silent
+
+    class Probe(FakeAdapter):
+        def complete(self, system, prompt, schema):
+            self.calls.append((system, prompt, schema))
+            return {"relations": [{"phrase": "est la mère de", "candidates": [
+                {"subject": "agathe", "relation": "mother_of", "object": "new:bertrand-ostrel", "link": "same"},
+                {"subject": "agathe", "relation": "parent_of", "object": "new:bertrand-ostrel", "link": "broader"}]}]}
+    context, entities = corbelle_setup()
+    adapter = Probe()
+    silent = Silent(3, "mère agathe c la mère d'Ostrel.", ["agathe", "new:bertrand-ostrel"])
+    probe = RelationProbe(adapter, PROFILE, ranked=True)
+    facts = probe.ask(silent, entities, context.schema)
+    system, prompt, schema = adapter.calls[0]
+    assert "candidates" in system and "Relations connues" in prompt and "+ranked" in probe.version
+    assert [(f.draft["relation"], f.exact) for f in facts] == [("parent_of", "mother_of")]
+    assert silent.answer[0]["candidates"] == ["mother_of (same)", "parent_of (broader)"]
+    _, critic_prompt = Critic(None, PROFILE).prompt(facts[0], silent.sentence, entities, context.schema)
+    assert "plus précisément « est la mère de » (mother_of)" in critic_prompt
+
+
+def test_critic_v3_adds_two_rules_without_dropping_the_proximity_motive_X_015():
+    from worldkit.periphery.facts import CRITIC_SYSTEM, Critic, Fact
+    context, entities = corbelle_setup()
+    fact = Fact({"op": "add_relation", "from": "agathe", "relation": "parent_of", "to": "new:bertrand-ostrel"}, "x", 3)
+    v2 = Critic(None, PROFILE).prompt(fact, "x", entities, context.schema)[0]
+    v3 = Critic(None, PROFILE, v3=True).prompt(fact, "x", entities, context.schema)[0]
+    assert v2 == CRITIC_SYSTEM and v3.startswith(CRITIC_SYSTEM) and "tisserands" in v3 and "près de" in v3
+    assert Critic(None, PROFILE, v3=True).version.startswith("critic-3")

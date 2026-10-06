@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% import "_macros.html" as m %}
+{% extends "base.html" %}{% import "_macros.html" as m %}{% from "_macros.html" import fact_fields %}
 {% block title %}Atelier — {{ view.doc_id }}{% endblock %}
 {% block content %}
 <style>
@@ -11,17 +11,28 @@
   .panel { position: sticky; top: .5em; }
   .legend span { margin-right: 1em; }
   .chips a { margin-right: .4em; }
+  .facts { list-style: none; margin: .3em 0 0 0; padding: 0; font-size: .92em; line-height: 1.5; }
+  .facts li { margin: .15em 0; }
+  .fact a { text-decoration: none; color: inherit; }
+  .fact-off { color: #888; } .fact-off .fact-label { text-decoration: line-through; }
+  .fact-author .fact-label { font-weight: 600; }
+  .fact.on { outline: 2px solid #2563eb; }
+  .pill { display: inline-block; font-size: .8em; padding: 0 .45em; border-radius: 9px; background: #e5e7eb; margin-right: .3em; }
+  .pill-soutenu, .pill-gardé, .pill-ajouté, .pill-corrigé { background: #dcfce7; } .pill-douteux { background: #fef3c7; }
+  .pill-mis { background: #fee2e2; } .pill-rumeur, .pill-note { background: #ede9fe; } .pill-déjà { background: #dbeafe; }
+  .evidence { color: #666; font-style: italic; }
+  .ptext mark { background: #fde68a; }
 </style>
 <p><a href="/atelier">← atelier</a></p>
 <h1>{{ view.title or view.doc_id }} <span class="small muted mono">{{ view.doc_id }} · version {{ view.version[:8] }} · branche {{ view.branch }}</span></h1>
 {% if error %}<div class="error-banner">{{ error }}</div>{% endif %}
 {% if job %}{% if job.status == "running" and job.live %}<meta http-equiv="refresh" content="3">
-<div class="stat" style="border-color:var(--warn)">Le modèle repère les mentions (exécution <a href="/runs/{{ job.id }}">#{{ job.id }}</a>) : la page se met à jour d'elle-même ; cela peut prendre une ou deux minutes.</div>
+<div class="stat" style="border-color:var(--warn)">Le modèle travaille (exécution <a href="/runs/{{ job.id }}">#{{ job.id }}</a>) : la page se met à jour d'elle-même ; cela peut prendre une ou deux minutes.</div>
 {% elif job.status in ("running", "interrupted") %}<div class="error-banner">Exécution #{{ job.id }} interrompue (serveur arrêté pendant l'appel) : relancer.</div>
-{% elif job.result %}<div class="stat">{{ m.result_head(job.result) }}{% if job.result.status == "ok" %} {{ job.result.indicators.proposed }} mention(s) proposée(s), dont {{ job.result.indicators.new }} nouvelle(s) et {{ job.result.indicators.doubts }} doute(s).{% set u = job.result.output.usage %}{% if u and u.calls %}<br><span class="small">modèle : {{ u.seconds }} s sur {{ (job.result.trace.duration_ms / 1000)|round(1) }} s ; {{ u.input_tokens }} tokens en entrée, {{ u.output_tokens }} en sortie{% if u.cost is not none %} ; {{ "%.4f"|format(u.cost) }} ${% endif %}{% if u.over_budget %} ; au-delà du budget d'entrée ({{ u.budget }}) de {{ u.excess_tokens }} tokens{% endif %}</span>{% endif %}{% endif %}</div>{% endif %}{% endif %}
+{% elif job.result %}<div class="stat">{{ m.result_head(job.result) }}{% if job.result.status == "ok" %}{% if job.result.indicators.set_aside is defined %} {{ job.result.indicators.proposed }} fait(s) proposé(s), dont {{ job.result.indicators.set_aside }} mis de côté par le critique, {{ job.result.indicators.withheld }} retenu(s) par l'énonciation et {{ job.result.indicators.doubts }} douteux.{% else %} {{ job.result.indicators.proposed }} mention(s) proposée(s), dont {{ job.result.indicators.new }} nouvelle(s) et {{ job.result.indicators.doubts }} doute(s).{% endif %}{% set u = job.result.output.usage %}{% if u and u.calls %}<br><span class="small">modèle : {{ u.seconds }} s sur {{ (job.result.trace.duration_ms / 1000)|round(1) }} s ; {{ u.input_tokens }} tokens en entrée, {{ u.output_tokens }} en sortie{% if u.cost is not none %} ; {{ "%.4f"|format(u.cost) }} ${% endif %}{% if u.over_budget %} ; au-delà du budget d'entrée ({{ u.budget }}) de {{ u.excess_tokens }} tokens{% endif %}</span>{% endif %}{% endif %}</div>{% endif %}{% endif %}
 {% if message %}<div class="stat" style="border-color:var(--ok, #1b7f3b)">{{ message }} — <a href="/review">ouvrir la revue</a></div>{% endif %}
 {% if estimate %}<div class="stat" style="border-color:var(--warn)">{{ m.result_head(estimate) }}
-  <form method="post" action="/atelier/{{ view.doc_id }}/run" hx-boost="false"><input type="hidden" name="model" value="1"><input type="hidden" name="confirm" value="1">
+  <form method="post" action="/atelier/{{ view.doc_id }}/run" hx-boost="false"><input type="hidden" name="model" value="1"><input type="hidden" name="confirm" value="1"><input type="hidden" name="layer" value="{{ estimate.output.estimate.layer or 'mentions' }}">
   {{ estimate.output.estimate.calls }} appel(s) au modèle {{ estimate.output.estimate.model }} (profil {{ estimate.output.estimate.profile }}, {{ estimate.output.estimate.adapter }}). <button>Confirmer et lancer</button></form></div>{% endif %}
 
 <div class="stat">
@@ -32,9 +43,27 @@
     <button{{ ' disabled' if job and job.live }}>{{ "Relancer" if view.run else "Lancer" }}</button>
   </form>
   · {{ indicators.to_review }} à revoir · {{ indicators.decided }} décidée(s)
+  {% if view.proposed and view.facts_proposed %}<span class="small muted" style="float:right">déjà proposée : entités et faits sont partis</span>
+  {% elif view.proposed %}<form method="post" action="/atelier/{{ view.doc_id }}/propose" hx-boost="false" style="display:inline; float:right">
+    <span class="small muted">entités déjà proposées · </span><button title="Les faits partent seuls, dans un second lot, vers la revue" {{ 'disabled' if not indicators.facts_to_send }}>Proposer les faits ({{ indicators.facts_to_send }})</button>
+  </form>{% else %}
   <form method="post" action="/atelier/{{ view.doc_id }}/propose" hx-boost="false" style="display:inline; float:right">
-    <button title="Les entités nouvelles confirmées et les alias retenus partent en un lot vers la revue">Proposer</button>
+    <button title="Les entités nouvelles confirmées, les alias retenus et les faits non écartés partent en un lot vers la revue">Proposer{% if indicators.facts_to_send %} (avec {{ indicators.facts_to_send }} fait(s)){% endif %}</button>
+  </form>{% endif %}
+  {% set unretained = view.attachments|rejectattr("retained")|list %}
+  {% if unretained and not view.proposed %}<div class="small" id="unretained"><b>Rattachements non retenus</b> : « Proposer » n'en fera pas des alias (ils valent pour cette source).
+    {% for t in unretained %}<form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false" style="display:inline">
+      <input type="hidden" name="ann_id" value="{{ t.ann_id }}"><input type="hidden" name="scope" value="world">
+      « {{ t.text }} » → {{ t.name }} <button name="action" value="keep" title="en faire un alias de {{ t.name }}">retenir</button></form>{{ " ·" if not loop.last }}
+    {% endfor %}</div>{% endif %}
+  <div style="margin-top:.4em">
+  <form method="post" action="/atelier/{{ view.doc_id }}/run" hx-boost="false" style="display:inline">
+    <input type="hidden" name="layer" value="facts">
+    <b>Couche « faits »</b> (lancement {{ view.facts_run }}) : C5, question ciblée, énonciation, critique, entre {{ view.fact_entities|length }} entité(s)
+    <button{{ ' disabled' if (job and job.live) or not view.fact_entities }}>{{ "Relancer" if view.facts_run else "Lancer" }} avec le modèle</button>
   </form>
+  {% if indicators.facts %} · {{ indicators.facts }} fait(s), {{ indicators.facts_to_send }} partiront{% endif %}
+  </div>
 </div>
 <p class="small legend"><span class="ann ann-known">connue</span><span class="ann ann-new">nouvelle</span><span class="ann ann-doubt">doute</span><span class="ann ann-off">retirée, ignorée</span><span class="ann ann-known ann-author">décidée par l'auteur</span> · Cliquer une mention pour la traiter ; sélectionner un mot pour ajouter une mention.</p>
 
@@ -44,15 +73,33 @@
 <div class="passage" data-passage="{{ p.index }}"><span class="small muted">p{{ p.index }}</span>
 <span class="ptext">{% for piece in pieces %}{% if piece.ann %}<a class="{{ atelier_class(piece.ann) }}{{ ' on' if chosen and chosen.id == piece.ann.id }}" href="?ann={{ piece.ann.id }}" title="{{ piece.ann.value.entity or ('nouvelle' if piece.ann.value.new else 'doute') }} · {{ piece.ann.origin }}">{{ piece.text }}</a>{% else %}{{ piece.text }}{% endif %}{% endfor %}</span>
 {% if nested %}<div class="small chips">imbriquées : {% for a in nested %}<a class="{{ atelier_class(a) }}" href="?ann={{ a.id }}">{{ a.value.text }}</a>{% endfor %}</div>{% endif %}
+{% if p.facts %}<ul class="facts">{% for f in p.facts %}<li class="fact{{ ' fact-off' if f.excluded }}{{ ' fact-author' if f.by_author }}{{ ' on' if chosen_fact and chosen_fact.id == f.id }}" data-start="{{ f.start if f.start is not none else '' }}" data-end="{{ f.end if f.end is not none else '' }}">
+  <a href="?fact={{ f.id }}" title="{{ f.reason or '' }}{{ ' · couche ' ~ f.layer if f.layer }}"><span class="pill pill-{{ f.state.split(' ')[0] }}">{{ f.state }}</span>{% if f.indirect %}<span class="pill pill-douteux" title="le passage ne nomme pas : {{ f.indirect|join(', ') }} ; la preuve tient par une coréférence (« sa soeur », « elle ») : vérifier le passage">preuve indirecte</span>{% endif %}<span class="fact-label">{{ f.label }}</span></a>
+  {% if f.evidence and f.layer != 'author' %}<span class="evidence small">« {{ f.evidence|truncate(90) }} »</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
 </div>{% endfor %}
 </div>
 
 <div class="panel">
+{% if chosen_fact %}{% set f = chosen_fact %}
+<div class="stat">
+  <h3><span class="pill pill-{{ f.state.split(' ')[0] }}">{{ f.state }}</span> {{ f.label }} <span class="small muted">p{{ f.passage }}</span></h3>
+  <p class="small">couche {{ {"c5": "C5 (faits)", "probe": "question ciblée", "author": "auteur"}.get(f.layer, f.layer) }}{% if f.verdict %} · critique : {{ {"supported": "soutenu", "unsure": "douteux", "not_supported": "mis de côté"}[f.verdict] }}{% if f.reason %} — {{ f.reason }}{% endif %}{% endif %}{% if f.voice %} · énonciation : {{ "rumeur ou paroles rapportées (attribution, pas un fait du monde)" if f.voice == "attribution" else "note de travail" }}{% endif %}{% if f.exact %} · le texte dit plus précisément : {{ f.exact }}{% endif %}{% if f.indirect %} · <b>preuve indirecte</b> : le passage ne nomme pas {{ f.indirect|join(', ') }} (coréférence à vérifier){% endif %}{% if f.origin_label %} · avant correction : {{ f.origin_label }}{% endif %}</p>
+  {% if f.evidence %}<p class="small evidence">« {{ f.evidence }} »</p>{% endif %}
+  <p class="small">{{ "Ne partira pas avec « Proposer »." if f.excluded else "Partira avec « Proposer »." }}</p>
+  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
+    <input type="hidden" name="kind" value="fact"><input type="hidden" name="ann_id" value="{{ f.id }}">
+    <p><button name="action" value="keep">{{ "Reprendre" if f.excluded else "Garder" }}</button> <button name="action" value="remove">Retirer</button></p>
+    {% set d = f.draft %}
+    <p>Corriger : {{ fact_fields(view, d) }} <button name="action" value="correct">Corriger</button></p>
+  </form>
+</div>
+{% endif %}
 {% if chosen %}{% set v = chosen.value %}
 <div class="stat">
   <h3>« {{ v.text }} » <span class="small muted">p{{ chosen.passage }}</span></h3>
   <p class="small">{% if v.entity and not v.entity.startswith('new:') %}rattachée à <b>{{ names[v.entity].name if v.entity in names else v.entity }}</b> <span class="mono">({{ v.entity }})</span>{% elif v.new or (v.entity or '').startswith('new:') %}entité <b>nouvelle</b>{% else %}<b>doute</b>{% endif %}
   · type {{ v.type or "?" }} · règle {{ v.rule or "?" }} · {{ chosen.origin }} · {{ chosen.status }}{% if v.reason %} · {{ v.reason }}{% endif %}</p>
+  {% for t in view.attachments if chosen.id in t.ann_ids %}<p class="small">alias proposé : {% if t.retained %}<b>oui</b> (retenu pour le monde : « {{ t.text }} » deviendra un autre nom de {{ t.name }}){% else %}<b>non</b> (« {{ t.text }} » désigne {{ t.name }} dans cette source seulement ; « retenir pour le monde » pour en faire un alias){% endif %}</p>{% endfor %}
   {% if v.candidates %}<p class="small">candidats : {% for c in v.candidates %}<b>{{ names[c].name if c in names else c }}</b> <span class="mono">({{ c }})</span>{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
   <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
     <input type="hidden" name="ann_id" value="{{ chosen.id }}">
@@ -62,7 +109,8 @@
     <p><button name="action" value="keep">Garder</button> <button name="action" value="remove">Retirer</button> <button name="action" value="ignore" title="ce n'est pas une entité">Ignorer</button></p>
     <p>Corriger : <select name="entity"><option value="">— entité —</option><option value="new">nouvelle entité</option>
       {% for c in v.candidates %}<option value="{{ c }}">{{ names[c].name if c in names else c }} (candidat)</option>{% endfor %}
-      {% for e in view.entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type }})</option>{% endfor %}</select>
+      {% if view.new_entities %}<optgroup label="nouvelles de cette source">{% for e in view.new_entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type or "?" }}, nouvelle)</option>{% endfor %}</optgroup>{% endif %}
+      <optgroup label="du monde">{% for e in view.entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type }})</option>{% endfor %}</optgroup></select>
       <select name="type"><option value="">— type —</option>{% for t in view.types %}<option{{ ' selected' if t == v.type }}>{{ t }}</option>{% endfor %}</select>
       <button name="action" value="correct">Corriger</button></p>
   </form>
@@ -74,7 +122,7 @@
     <input type="hidden" name="action" value="add"><input type="hidden" name="passage" id="add-passage">
     <input type="hidden" name="start" id="add-start"><input type="hidden" name="end" id="add-end">
     <p>sélection : <b id="add-text" class="muted">sélectionner un mot dans le texte</b></p>
-    <p><select name="entity"><option value="new">nouvelle entité</option>{% for e in view.entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type }})</option>{% endfor %}</select>
+    <p><select name="entity"><option value="new">nouvelle entité</option>{% if view.new_entities %}<optgroup label="nouvelles de cette source">{% for e in view.new_entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type or "?" }}, nouvelle)</option>{% endfor %}</optgroup>{% endif %}<optgroup label="du monde">{% for e in view.entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type }})</option>{% endfor %}</optgroup></select>
        <select name="type">{% for t in view.types %}<option>{{ t }}</option>{% endfor %}</select></p>
     <p>portée <label><input type="radio" name="scope" value="occurrence"> cette occurrence</label>
       <label><input type="radio" name="scope" value="source" checked> toute la source</label>
@@ -82,10 +130,38 @@
       <button>Ajouter</button></p>
   </form>
 </div>
+{% if view.fact_entities %}<div class="stat" id="add-fact">
+  <h3>Ajouter un fait</h3>
+  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
+    <input type="hidden" name="kind" value="fact"><input type="hidden" name="action" value="add">
+    <p>passage <select name="passage">{% for p in view.passages %}<option value="{{ p.index }}">p{{ p.index }} — {{ p.text|truncate(40) }}</option>{% endfor %}</select></p>
+    <p>{{ fact_fields(view, {}) }} <button>Ajouter</button></p>
+  </form>
+</div>{% endif %}
 {% if view.rules %}<div class="stat small"><h3>Règles d'atelier</h3>{% for r in view.rules %}<div><span class="mono">{{ r.form }}</span> : {{ "n'est pas une entité" if r.kind == "not_entity" else "n'est pas " ~ r.target }}</div>{% endfor %}</div>{% endif %}
 </div>
 </div>
 <script>
+  // Survol d'un fait : sa preuve surlignée dans le texte du passage (début et fin dans le texte du passage).
+  document.querySelectorAll(".fact[data-start]").forEach(li => {
+    if (li.dataset.start === "") return;
+    const box = li.closest(".passage"), text = box.querySelector(".ptext");
+    li.addEventListener("mouseenter", () => {
+      const start = +li.dataset.start, end = +li.dataset.end;
+      const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
+      let pos = 0, node, ranges = [];
+      while ((node = walker.nextNode())) {
+        const a = Math.max(start, pos), b = Math.min(end, pos + node.length);
+        if (a < b) ranges.push([node, a - pos, b - pos]);
+        pos += node.length;
+      }
+      ranges.reverse().forEach(([n, a, b]) => { const r = document.createRange(); r.setStart(n, a); r.setEnd(n, b);
+        const mark = document.createElement("mark"); r.surroundContents(mark); });
+    });
+    li.addEventListener("mouseleave", () => {
+      text.querySelectorAll("mark").forEach(m => m.replaceWith(...m.childNodes)); text.normalize();
+    });
+  });
   // Sélection d'une portion dans un passage → formulaire d'ajout (début et fin dans le texte du passage).
   document.addEventListener("mouseup", () => {
     const sel = window.getSelection();

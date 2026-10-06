@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +53,64 @@ SYSTEM_STRICT = SYSTEM.replace(
    de temps (« depuis la guerre », « avant l'incendie ») n'est ni un fait ni une relation.""")
 
 
+# Variante pivot (X-016) : le schéma de genre entier dans le prompt système (stable : mis en cache), une énumération
+# des relations en sortie (le modèle ne peut pas en sortir), la correspondance vers le monde sans modèle.
+PIVOT_SYSTEM = """Tu relèves les faits qu'un texte de notes de jeu de rôle (français) affirme sur des entités déjà identifiées.
+
+Règles :
+1. Seulement ce que le texte affirme. N'invente pas, ne déduis pas au-delà du texte.
+2. subject et object sont des identifiants de la liste d'entités, jamais autre chose.
+3. Une relation : la plus précise du schéma de genre ci-dessous qui dit ce que dit le texte, dans son sens
+   canonique. Si aucune ne le dit, ne produis pas de relation.
+4. Un attribut : un de ceux donnés pour le type du sujet, avec une valeur courte recopiée du texte, sans
+   complément (« capitaine », pas « capitaine du port »).
+5. Un fait révolu (« régnait autrefois ») n'est pas un fait actuel ; un repère de temps (« depuis la guerre »)
+   n'est pas une relation.
+6. evidence : la phrase du texte qui affirme le fait, recopiée exactement.
+
+"""
+
+
+def pivot_output_schema(relations: list[str]) -> dict[str, Any]:
+    relation = {"type": "object", "additionalProperties": False,
+                "required": ["subject", "relation", "object", "evidence"],
+                "properties": {"subject": {"type": "string"}, "relation": {"type": "string", "enum": relations},
+                               "object": {"type": "string"}, "evidence": {"type": "string"}}}
+    attribute = {"type": "object", "additionalProperties": False,
+                 "required": ["subject", "attribute", "value", "evidence"],
+                 "properties": {k: {"type": "string"} for k in ("subject", "attribute", "value", "evidence")}}
+    return {"type": "object", "additionalProperties": False, "required": ["relations", "attributes"],
+            "properties": {"relations": {"type": "array", "items": relation},
+                           "attributes": {"type": "array", "items": attribute}}}
+
+
+def pivot_entity_lines(entities: list[Confirmed], pivot_map: Any) -> list[str]:
+    return [f"- {e.id} ({e.type} → {pivot_map.type_of(e.type) or '?'}) : {e.name}"
+            for e in sorted(entities, key=lambda e: e.id)]
+
+
+def pivot_hint(entities: list[Confirmed], pivot_map: Any) -> list[str]:
+    """Les relations du pivot dont les types conviennent à au moins une paire d'entités (variante « indice »)."""
+    types = sorted({t for e in entities if (t := pivot_map.type_of(e.type))})
+    found: list[str] = []
+    for a in types:
+        for b in types:
+            for r in pivot_map.pivot.compatible(a, b):
+                if r not in found:
+                    found.append(r)
+    return [r for r in pivot_map.pivot.relations if r in found]
+
+
+def pivot_relation_fact(subject: str, relation: str, obj: str, evidence: str, passage: int | None,
+                        pivot_map: Any) -> Fact:
+    """Une relation du pivot ramenée au monde : exacte, plus générale (la forme exacte gardée pour le critique), ou
+    hors schéma (identifiant du pivot, l'auteur décide : R-SCH-06)."""
+    world, exact = pivot_map.to_world(relation)
+    phrase = pivot_map.pivot.relations[relation].fr if relation in pivot_map.pivot.relations else ""
+    return Fact({"op": "add_relation", "from": subject, "relation": world or relation, "to": obj},
+                evidence, passage, phrase, exact)
+
+
 def output_schema() -> dict[str, Any]:
     fact = {"type": "object", "additionalProperties": False,
             "required": ["kind", "subject", "predicate", "object", "value", "evidence"],
@@ -79,6 +137,8 @@ class Fact:
     evidence: str
     passage: int | None
     phrase: str = ""  # tournure française d'une relation proposée par la question ciblée
+    exact: str = ""   # relation au sens exact quand la retenue est plus générale (« leads » pour member_of, X-014)
+    layer: str = "c5"  # couche qui l'a trouvé : « c5 » ou « probe » (question ciblée)
 
 
 def _is_a(schema: Any, type_name: str, accepted: list[str]) -> bool:
@@ -92,16 +152,21 @@ class FactFinder:
     adapter: Any
     profile: Any
     strict: bool = False  # variante stricte (X-008)
+    pivot_map: Any = None  # schéma de genre et correspondance (X-016)
+    hint: bool = False     # variante pivot : relations compatibles rappelées en fin de message
 
     @property
     def version(self) -> str:
-        return f"facts-{PROMPT_VERSION}{'+strict' if self.strict else ''}:{self.profile.signature}"
+        pivot = f"+pivot:{self.pivot_map.pivot.signature}{'+hint' if self.hint else ''}" if self.pivot_map else ""
+        return f"facts-{PROMPT_VERSION}{'+strict' if self.strict else ''}{pivot}:{self.profile.signature}"
 
     @property
     def meter(self) -> Any:
         return getattr(self.adapter, "meter", None)
 
     def prompt(self, window: Window, entities: list[Confirmed], schema: Any) -> tuple[str, str]:
+        if self.pivot_map is not None:
+            return self.pivot_prompt(window, entities, schema)
         types = {e.type for e in entities}
         lines = [f"- {e.id} ({e.type}) : {e.name}" for e in sorted(entities, key=lambda e: e.id)]
         relations = []
@@ -122,13 +187,43 @@ class FactFinder:
                 + "\n\nTexte :\n" + window.text)
         return (SYSTEM_STRICT if self.strict else SYSTEM), user
 
+    def pivot_prompt(self, window: Window, entities: list[Confirmed], schema: Any) -> tuple[str, str]:
+        """Système : règles puis schéma de genre entier (identique d'un appel à l'autre). Message : entités avec leur
+        type pivot, attributs du monde par type, indice éventuel, texte."""
+        attributes = []
+        for t in sorted({e.type for e in entities}):
+            if t in schema.types:
+                names = [f"{a} ({(d.labels or {}).get('fr', a)})" for a, d in schema.attributes_of(t).items()
+                         if a != "name"]
+                if names:
+                    attributes.append(f"- {t} : {', '.join(names)}")
+        user = ("Entités (identifiant, type du monde → type du schéma de genre : nom) :\n"
+                + "\n".join(pivot_entity_lines(entities, self.pivot_map))
+                + "\n\nAttributs par type du monde :\n" + ("\n".join(attributes) or "- (aucun)"))
+        if self.hint:
+            user += "\n\nRelations du schéma de genre qui conviennent à ces types : " \
+                    + ", ".join(pivot_hint(entities, self.pivot_map))
+        return PIVOT_SYSTEM + self.pivot_map.pivot.render(), user + "\n\nTexte :\n" + window.text
+
     def find(self, window: Window, entities: list[Confirmed], schema: Any, state: Any = None) -> list[Fact]:
         system, user = self.prompt(window, entities, schema)
+        if self.pivot_map is not None:
+            raw = self.adapter.complete(system, user, pivot_output_schema(list(self.pivot_map.pivot.relations)))
+            return check_facts(self._pivot_facts(raw, window, entities, schema), entities, schema, state,
+                               self.rejected)
         raw = self.adapter.complete(system, user, output_schema())
         return check_facts(self._facts(raw, window, entities, schema), entities, schema, state, self.rejected)
 
     def __post_init__(self) -> None:
         self.rejected: list[tuple[Fact, str]] = []  # écartés par les contrôles sans modèle (E-011), avec la raison
+
+    def _pivot_facts(self, raw: dict[str, Any], window: Window, entities: list[Confirmed], schema: Any) -> list[Fact]:
+        facts = [pivot_relation_fact(r["subject"].strip(), r["relation"].strip(), r["object"].strip(), r["evidence"],
+                                     _locate(window, r["evidence"]), self.pivot_map) for r in raw["relations"]]
+        attributes = {"facts": [{"kind": "attribute", "subject": a["subject"], "predicate": a["attribute"],
+                                 "object": "", "value": a["value"], "evidence": a["evidence"]}
+                                for a in raw["attributes"]]}
+        return facts + self._facts(attributes, window, entities, schema)
 
     def _facts(self, raw: dict[str, Any], window: Window, entities: list[Confirmed], schema: Any) -> list[Fact]:
         types = {e.id: e.type for e in entities}
@@ -383,6 +478,72 @@ PROBE_RELATIONS_RULE = """5. Relations connues du monde (liste donnée) : si l'u
 """
 
 
+# Variante (X-014) : des candidats classés, du plus exact au plus général ; le choix se fait sans modèle.
+# Exemples volontairement pris hors des corpus.
+PROBE_RANKED_RULE = """6. Pour chaque relation affirmée, donne candidates : d'abord la relation au sens exact (link « same »), puis, s'il y
+   en a, des relations plus générales que la phrase implique nécessairement (link « broader ») : « commande la
+   compagnie » implique « fait partie de la compagnie » ; « est l'oncle de » implique « est de la famille de ».
+   Jamais une relation voisine ou devinée : travailler à côté d'un lieu n'implique pas d'y habiter. Chaque candidat
+   a son sujet et son objet (la direction peut changer : « est dirigée par » ou « dirige »).
+"""
+
+
+def ranked_probe_schema() -> dict[str, Any]:
+    candidate = {"type": "object", "additionalProperties": False, "required": ["subject", "relation", "object", "link"],
+                 "properties": {"subject": {"type": "string"}, "relation": {"type": "string"},
+                                "object": {"type": "string"}, "link": {"type": "string", "enum": ["same", "broader"]}}}
+    item = {"type": "object", "additionalProperties": False, "required": ["phrase", "candidates"],
+            "properties": {"phrase": {"type": "string"}, "candidates": {"type": "array", "items": candidate}}}
+    return {"type": "object", "additionalProperties": False, "required": ["relations"],
+            "properties": {"relations": {"type": "array", "items": item}}}
+
+
+def choose_candidate(candidates: list[dict[str, Any]], types: dict[str, str],
+                     schema: Any) -> tuple[dict[str, Any] | None, str]:
+    """Règle sans modèle (X-014, T-ARC-01) : le premier candidat connu du schéma dont les types conviennent ; sinon le
+    premier candidat hors schéma (que l'auteur fixera, §6.6), à défaut le premier. Rend aussi la relation exacte
+    quand la retenue est plus générale (« leads » quand member_of est retenue), pour le critique.
+
+    Garde (X-014, deuxième version) : un candidat « plus général » ne compte que s'il suit un candidat « même sens » ;
+    seul, c'est une inférence (« près du » donnant `lives_in`, E-010 ; « depuis la Chute » donnant `involved_in`,
+    E-004) : rien n'est retenu."""
+    first_same = next((i for i, c in enumerate(candidates) if c.get("link") == "same"), None)
+    if first_same is None:
+        return None, ""
+    eligible = candidates[first_same:]
+
+    def fits(c: dict[str, Any]) -> bool:
+        r = schema.relations.get(c["relation"]) if schema is not None else None
+        a, b = types.get(c["subject"]), types.get(c["object"])
+        return r is not None and a is not None and b is not None and _is_a(schema, a, r.from_) and _is_a(schema, b, r.to)
+    unknown = (c for c in eligible if schema is None or c["relation"] not in schema.relations)
+    chosen = next((c for c in eligible if fits(c)), None) or next(unknown, eligible[0])
+    exact = eligible[0]["relation"] if chosen is not eligible[0] else ""
+    return chosen, exact
+
+
+PIVOT_PROBE_SYSTEM = """Une phrase de notes de jeu de rôle (français) cite plusieurs entités. Dis quelle relation durable et actuelle
+la phrase affirme entre deux d'entre elles, s'il y en a une.
+
+Règles :
+1. Seulement ce que la phrase affirme. Un fait révolu (« régnait autrefois ») ou un repère de temps (« depuis la
+   guerre ») n'est pas une relation.
+2. relation : la plus précise du schéma de genre ci-dessous qui dit ce que dit la phrase, dans son sens canonique.
+3. subject et object sont des identifiants de la liste donnée ; phrase : la tournure française de la phrase qui
+   l'exprime.
+4. Aucune relation affirmée : liste vide.
+
+"""
+
+
+def pivot_probe_schema(relations: list[str]) -> dict[str, Any]:
+    item = {"type": "object", "additionalProperties": False, "required": ["subject", "relation", "object", "phrase"],
+            "properties": {"subject": {"type": "string"}, "relation": {"type": "string", "enum": relations},
+                           "object": {"type": "string"}, "phrase": {"type": "string"}}}
+    return {"type": "object", "additionalProperties": False, "required": ["relations"],
+            "properties": {"relations": {"type": "array", "items": item}}}
+
+
 def probe_schema() -> dict[str, Any]:
     item = {"type": "object", "additionalProperties": False, "required": ["subject", "relation", "object", "phrase"],
             "properties": {k: {"type": "string"} for k in ("subject", "relation", "object", "phrase")}}
@@ -444,10 +605,15 @@ class RelationProbe:
     profile: Any
     with_relations: bool = False  # relations connues données comme préférence (X-008)
     by_pair: bool = False         # signal par paire d'entités non reliées, plutôt que par phrase muette (X-008)
+    ranked: bool = False          # candidats classés, choix sans modèle (X-014) ; implique les relations connues
+    pivot_map: Any = None         # schéma de genre et correspondance (X-016) ; remplace les relations connues
+    hint: bool = False            # variante pivot : relations compatibles rappelées en fin de message
 
     @property
     def version(self) -> str:
-        flags = ("+rel" if self.with_relations else "") + ("+pairs" if self.by_pair else "")
+        flags = ("+rel" if self.with_relations or self.ranked else "") + ("+pairs" if self.by_pair else "") \
+            + ("+ranked" if self.ranked else "") \
+            + (f"+pivot:{self.pivot_map.pivot.signature}{'+hint' if self.hint else ''}" if self.pivot_map else "")
         return f"probe-{PROBE_PROMPT_VERSION}{flags}:{self.profile.signature}"
 
     @property
@@ -455,25 +621,64 @@ class RelationProbe:
         return getattr(self.adapter, "meter", None)
 
     def prompt(self, silent: Silent, entities: list[Confirmed], schema: Any = None) -> tuple[str, str]:
+        if self.pivot_map is not None:
+            chosen = [e for e in entities if e.id in silent.entities]
+            user = "Entités :\n" + "\n".join(pivot_entity_lines(chosen, self.pivot_map))
+            if self.hint:
+                user += "\n\nRelations du schéma de genre qui conviennent à ces types : " \
+                        + ", ".join(pivot_hint(chosen, self.pivot_map))
+            return PIVOT_PROBE_SYSTEM + self.pivot_map.pivot.render(), user + "\n\nPhrase :\n" + silent.sentence
         known = {e.id: e for e in entities}
         lines = [f"- {eid} ({known[eid].type}) : {known[eid].name}" for eid in silent.entities if eid in known]
         user = "Entités :\n" + "\n".join(lines)
-        if not self.with_relations or schema is None:
+        if not (self.with_relations or self.ranked) or schema is None:
             return PROBE_SYSTEM, user + "\n\nPhrase :\n" + silent.sentence
         types = {known[eid].type for eid in silent.entities if eid in known}
         relations = [f"- {name} : {'|'.join(r.from_)} → {'|'.join(r.to)} ({(r.labels or {}).get('fr', name)})"
                      for name, r in sorted(schema.relations.items())
                      if any(_is_a(schema, t, r.from_) for t in types) and any(_is_a(schema, t, r.to) for t in types)]
-        return (PROBE_SYSTEM + PROBE_RELATIONS_RULE,
+        return (PROBE_SYSTEM + PROBE_RELATIONS_RULE + (PROBE_RANKED_RULE if self.ranked else ""),
                 user + "\n\nRelations connues :\n" + ("\n".join(relations) or "- (aucune)")
                 + "\n\nPhrase :\n" + silent.sentence)
 
     def ask(self, silent: Silent, entities: list[Confirmed], schema: Any = None) -> list[Fact]:
         system, user = self.prompt(silent, entities, schema)
+        if self.pivot_map is not None:
+            silent.answer = self.adapter.complete(system, user,
+                                                  pivot_probe_schema(list(self.pivot_map.pivot.relations)))["relations"]
+            return [replace(pivot_relation_fact(r["subject"].strip(), r["relation"].strip(), r["object"].strip(),
+                                                silent.sentence, silent.passage, self.pivot_map), layer="probe")
+                    for r in silent.answer
+                    if r["subject"].strip() in silent.entities and r["object"].strip() in silent.entities]
+        if self.ranked:
+            return self._ask_ranked(silent, entities, schema, system, user)
         silent.answer = self.adapter.complete(system, user, probe_schema())["relations"]
         return [Fact({"op": "add_relation", "from": r["subject"].strip(), "relation": r["relation"].strip(),
-                      "to": r["object"].strip()}, silent.sentence, silent.passage, r.get("phrase", ""))
+                      "to": r["object"].strip()}, silent.sentence, silent.passage, r.get("phrase", ""), layer="probe")
                 for r in silent.answer if r["subject"].strip() in silent.entities and r["object"].strip() in silent.entities]
+
+    def _ask_ranked(self, silent: Silent, entities: list[Confirmed], schema: Any, system: str, user: str) -> list[Fact]:
+        raw = self.adapter.complete(system, user, ranked_probe_schema())["relations"]
+        types = {e.id: e.type for e in entities}
+        facts: list[Fact] = []
+        silent.answer = []
+        for item in raw:
+            candidates = [{k: str(v).strip() for k, v in c.items()} for c in item.get("candidates", [])
+                          if str(c["subject"]).strip() in silent.entities and str(c["object"]).strip() in silent.entities]
+            if not candidates:
+                continue
+            chosen, exact = choose_candidate(candidates, types, schema)
+            if chosen is None:  # « plus général » seul : une inférence, rien n'est retenu (garde d'X-014)
+                silent.answer.append({**candidates[0], "relation": "(écarté : plus général seul)",
+                                      "phrase": item.get("phrase", ""), "exact": "",
+                                      "candidates": [f"{c['relation']} ({c['link']})" for c in candidates]})
+                continue
+            silent.answer.append({**chosen, "phrase": item.get("phrase", ""), "exact": exact,
+                                  "candidates": [f"{c['relation']} ({c['link']})" for c in candidates]})
+            facts.append(Fact({"op": "add_relation", "from": chosen["subject"], "relation": chosen["relation"],
+                               "to": chosen["object"]}, silent.sentence, silent.passage, item.get("phrase", ""), exact,
+                              "probe"))
+        return facts
 
 
 # ---------------------------------------------------------------------------
@@ -499,6 +704,17 @@ reason : quelques mots.
 """
 
 
+# Variante (X-015, E-013) : deux règles contre le faux rejet, exemples pris hors des corpus. Elles ne relâchent pas
+# les motifs de not_supported (proximité, temps, rumeur…) : « plus faible » veut dire « impliqué nécessairement ».
+CRITIC_V3_RULES = """Deux précisions :
+- Un fait plus faible que ce que dit le passage est soutenu, s'il en découle nécessairement : « commande la
+  compagnie » soutient « membre de la compagnie » ; « est l'oncle de » soutient « de la famille de ». Une proximité
+  n'implique pas une résidence ; un repère de temps n'implique pas une participation.
+- Un nom commun au pluriel peut désigner une faction par ses membres : « déteste les tisserands » soutient
+  « déteste la Guilde des tisserands ».
+"""
+
+
 def critic_schema() -> dict[str, Any]:
     return {"type": "object", "additionalProperties": False, "required": ["verdict", "reason"],
             "properties": {"verdict": {"type": "string", "enum": ["supported", "not_supported", "unsure"]},
@@ -512,10 +728,11 @@ class Critic:
 
     adapter: Any
     profile: Any
+    v3: bool = False  # deux règles contre le faux rejet (X-015, E-013)
 
     @property
     def version(self) -> str:
-        return f"critic-{CRITIC_PROMPT_VERSION}:{self.profile.signature}"
+        return f"critic-{3 if self.v3 else CRITIC_PROMPT_VERSION}:{self.profile.signature}"
 
     @property
     def meter(self) -> Any:
@@ -542,7 +759,12 @@ class Critic:
                 if d.get("entity") in known and known[d["entity"]].type in schema.types else None
             label = (definition.labels or {}).get("fr", attr) if definition is not None else attr
             proposed = f"{name(d['entity'])} — {label} : {d.get('value')}"
-        return CRITIC_SYSTEM, f"Passage :\n{passage}\n\nFait proposé :\n{proposed}"
+        more = ""
+        if fact.exact:  # X-014 : la phrase dit plus que le fait retenu, qui en est une forme plus générale
+            more = (f"\n\nLe passage dit plus précisément « {fact.phrase or fact.exact} » ({fact.exact}) ; le fait proposé "
+                    "en est une forme plus générale, qu'il implique nécessairement.")
+        system = CRITIC_SYSTEM + CRITIC_V3_RULES if self.v3 else CRITIC_SYSTEM
+        return system, f"Passage :\n{passage}\n\nFait proposé :\n{proposed}{more}"
 
     def judge(self, fact: Fact, passage: str, entities: list[Confirmed], schema: Any,
               other_names: dict[str, tuple[str, ...]] | None = None) -> dict[str, Any]:
@@ -586,6 +808,70 @@ def _sentence_of(fact: Fact, passage: str) -> str:
     return fact.evidence
 
 
+def missing_entities(fact: Fact, passage_text: str, forms: dict[str, set[str]]) -> list[str]:
+    """Les entités d'un fait que son passage ne nomme pas (E-015) : aucune de leurs formes (noms, alias, mentions)
+    n'y paraît. Signal sans décision : une preuve indirecte tient par une coréférence (« sa soeur », « elle »), que
+    rien ne résout ; on ne déplace pas le fait, car nommer deux entités n'est pas affirmer un fait entre elles."""
+    from .mentions import _occurrences
+    d = fact.draft
+    ids = [d["from"], d["to"]] if d.get("op") == "add_relation" else [d.get("entity")]
+    return [eid for eid in ids if eid and forms.get(eid)
+            and not any(_occurrences(passage_text, f) for f in forms[eid] if f.strip())]
+
+
+@dataclass
+class ChainResult:
+    """Ce que la chaîne des faits produit sur une fenêtre : les faits gardés, et ce qui a été écarté et pourquoi."""
+
+    kept: list[Fact] = field(default_factory=list)
+    judged: list[tuple[Fact, dict[str, Any]]] = field(default_factory=list)  # verdicts du critique (C6)
+    withheld: list[tuple[Fact, str]] = field(default_factory=list)           # retenus par l'énonciation (C4)
+    silents: list[Silent] = field(default_factory=list)                      # phrases soumises à la question ciblée
+
+
+def facts_chain(window: Window, entities: list[Confirmed], schema: Any, state: Any, finder: FactFinder,
+                probe: RelationProbe | None = None, forms: dict[str, set[str]] | None = None,
+                critic: Critic | None = None, with_enunciation: bool = False, names: dict[str, str] | None = None,
+                other_names: dict[str, tuple[str, ...]] | None = None) -> ChainResult:
+    """C5, puis la question ciblée sur les phrases muettes, l'énonciation (rumeur et note de travail retenues), et le
+    critique sur ce qui pose une question (pas les supports) : la chaîne du chantier (§6.5), une fenêtre à la fois.
+    Sert à la mesure (`evaluate_facts`) et à l'atelier (couche « faits », I9)."""
+    out = ChainResult()
+    meter = finder.meter
+    with meter.label(window.doc_id) if meter is not None else nullcontext():
+        facts = finder.find(window, entities, schema, state)
+    if probe is not None:
+        probe_meter = probe.meter
+        for silent in silent_sentences(window, facts, forms or {}, probe.by_pair):
+            out.silents.append(silent)
+            with probe_meter.label(f"{window.doc_id} p{silent.passage}") if probe_meter is not None else nullcontext():
+                facts += check_facts(probe.ask(silent, entities, schema), entities, schema, state, finder.rejected)
+    if with_enunciation:  # après la question ciblée (ses prompts ne changent pas), avant le critique
+        kept_by_voice = []
+        for f in facts:
+            voice = enunciation(_sentence_of(f, window.passage_texts.get(f.passage, ""))) \
+                if f.passage is not None else None
+            if voice is None:
+                kept_by_voice.append(f)
+            else:
+                out.withheld.append((f, voice))
+        facts = kept_by_voice
+    if critic is None:
+        out.kept = facts
+        return out
+    critic_meter = critic.meter
+    for f in facts:
+        if f.passage is None or is_support(key(f.draft, names or {}), state):
+            out.kept.append(f)  # le critique ne juge que ce qui pose une question
+            continue
+        with critic_meter.label(f"{window.doc_id} p{f.passage}") if critic_meter is not None else nullcontext():
+            verdict = critic.judge(f, window.passage_texts[f.passage], entities, schema, other_names)
+        out.judged.append((f, verdict))
+        if verdict.get("verdict") != "not_supported":
+            out.kept.append(f)
+    return out
+
+
 def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str, list[Confirmed]], gold_dir: Path,
                    context: ExtractionContext, state: Any, label: str, probe: RelationProbe | None = None,
                    forms: dict[str, dict[str, set[str]]] | None = None, critic: Critic | None = None,
@@ -618,38 +904,13 @@ def evaluate_facts(finder: FactFinder, windows: list[Window], entities: dict[str
     silents: list[Silent] = []
 
     def run(window: Window) -> list[Fact]:
-        with meter.label(window.doc_id) if meter is not None else nullcontext():
-            facts = finder.find(window, entities.get(window.doc_id, []), context.schema, state)
-        if probe is not None:
-            for s in silent_sentences(window, facts, (forms or {}).get(window.doc_id, {}), probe.by_pair):
-                silents.append(s)
-                with probe_meter.label(f"{window.doc_id} p{s.passage}") if probe_meter is not None else nullcontext():
-                    facts += check_facts(probe.ask(s, entities.get(window.doc_id, []), context.schema),
-                                         entities.get(window.doc_id, []), context.schema, state, finder.rejected)
-        if with_enunciation:  # après la question ciblée (ses prompts ne changent pas), avant le critique
-            kept_by_voice = []
-            for f in facts:
-                voice = enunciation(_sentence_of(f, window.passage_texts.get(f.passage, ""))) \
-                    if f.passage is not None else None
-                if voice is None:
-                    kept_by_voice.append(f)
-                else:
-                    withheld.append((f, voice))
-            facts = kept_by_voice
-        if critic is None:
-            return facts
-        kept = []
-        for f in facts:
-            if f.passage is None or is_support(key(f.draft, names), state):
-                kept.append(f)  # le critique ne juge que ce qui pose une question
-                continue
-            with critic_meter.label(f"{window.doc_id} p{f.passage}") if critic_meter is not None else nullcontext():
-                verdict = critic.judge(f, window.passage_texts[f.passage], entities.get(window.doc_id, []),
-                                       context.schema, {e.id: e.names for e in context.entities})
-            judged.append((f, verdict))
-            if verdict.get("verdict") != "not_supported":
-                kept.append(f)
-        return kept
+        result = facts_chain(window, entities.get(window.doc_id, []), context.schema, state, finder, probe,
+                             (forms or {}).get(window.doc_id, {}), critic, with_enunciation, names,
+                             {e.id: e.names for e in context.entities})
+        silents.extend(result.silents)
+        withheld.extend(result.withheld)
+        judged.extend(result.judged)
+        return result.kept
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         found = list(pool.map(run, windows))

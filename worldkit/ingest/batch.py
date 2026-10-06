@@ -96,15 +96,16 @@ def passage_context(context: ExtractionContext, doc: DocumentVersion, passage: A
 
 
 def ingest(world: World, batch_id: str, paths: list[str | Path], extractor: Extractor,
-           branch: str | None = None) -> BatchReport:
-    """Ingestion d'un lot = étapes E1 à E8 (calculs), puis E9+ Enregistrer (écriture) : `stages.py`."""
+           branch: str | None = None, reopen: bool = False) -> BatchReport:
+    """Ingestion d'un lot = étapes E1 à E8 (calculs), puis E9+ Enregistrer (écriture) : `stages.py`. `reopen` : le
+    lot de faits de l'atelier rouvre les passages de sa version déjà ingérés par le lot des entités (I9, Q2)."""
     from . import stages as S
     ensure_tables(world.store.conn)
     if world.store.conn.execute("SELECT 1 FROM batches WHERE batch_id = ?", (batch_id,)).fetchone():
         raise BatchError(f"lot déjà ingéré : {batch_id}")
     branch = branch or world.reference_branch
     refresh(world, branch)
-    run = S.Run(world, extractor)
+    run = S.Run(world, extractor, reopen=reopen)
     try:
         art = S.run_range(run, S.start(world, batch_id, branch), "E1", "E8", paths)
         art = S.e9_save(run, art)
