@@ -37,6 +37,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [E-012](E-012-question-ciblee-limites.md) | limites de la question ciblée : synonymes, phrases non muettes | — | en grande partie résolue |
 | [E-013](E-013-critique-litteral.md) | le critique trop littéral met de côté un fait juste | — | ouverte (la v3 du critique, qui réglait « les bateliers », n'est pas adoptée : X-015 ; aucun faux rejet hors de Corbelle) |
 | [E-014](E-014-forme-courte-nouvelle.md) | la forme courte d'une entité nouvelle n'est pas repérée, et l'auteur ne peut pas l'y rattacher (« Ostrel ») | R | en cours (geste fait, repérage ouvert) |
+| [E-015](E-015-preuve-indirecte.md) | un fait est rattaché à un passage qui ne nomme pas ses deux entités (« sa soeur » en p2) | R | ouverte |
 
 | Expérience | Titre | Statut |
 |---|---|---|
