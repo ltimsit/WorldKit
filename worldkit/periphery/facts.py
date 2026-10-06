@@ -79,6 +79,7 @@ class Fact:
     evidence: str
     passage: int | None
     phrase: str = ""  # tournure française d'une relation proposée par la question ciblée
+    exact: str = ""   # relation au sens exact quand la retenue est plus générale (« leads » pour member_of, X-014)
 
 
 def _is_a(schema: Any, type_name: str, accepted: list[str]) -> bool:
@@ -383,6 +384,41 @@ PROBE_RELATIONS_RULE = """5. Relations connues du monde (liste donnée) : si l'u
 """
 
 
+# Variante (X-014) : des candidats classés, du plus exact au plus général ; le choix se fait sans modèle.
+# Exemples volontairement pris hors des corpus.
+PROBE_RANKED_RULE = """6. Pour chaque relation affirmée, donne candidates : d'abord la relation au sens exact (link « same »), puis, s'il y
+   en a, des relations plus générales que la phrase implique nécessairement (link « broader ») : « commande la
+   compagnie » implique « fait partie de la compagnie » ; « est l'oncle de » implique « est de la famille de ».
+   Jamais une relation voisine ou devinée : travailler à côté d'un lieu n'implique pas d'y habiter. Chaque candidat
+   a son sujet et son objet (la direction peut changer : « est dirigée par » ou « dirige »).
+"""
+
+
+def ranked_probe_schema() -> dict[str, Any]:
+    candidate = {"type": "object", "additionalProperties": False, "required": ["subject", "relation", "object", "link"],
+                 "properties": {"subject": {"type": "string"}, "relation": {"type": "string"},
+                                "object": {"type": "string"}, "link": {"type": "string", "enum": ["same", "broader"]}}}
+    item = {"type": "object", "additionalProperties": False, "required": ["phrase", "candidates"],
+            "properties": {"phrase": {"type": "string"}, "candidates": {"type": "array", "items": candidate}}}
+    return {"type": "object", "additionalProperties": False, "required": ["relations"],
+            "properties": {"relations": {"type": "array", "items": item}}}
+
+
+def choose_candidate(candidates: list[dict[str, Any]], types: dict[str, str], schema: Any) -> tuple[dict[str, Any], str]:
+    """Règle sans modèle (X-014, T-ARC-01) : le premier candidat connu du schéma dont les types conviennent ; sinon le
+    premier candidat hors schéma (que l'auteur fixera, §6.6), à défaut le premier. Rend aussi la relation exacte
+    quand la retenue est plus générale (« leads » quand member_of est retenue), pour le critique."""
+    def fits(c: dict[str, Any]) -> bool:
+        r = schema.relations.get(c["relation"]) if schema is not None else None
+        a, b = types.get(c["subject"]), types.get(c["object"])
+        return r is not None and a is not None and b is not None and _is_a(schema, a, r.from_) and _is_a(schema, b, r.to)
+    unknown = (c for c in candidates if schema is None or c["relation"] not in schema.relations)
+    chosen = next((c for c in candidates if fits(c)), None) or next(unknown, candidates[0])
+    first = candidates[0]
+    exact = first["relation"] if chosen is not first and first.get("link") == "same" else ""
+    return chosen, exact
+
+
 def probe_schema() -> dict[str, Any]:
     item = {"type": "object", "additionalProperties": False, "required": ["subject", "relation", "object", "phrase"],
             "properties": {k: {"type": "string"} for k in ("subject", "relation", "object", "phrase")}}
@@ -444,10 +480,12 @@ class RelationProbe:
     profile: Any
     with_relations: bool = False  # relations connues données comme préférence (X-008)
     by_pair: bool = False         # signal par paire d'entités non reliées, plutôt que par phrase muette (X-008)
+    ranked: bool = False          # candidats classés, choix sans modèle (X-014) ; implique les relations connues
 
     @property
     def version(self) -> str:
-        flags = ("+rel" if self.with_relations else "") + ("+pairs" if self.by_pair else "")
+        flags = ("+rel" if self.with_relations or self.ranked else "") + ("+pairs" if self.by_pair else "") \
+            + ("+ranked" if self.ranked else "")
         return f"probe-{PROBE_PROMPT_VERSION}{flags}:{self.profile.signature}"
 
     @property
@@ -458,22 +496,41 @@ class RelationProbe:
         known = {e.id: e for e in entities}
         lines = [f"- {eid} ({known[eid].type}) : {known[eid].name}" for eid in silent.entities if eid in known]
         user = "Entités :\n" + "\n".join(lines)
-        if not self.with_relations or schema is None:
+        if not (self.with_relations or self.ranked) or schema is None:
             return PROBE_SYSTEM, user + "\n\nPhrase :\n" + silent.sentence
         types = {known[eid].type for eid in silent.entities if eid in known}
         relations = [f"- {name} : {'|'.join(r.from_)} → {'|'.join(r.to)} ({(r.labels or {}).get('fr', name)})"
                      for name, r in sorted(schema.relations.items())
                      if any(_is_a(schema, t, r.from_) for t in types) and any(_is_a(schema, t, r.to) for t in types)]
-        return (PROBE_SYSTEM + PROBE_RELATIONS_RULE,
+        return (PROBE_SYSTEM + PROBE_RELATIONS_RULE + (PROBE_RANKED_RULE if self.ranked else ""),
                 user + "\n\nRelations connues :\n" + ("\n".join(relations) or "- (aucune)")
                 + "\n\nPhrase :\n" + silent.sentence)
 
     def ask(self, silent: Silent, entities: list[Confirmed], schema: Any = None) -> list[Fact]:
         system, user = self.prompt(silent, entities, schema)
+        if self.ranked:
+            return self._ask_ranked(silent, entities, schema, system, user)
         silent.answer = self.adapter.complete(system, user, probe_schema())["relations"]
         return [Fact({"op": "add_relation", "from": r["subject"].strip(), "relation": r["relation"].strip(),
                       "to": r["object"].strip()}, silent.sentence, silent.passage, r.get("phrase", ""))
                 for r in silent.answer if r["subject"].strip() in silent.entities and r["object"].strip() in silent.entities]
+
+    def _ask_ranked(self, silent: Silent, entities: list[Confirmed], schema: Any, system: str, user: str) -> list[Fact]:
+        raw = self.adapter.complete(system, user, ranked_probe_schema())["relations"]
+        types = {e.id: e.type for e in entities}
+        facts: list[Fact] = []
+        silent.answer = []
+        for item in raw:
+            candidates = [{k: str(v).strip() for k, v in c.items()} for c in item.get("candidates", [])
+                          if str(c["subject"]).strip() in silent.entities and str(c["object"]).strip() in silent.entities]
+            if not candidates:
+                continue
+            chosen, exact = choose_candidate(candidates, types, schema)
+            silent.answer.append({**chosen, "phrase": item.get("phrase", ""), "exact": exact,
+                                  "candidates": [f"{c['relation']} ({c['link']})" for c in candidates]})
+            facts.append(Fact({"op": "add_relation", "from": chosen["subject"], "relation": chosen["relation"],
+                               "to": chosen["object"]}, silent.sentence, silent.passage, item.get("phrase", ""), exact))
+        return facts
 
 
 # ---------------------------------------------------------------------------
@@ -542,7 +599,11 @@ class Critic:
                 if d.get("entity") in known and known[d["entity"]].type in schema.types else None
             label = (definition.labels or {}).get("fr", attr) if definition is not None else attr
             proposed = f"{name(d['entity'])} — {label} : {d.get('value')}"
-        return CRITIC_SYSTEM, f"Passage :\n{passage}\n\nFait proposé :\n{proposed}"
+        more = ""
+        if fact.exact:  # X-014 : la phrase dit plus que le fait retenu, qui en est une forme plus générale
+            more = (f"\n\nLe passage dit plus précisément « {fact.phrase or fact.exact} » ({fact.exact}) ; le fait proposé "
+                    "en est une forme plus générale, qu'il implique nécessairement.")
+        return CRITIC_SYSTEM, f"Passage :\n{passage}\n\nFait proposé :\n{proposed}{more}"
 
     def judge(self, fact: Fact, passage: str, entities: list[Confirmed], schema: Any,
               other_names: dict[str, tuple[str, ...]] | None = None) -> dict[str, Any]:

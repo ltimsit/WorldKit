@@ -298,7 +298,7 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
     probe = None
     if args.probe:
         probe = RelationProbe(ReplayAdapter(args.probe_replay) if args.probe_replay else make_adapter(profile), profile,
-                              args.probe_relations, args.probe_pairs)
+                              args.probe_relations, args.probe_pairs, args.probe_ranked)
     critic = None
     if args.critic:
         from worldkit.periphery.facts import Critic
@@ -315,7 +315,8 @@ def _run_eval_facts(world: Any, args: argparse.Namespace) -> int:
     for s in report.silent:
         print(f"  phrase muette p{s.passage} {s.entities} : {s.sentence!r}")
         for r in s.answer:
-            print(f"     -> {r['subject']} {r['relation']} {r['object']} (« {r['phrase']} »)")
+            print(f"     -> {r['subject']} {r['relation']} {r['object']} (« {r['phrase']} »)"
+                  + (f" ; candidats : {', '.join(r['candidates'])}" if r.get("candidates") else ""))
     for p in report.passages:
         missing, extra = p.expected - p.found, p.scored - p.expected
         if missing or extra:
@@ -982,6 +983,8 @@ def build_parser() -> argparse.ArgumentParser:
                      help="question ciblée : relations connues données comme préférence (X-008)")
     evf.add_argument("--probe-pairs", action="store_true",
                      help="question ciblée : signal par paire d'entités non reliées (X-008)")
+    evf.add_argument("--probe-ranked", action="store_true",
+                     help="question ciblée : candidats classés (exact puis plus général), choix sans modèle (X-014)")
     evf.add_argument("--out", default=None, help="rapport JSON détaillé")
 
     review = commands.add_parser("review", help="file de revue des propositions")
