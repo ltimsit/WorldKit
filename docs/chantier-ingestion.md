@@ -1,6 +1,6 @@
 # Chantier : faire évoluer l'ingestion
 
-**Statut :** document de travail, version 0.5 — 6 octobre 2026. Ce n'est pas un cadre : il consigne une réflexion en cours (brainstorm, mesures, choix déjà faits, questions ouvertes) pour qu'on puisse la reprendre. En cas de divergence, les cadres priment. Quand un choix sera acté, il passera dans *cadre-technique.md* (décisions `T-ING`), dans *cadre-interface.md* pour l'Atelier, et dans l'analyse (section 00.xx), et sortira d'ici. Le travail expérimental lui-même (fiches d'écart, expériences) vit dans [`docs/recherche-ingestion/`](recherche-ingestion/README.md).
+**Statut :** document de travail, version 0.6 — 10 octobre 2026. Ce n'est pas un cadre : il consigne une réflexion en cours (brainstorm, mesures, choix déjà faits, questions ouvertes) pour qu'on puisse la reprendre. En cas de divergence, les cadres priment. Quand un choix sera acté, il passera dans *cadre-technique.md* (décisions `T-ING`), dans *cadre-interface.md* pour l'Atelier, et dans l'analyse (section 00.xx), et sortira d'ici. Le travail expérimental lui-même (fiches d'écart, expériences) vit dans [`docs/recherche-ingestion/`](recherche-ingestion/README.md).
 
 ## 1. Orientation
 
@@ -327,8 +327,8 @@ Le validateur les ignore : elles ne changent pas le sens du schéma.
 
 Le cadre exclut la prose des faits pour éviter les collisions (T-ING-03). On peut alimenter le wiki sans clés de fait, en quatre niveaux :
 
-1. **Passages liés aux entités** qu'ils mentionnent (annotations de C1 et C2) : la page montre ce que disent les documents (prolonge R-DOC-04). Sans fait, sans modèle en plus.
-2. **Ce qui n'a pas été capturé** : les phrases qui ne portent aucune annotation de fait. Utile à l'auteur, et entrée de l'ontologiste.
+1. **Passages liés aux entités** qu'ils mentionnent : la page montre ce que disent les documents (prolonge R-DOC-04). Sans fait, sans modèle en plus. **Fait** (R-VUE-05, T-ING-21) : liens par les noms connus (C1a) corrigés par l'atelier, vue d'auteur seulement, repère capté / non capté / affirmation, forme en casse différente à vérifier. Limite : les formes courtes (« Odon ») ne sont pas cherchées.
+2. **Ce qui n'a pas été capturé** : les phrases qui ne portent aucune annotation de fait (le repère « non capté » du niveau 1 le donne déjà au grain du passage). Utile à l'auteur, et entrée de l'ontologiste.
 3. **Notes** (`add_note`) : un espace de clés sans collision, comme les affirmations (R-DOC-08) ; texte, **facette** (apparence, caractère, histoire, habitudes), références résolues, source.
 4. **Descriptions consolidées** :
    - fragments rangés par facette, avec leurs sources ;
@@ -563,6 +563,7 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 36. *Une source de l'atelier est une version de document* : acté au cadre d'interface (I-ATL-01).
 37. *« Proposer » est un geste explicite* : acté au cadre d'interface (I-ATL-04).
 38. *Trois portées pour une correction* : acté au cadre d'interface (I-ATL-03).
+39. *Ce que disent les documents (§10.6, niveau 1)* : acté aux cadres (R-VUE-05, T-ING-21).
 
 ## 14. Questions ouvertes
 
@@ -616,6 +617,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 8. **Atelier, premier incrément** (fait, jalon I8, [fiche](i8-brief.md)) : import, couche « mentions », surlignage, gestes et portées, sélection, règles d'atelier, « Proposer ». Premier essai sur les notes de Corbelle ([E-014](recherche-ingestion/E-014-forme-courte-nouvelle.md)) : « Ostrel » seul n'est pas repéré, et ne pouvait pas être rattaché à Bertrand Ostrel (nouvelle) ; le geste est fait, le repérage attend le choix entre A et B de X-003 (l'atelier n'applique ni l'une ni l'autre). Reste : **l'essayer sur des sources réelles** (homographes de X-012, notes de Corbelle, dans le monde de Corbelle) et compter les gestes contre les gestes simulés ; puis le **deuxième incrément, les faits** : fait (jalon I9, [fiche](i9-brief.md)) : couche « faits » à l'écran, gestes sur les faits, « Proposer » avec les faits. Reste : l'essayer sur des sources réelles et compter les gestes.
 9. **Corbelle** (fait, mesuré, [X-006](recherche-ingestion/X-006-corbelle-chaine.md)) : le déterministe est durci ([X-007](recherche-ingestion/X-007-recoupement-par-score.md) : recoupement par score, texte barré, contrôles de C5) ; chaîne remesurée ; question ciblée améliorée ([X-008](recherche-ingestion/X-008-consignes-et-question.md)) ; relations devinées, repère de temps et rumeur mis de côté par le critique ([X-009](recherche-ingestion/X-009-critique.md)) ; énonciation sans modèle ([X-010](recherche-ingestion/X-010-enonciation.md)) : rumeur → attribution, note de travail → silence ; stabilité mesurée ([X-013](recherche-ingestion/X-013-stabilite-faits-corbelle.md) : à température 0, trois passes identiques, 0,53 / 0,75 ; les écarts sont systématiques) ; schéma de genre en pivot essayé et **non adopté** ([X-016](recherche-ingestion/X-016-schema-de-genre-pivot.md) : plus de faits faux ; mais le cache de l'API est confirmé, un prompt huit fois plus long ne coûte que ~40 % de plus) ; critique v3 essayé et **non adopté** ([X-015](recherche-ingestion/X-015-critique-v3.md) : gain sur Corbelle, mais deux faux rejets sur 10 lots non vus ; un remède se mesure sur des données qui n'ont pas servi à l'écrire, avec un critère posé avant) ; candidats classés essayés et non adoptés ([X-014](recherche-ingestion/X-014-candidats-classes.md)) ; restent le critique trop littéral sur « maître de la GdB » (E-013), les deux dernières fausses créations (nom commun, surnom), et la nature d'une note de travail dans le cadre (question 10). Ensuite les corpus suivants du plan (§12).
 10. Les écarts restants de l'extracteur actuel (E-001 et E-005 par un vocabulaire d'attribut, E-002 par l'annotation), par les remèdes les moins coûteux.
+11. **Ingérer plus que les faits, niveau 1** (fait, R-VUE-05, T-ING-21) : passages qui nomment une entité sur sa page d'auteur, capté ou non capté. Suites possibles : les formes courtes pour les liens (X-003 variante B, ou alias), le niveau 2 à la phrase, puis les notes par facette (niveau 3).
 
 ## 17. Références
 
