@@ -1,0 +1,67 @@
+# Vérité structurée de Corbelle — état de base. Tout est public.
+#
+# Ce que l'état de base contient exprès, pour les tests :
+#  - deux personnages prénommés Jehan (homonymes, AX-R2), distingués par leur titre (AX-R4) ;
+#  - un groupe qui a un nom et un autre nom (« la Guilde des Bateliers », « les Bateliers », AX-R10) ;
+#  - des noms à accents et à trait d'union (« le Pont-aux-Ânes », « l'abbaye Saint-Fiacre », AX-S3) ;
+#  - AUCUN Bertrand Ostrel ni Clémence : créés par l'ingestion, cités d'un document à l'autre (AX-C3) ;
+#  - AUCUN alias « la Rouquine » pour Ysolde : donné par les notes (alias explicite).
+
+edits:
+  - id: e001
+    branch: reference
+    origin: enrichment
+    tags: [base, lieux]
+    changes:
+      - { op: create_entity, entity: corbelle, type: Place, visibility: public }
+      - { op: set_attribute, entity: corbelle, attribute: name, value: "Corbelle", visibility: public }
+      - { op: set_attribute, entity: corbelle, attribute: category, value: "ville", visibility: public }
+      - { op: create_entity, entity: la-sorgue, type: Place, visibility: public }
+      - { op: set_attribute, entity: la-sorgue, attribute: name, value: "la Sorgue", visibility: public }
+      - { op: set_attribute, entity: la-sorgue, attribute: category, value: "rivière", visibility: public }
+      - { op: create_entity, entity: pont-aux-anes, type: Place, visibility: public }
+      - { op: set_attribute, entity: pont-aux-anes, attribute: name, value: "le Pont-aux-Ânes", visibility: public }
+      - { op: set_attribute, entity: pont-aux-anes, attribute: category, value: "pont", visibility: public }
+      - { op: add_relation, from: pont-aux-anes, relation: located_in, to: corbelle, visibility: public }
+      - { op: create_entity, entity: saint-fiacre, type: Place, visibility: public }
+      - { op: set_attribute, entity: saint-fiacre, attribute: name, value: "l'abbaye Saint-Fiacre", visibility: public }
+      - { op: set_attribute, entity: saint-fiacre, attribute: category, value: "abbaye", visibility: public }
+      - { op: add_relation, from: saint-fiacre, relation: located_in, to: corbelle, visibility: public }
+
+  - id: e002
+    branch: reference
+    origin: enrichment
+    tags: [base, personnages]
+    changes:
+      - { op: create_entity, entity: jehan-marcastel, type: Character, visibility: public }
+      - { op: set_attribute, entity: jehan-marcastel, attribute: name, value: "Jehan Marcastel", visibility: public }
+      - { op: set_attribute, entity: jehan-marcastel, attribute: title, value: "bourgmestre", visibility: public }
+      - { op: add_relation, from: jehan-marcastel, relation: rules, to: corbelle, visibility: public }
+      - { op: create_entity, entity: ysolde-marcastel, type: Character, visibility: public }
+      - { op: set_attribute, entity: ysolde-marcastel, attribute: name, value: "Ysolde Marcastel", visibility: public }
+      - { op: set_attribute, entity: ysolde-marcastel, attribute: title, value: "apothicaire", visibility: public }
+      - { op: add_relation, from: ysolde-marcastel, relation: sibling_of, to: jehan-marcastel, visibility: public }
+      - { op: create_entity, entity: jehan-leblond, type: Character, visibility: public }
+      - { op: set_attribute, entity: jehan-leblond, attribute: name, value: "Jehan Leblond", visibility: public }
+      - { op: set_attribute, entity: jehan-leblond, attribute: title, value: "passeur", visibility: public }
+      - { op: create_entity, entity: agathe, type: Character, visibility: public }
+      - { op: set_attribute, entity: agathe, attribute: name, value: "Mère Agathe", visibility: public }
+      - { op: set_attribute, entity: agathe, attribute: title, value: "abbesse", visibility: public }
+      - { op: add_relation, from: agathe, relation: rules, to: saint-fiacre, visibility: public }
+
+  - id: e003
+    branch: reference
+    origin: enrichment
+    tags: [base, groupes]
+    changes:
+      - { op: create_entity, entity: bateliers, type: Faction, visibility: public }
+      - { op: set_attribute, entity: bateliers, attribute: name, value: "la Guilde des Bateliers", visibility: public }
+      - { op: add_value, entity: bateliers, attribute: aliases, value: "les Bateliers", visibility: public }
+      - { op: add_relation, from: bateliers, relation: based_in, to: corbelle, visibility: public }
+      - { op: add_relation, from: jehan-leblond, relation: member_of, to: bateliers, visibility: public }
+      - { op: create_entity, entity: vouivre, type: Creature, visibility: public }
+      - { op: set_attribute, entity: vouivre, attribute: name, value: "la Vouivre", visibility: public }
+      - { op: add_relation, from: vouivre, relation: haunts, to: la-sorgue, visibility: public }
+      - { op: create_entity, entity: grande-crue, type: Event, visibility: public }
+      - { op: set_attribute, entity: grande-crue, attribute: name, value: "la Grande Crue", visibility: public }
+      - { op: set_attribute, entity: grande-crue, attribute: date, value: "an 12", visibility: public }

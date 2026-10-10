@@ -58,6 +58,7 @@ Le corpus de test est `corpus/valmont-v1/` (voir son `README.md`) :
 - `valmont/questions.yaml` : questions de compétence par vue ;
 - second corpus, **ciblé** : `corpus/corbelle-v1/` (notes brouillon, voir son `README.md`), cohérence vérifiée par `tests/test_corpus_corbelle.py` ; axes de test et plan des corpus : `docs/recherche-ingestion/axes-corpus.md` (un corpus écrit par Claude sert à construire les couches, jamais à choisir le modèle, T-TST-01) ;
 - `tools/check_corpus.py` : contrôle de cohérence du corpus lui-même (à lancer après toute modification du corpus).
+- **mondes de l'auteur** : `mondes/` (voir son `README.md`), distincts des corpus : un corpus est un instrument de mesure (schéma, gold, tests inchangés), un monde d'auteur évolue. `mondes/corbelle/` = le corpus Corbelle plus quatre relations ajoutées par l'auteur (`on_river`, `runs`, `near`, `hates`) ; le corpus garde `hates` hors schéma (E-007). Repartir de zéro : commandes du `README.md` (`corbelle.db`). Cohérence : `tests/test_mondes.py`.
 
 Les formats du corpus (éditions, gold, parcours) sont **provisoires** : si l'implémentation impose un autre format, propose l'adaptation plutôt que de contourner.
 

@@ -1,0 +1,8 @@
+# Corbelle — monde de l'auteur (voir ../README.md), tiré du corpus corbelle-v1. Aucun système de règles.
+world: corbelle
+schema: schema.yaml
+reference_branch: reference
+branches:
+  - id: reference
+    parent: null
+validation_policy: manual
