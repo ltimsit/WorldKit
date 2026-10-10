@@ -73,7 +73,7 @@
 {# Champs d'un fait de l'atelier (I9) : sujet, relation ou attribut, objet ou valeur, choisis dans des listes. #}
 {% macro fact_fields(view, d) -%}
 <select name="subject">{% for e in view.fact_entities %}<option value="{{ e.id }}"{{ ' selected' if e.id == (d.get('from') or d.get('entity')) }}>{{ e.name }}</option>{% endfor %}</select>
-<select name="predicate"><optgroup label="relations">{% for r in view.relations %}<option value="rel:{{ r.id }}"{{ ' selected' if r.id == d.get('relation') }}>{{ r.label }}</option>{% endfor %}</optgroup>
+<select name="predicate">{% set known = view.relations|map(attribute="id")|list %}{% if d.get('relation') and d.get('relation') not in known %}<option value="rel:{{ d.get('relation') }}" selected>{{ d.get('relation') }} (hors schéma : à garder, ou à ajouter au schéma)</option>{% elif not d %}<option value="">— relation ou attribut —</option>{% endif %}<optgroup label="relations">{% for r in view.relations %}<option value="rel:{{ r.id }}"{{ ' selected' if r.id == d.get('relation') }}>{{ r.label }}</option>{% endfor %}</optgroup>
 <optgroup label="attributs">{% for a in view.attributes %}<option value="attr:{{ a.id }}"{{ ' selected' if a.id == d.get('attribute') }}>{{ a.label }}</option>{% endfor %}</optgroup></select>
 <select name="object"><option value="">— objet (relation) —</option>{% for e in view.fact_entities %}<option value="{{ e.id }}"{{ ' selected' if e.id == d.get('to') }}>{{ e.name }}</option>{% endfor %}</select>
 <input name="value" placeholder="valeur (attribut)" value="{{ d.get('value', '') }}" size="14">

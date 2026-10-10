@@ -234,3 +234,23 @@ def test_a_corrected_or_added_fact_must_fit_the_schema_R_SCH_02():
     assert gestures.fact_gesture(world, "reference", doc.doc_id, "add", passage=member.passage,
                                  draft={"op": "add_relation", "from": "odon", "relation": "detests",
                                         "to": "new:bertrand-ostrel"})  # hors schéma : décidé à la revue (§6.6)
+
+
+def test_correcting_an_out_of_schema_fact_keeps_its_relation_selected(tmp_path):
+    """« elle deteste les bateliers » (hors schéma) : le panneau ne présélectionne pas la première relation du schéma
+    (« siège à ») ; sinon « Corriger » la remplaçait sans que l'auteur le voie."""
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    from test_service import make_world
+    from worldkit.core.world import World
+    from worldkit.web import create_app
+    db = make_world(tmp_path / "valmont.db")
+    w = World.open(db)
+    world, doc = w, store.import_source(w, NOTES)
+    layers.run_mentions(world, "reference", doc.doc_id)
+    gestures.fact_gesture(world, "reference", doc.doc_id, "add", passage=1,
+                          draft={"op": "add_relation", "from": "odon", "relation": "detests", "to": "brume"})
+    fact = next(a for a in facts_of(world, doc))
+    w.close()
+    page = TestClient(create_app(db)).get(f"/atelier/{doc.doc_id}?fact={fact.ann_id}").text
+    assert '<option value="rel:detests" selected>detests (hors schéma' in page
