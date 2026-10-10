@@ -457,3 +457,26 @@ def test_each_mention_says_why_it_is_linked_and_what_the_author_decided_I_ATL_05
     gestures.gesture(world, "reference", doc.doc_id, "keep", "world", ysolde.ann_id)
     how = {(a.passage, a.value["text"]): mention_how(a, names)["label"] for a in layers.effective(world, "reference", doc)}
     assert how[(2, "le bourgmestre")] == "gardée · ce texte" and how[(4, "Ysolde")] == "gardée · alias"
+
+
+def test_after_an_error_the_mentions_stay_clickable_and_an_empty_add_is_explained(tmp_path):
+    """Ajout sans portion (sélection sur un lien) : refusé avec la marche à suivre ; la page d'erreur est rendue à
+    l'adresse du formulaire, ses liens restent absolus (sinon `…/annotate?ann=N` → 405)."""
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    from test_service import make_world
+    from worldkit.core.world import World
+    from worldkit.web import create_app
+    db = make_world(tmp_path / "valmont.db")
+    w = World.open(db)
+    doc = store.import_source(w, NOTES)
+    layers.run_mentions(w, "reference", doc.doc_id)
+    ann = next(a for a in layers.effective(w, "reference", doc) if a.kind == "mention")
+    w.close()
+    client = TestClient(create_app(db))
+    page = client.post(f"/atelier/{doc.doc_id}/annotate", data={"action": "add", "entity": "new", "type": "Character"})
+    assert "sélectionner d&#39;abord une portion" in page.text or "sélectionner d'abord une portion" in page.text
+    assert f'href="/atelier/{doc.doc_id}?ann={ann.ann_id}"' in page.text and "?ann=" not in page.text.replace(
+        f'href="/atelier/{doc.doc_id}?ann=', "")
+    assert client.get(f"/atelier/{doc.doc_id}?ann={ann.ann_id}").status_code == 200
+    assert 'id="add-button" disabled' in client.get(f"/atelier/{doc.doc_id}").text

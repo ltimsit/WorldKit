@@ -64,7 +64,8 @@ def gesture(world: Any, branch: str, doc_id: str, action: str, scope: str = "sou
     written: list[int] = []
     if action == "add":
         if passage not in texts or start is None or end is None or not 0 <= start < end <= len(texts[passage]):
-            raise ValueError("ajout : portion invalide")
+            raise ValueError("ajout : portion invalide (sélectionner d'abord une portion du texte ; une mention déjà "
+                             "surlignée se clique pour la garder ou la corriger)")
         text = texts[passage][start:end]
         spans = [(passage, start, end)]
         if scope != "occurrence":
