@@ -23,9 +23,9 @@ L'auteur simulé corrige les **propositions réelles** du premier lancement jusq
 | Simulé (gold) | 22 | 2 | 0 | 1 | 27 |
 | Réel (clics) | 16 | 0 | 0 | 0 (1 refusé : bug) | 16 |
 
-- **Aucune correction, aucun retrait** : sur ce document, la couche avec modèle est juste aux yeux de l'auteur. Les « écarts » du simulé sont des **désaccords avec le gold**, pas des erreurs : « l'apothicairerie » est une entité pour l'auteur (le gold la tient pour une faute) ; « abbesse » est une vraie mention qu'il manque au gold (classe G) ; « jehan » (§5, homonyme) n'a pas été ajouté, sans dommage pour les faits.
+- **Aucune correction, aucun retrait** : sur ce document, la couche avec modèle est juste aux yeux de l'auteur. Les « écarts » du simulé sont des **désaccords avec le gold**, pas des erreurs : « l'apothicairerie » est une entité pour l'auteur (le gold la tient pour une faute) ; « abbesse » est une vraie mention qu'il manquait au gold (classe G, corrigé le 11 octobre) ; « jehan » (§5, homonyme) n'a pas été ajouté, sans dommage pour les faits.
 - **Un clic vaut souvent plusieurs occurrences** (portée « source ») : 16 clics pour 25 annotations ; le simulé compte par occurrence. Le poids « garder 1 par occurrence » surestime le coût réel.
-- **11 des 16 « garder » portent sur des entités connues**, qui n'en ont pas besoin : une mention connue alimente la couche « faits » et ne part pas au journal sans être retenue. Le compteur « à revoir » les présente pourtant comme à décider. Piste : ne pas compter les mentions connues sûres comme « à revoir », ou un geste « garder toutes les connues » (le « accepter en lot » du §9).
+- **Ce que « garder » a apporté** (relu après coup ; la première version de cette fiche le disait à tort inutile sur 11 clics) : 13 clics confirment une mention **à vérifier** (7 en casse différente, 5 rattachées par ressemblance par le modèle, « abbesse » de confiance moyenne), qui devient sûre dans l'atelier et dans « Ce que disent les documents » ; 2 clics (« le bourgmestre », « le passeur », titres sûrs) ne font que **figer** la décision contre une relance ; 2 sont indispensables (entités nouvelles). « Garder » ne change rien pour la couche « faits », qu'une mention connue alimente sans accord. Conclusion de l'auteur : les gestes étaient justes ; le coût réel est la **lecture**, que les clics ne mesurent pas (il faudra le temps, T3). Le geste de lot « garder toutes les connues » est laissé de côté.
 - **Signal « à vérifier » de casse** : 7 mentions signalées, 7 justes (aucun homographe dans des notes en minuscules). Sans coût ici (l'auteur gardait de toute façon), mais tout bruit : à suivre sur une source qui contient des homographes.
 
 ## Faits : le schéma est le premier coût
@@ -52,6 +52,6 @@ Quatre défauts de l'atelier rencontrés et corrigés le jour même : mention re
 ## Lecture
 
 1. **Priorité : le geste « ajouter au schéma »** (chantier §6.6), depuis l'atelier et la revue, prérempli par le fait (types de ses entités, nom de la relation). C'est ce qui a coûté le plus, cinq fois.
-2. **Les mentions coûtent peu** sur ce texte ; le coût restant est de la lecture, en partie inutile (mentions connues) : un geste de lot ou un compteur plus juste.
+2. **Les mentions coûtent peu en gestes** sur ce texte ; leur coût est la lecture, qui se mesure au temps (T3), pas aux clics.
 3. **Le gold de Corbelle a un manque** (« abbesse », classe G) et une divergence de jugement avec l'auteur (« l'apothicairerie ») : un gold écrit par Claude n'est pas l'auteur ; ces mesures-là se calibrent sur les gestes réels.
 4. À refaire sur une source avec homographes et sur un texte plus long, en chronométrant (T3).

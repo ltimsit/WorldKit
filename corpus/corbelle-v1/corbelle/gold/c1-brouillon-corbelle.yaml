@@ -48,7 +48,7 @@ passages:
     starts_with: "- Ysolde = soeur de jehan"
     test_axes: [AX-T2, AX-S8, AX-R2, AX-R4, AX-S5, AX-S4]
     mentions: { "Ysolde": ysolde-marcastel, "jehan": jehan-marcastel, "le bourgmestre": jehan-marcastel,
-                "le passeur": jehan-leblond, "Mère agathe": agathe, "st fiacre": saint-fiacre }
+                "le passeur": jehan-leblond, "Mère agathe": agathe, "abbesse": agathe, "st fiacre": saint-fiacre }
     changes:
       - { op: add_relation, from: ysolde-marcastel, relation: sibling_of, to: jehan-marcastel }
       - { op: set_attribute, entity: agathe, attribute: title, value: "abbesse" }
