@@ -819,6 +819,11 @@ def build_parser() -> argparse.ArgumentParser:
     show.add_argument("--branch", default=None)
     show.add_argument("--point", default=None, help="rang, point nommé (@base) ou head")
     show.add_argument("--scope", default=None, help="world (défaut) ou un système de règles (system-a…)")
+    export = schema_cmds.add_parser("export", help="écrire le schéma projeté dans un fichier YAML (monde d'auteur)")
+    export.add_argument("--out", required=True, help="fichier à écrire (mondes/corbelle/schema.yaml…)")
+    export.add_argument("--branch", default=None)
+    export.add_argument("--point", default=None, help="rang, point nommé (@base) ou head")
+    export.add_argument("--scope", default=None, help="world (défaut) ou un système de règles (system-a…)")
 
     world = commands.add_parser("world", help="créer un monde")
     world_cmds = world.add_subparsers(dest="world_command", required=True)
@@ -1122,6 +1127,27 @@ def _schema_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def _schema_export(args: argparse.Namespace) -> int:
+    """`worldkit schema export --out fichier` : le schéma projeté, relu par le validateur avant d'être écrit."""
+    from worldkit.core.schema import validate_schema
+    from worldkit.service import Session
+    params = {k: v for k, v in (("branch", args.branch), ("point", args.point), ("scope", args.scope)) if v}
+    with Session(args.db) as s:
+        r = s.call("schema.export", params, record=False)
+    if r.output is None:
+        _print_issues_views(r.issues)
+        return 1
+    issues = validate_schema(yaml.safe_load(r.output["yaml"]))
+    if issues:  # pragma: no cover — le schéma projeté est déjà valide
+        _print_issues_views(issues)
+        return 1
+    Path(args.out).write_text(r.output["yaml"], encoding="utf-8")
+    edits = ", ".join(r.output["edits"]) or "aucune"
+    print(f"{args.out} écrit : {r.indicators['types']} types, {r.indicators['relations']} relations "
+          f"(éditions de schéma depuis le départ : {edits})")
+    return 0
+
+
 def _print_issues_views(issues: Any) -> None:
     for i in issues:
         print(f"[{i.rule}] {i.code} : {i.message}")
@@ -1132,6 +1158,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     args = build_parser().parse_args(argv)
     if args.command == "schema":
+        if args.schema_command == "export":
+            return _schema_export(args)
         return _schema_show(args) if args.schema_command == "show" else _schema_validate(args.files)
     try:
         if args.command == "serve":

@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Ajouter au schéma{% endblock %}
+{% block content %}
+{% set o = result.output if result else none %}
+<h1>Ajouter une relation au schéma <span class="muted small">chantier §6.6 · I-ATL-09</span></h1>
+<p class="small muted">Le schéma dit ce que le monde accepte (<a href="/schema?{{ qs(ctx) }}">voir le schéma</a>). L'édition est écrite au journal du monde après confirmation ; elle ne se retire pas (R-CYC-01), une autre édition peut la défaire.{% if form.ann_id %} Le fait de l'atelier sera rattaché à la nouvelle relation.{% endif %}</p>
+{% if result %}{{ m.issues(result.issues) }}{% endif %}
+<form method="post" action="/schema/add" hx-boost="false">
+  {% for k in ["subject", "object", "doc_id", "ann_id", "back", "target"] %}<input type="hidden" name="{{ k }}" value="{{ form[k] or '' }}">{% endfor %}
+  <p><label>nom (anglais) <input name="relation" value="{{ form.relation or '' }}" class="mono" placeholder="hates" required></label>
+     <label>libellé français <input name="label" value="{{ form.label or '' }}" placeholder="déteste"></label></p>
+  {% set chosen_from = (o["from"] if o else []) %}{% set chosen_to = (o.to if o else []) %}
+  <table><tr><th>de (source)</th><th>vers (cible)</th></tr>
+  <tr><td>{% for t in types %}<label style="display:block"><input type="checkbox" name="from" value="{{ t.name }}"{{ ' checked' if t.name in chosen_from }}> {{ t.label }} <span class="mono muted small">{{ t.name }}</span></label>{% endfor %}</td>
+      <td>{% for t in types %}<label style="display:block"><input type="checkbox" name="to" value="{{ t.name }}"{{ ' checked' if t.name in chosen_to }}> {{ t.label }} <span class="mono muted small">{{ t.name }}</span></label>{% endfor %}</td></tr></table>
+  <p><label>cardinalité <select name="cardinality">{% for c in ["many_to_many", "many_to_one", "one_to_many", "one_to_one"] %}<option value="{{ c }}"{{ ' selected' if c == (form.cardinality or 'many_to_many') }}>{{ c }}</option>{% endfor %}</select></label>
+     <span class="small muted">plusieurs vers plusieurs : sans limite ; plusieurs vers un : une seule cible par source (« situé dans ») ; un vers plusieurs : une seule source par cible (« gouverne »)</span></p>
+  <p><label><input type="checkbox" name="symmetric" value="1"{{ ' checked' if form.symmetric }}> symétrique (A — B vaut B — A : « près de », « complote avec »)</label></p>
+  <p><button name="action" value="check">Vérifier</button>
+  {% if result and result.status == "pending" and o and o.edit %}<button name="action" value="confirm">Confirmer : écrire {{ o.edit }} au journal</button>{% endif %}
+  {% if form.back %}<a href="{{ form.back }}">annuler</a>{% endif %}</p>
+</form>
+{% if o and o.edit %}<p class="small">Aperçu : <b>{{ o.label }}</b> <span class="mono">({{ o.relation }})</span> : {{ o["from"]|join(", ") }} {{ "↔" if o.symmetric else "→" }} {{ o.to|join(", ") }} · {{ o.cardinality }}</p>{% endif %}
+{% endblock %}

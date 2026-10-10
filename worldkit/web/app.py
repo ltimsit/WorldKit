@@ -15,7 +15,7 @@ from urllib.parse import urlencode
 
 import yaml
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -205,6 +205,43 @@ def create_app(db: str | Path) -> FastAPI:
             params["scope"] = request.query_params["scope"]
         result = page.call("schema.show", params, ctx["target"] or None)
         return render(request, "schema.html", page, result=result)
+
+    def schema_add_page(request: Request, page: Page, form: dict[str, Any], confirm: bool = False) -> Any:
+        """Formulaire « ajouter une relation au schéma » (I-ATL-09) : aperçu, puis écriture sur confirmation."""
+        params: dict[str, Any] = {k: form[k] for k in ("relation", "label", "subject", "object", "doc_id", "cardinality")
+                                  if form.get(k)}
+        if form.get("ann_id"):
+            params["ann_id"] = int(form["ann_id"])
+        for key in ("from", "to"):
+            if form.get(key):
+                params[key] = form[key]
+        params["symmetric"] = bool(form.get("symmetric"))
+        params["confirm"] = confirm
+        target = form.get("target") or None
+        result = page.call("schema.add_relation", params, target)
+        back = form.get("back") or ""
+        if confirm and result.ok:
+            return RedirectResponse(back if back.startswith("/") else "/schema", status_code=303)
+        shown = page.call("schema.show", {}, target)
+        types = shown.output["schema"]["types"] if shown.ok else []
+        return render(request, "schema_add.html", page, result=result, form=form, types=types)
+
+    @app.get("/schema/add", response_class=HTMLResponse)
+    def schema_add_form(request: Request) -> Any:
+        q = request.query_params
+        form = {k: q.get(k, "") for k in ("relation", "label", "subject", "object", "doc_id", "ann_id", "back",
+                                          "target", "cardinality", "symmetric")}
+        return schema_add_page(request, Page(db), form)
+
+    @app.post("/schema/add", response_class=HTMLResponse)
+    async def schema_add_submit(request: Request) -> Any:
+        data = await request.form()
+        form: dict[str, Any] = {k: str(data.get(k) or "") for k in ("relation", "label", "subject", "object", "doc_id",
+                                                                    "ann_id", "back", "target", "cardinality",
+                                                                    "symmetric")}
+        form["from"] = [str(x) for x in data.getlist("from")]
+        form["to"] = [str(x) for x in data.getlist("to")]
+        return schema_add_page(request, Page(db), form, confirm=data.get("action") == "confirm")
 
     @app.get("/wiki/{entity}", response_class=HTMLResponse)
     def wiki_page(entity: str, request: Request) -> HTMLResponse:
