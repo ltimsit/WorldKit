@@ -1,0 +1,49 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Schéma{% endblock %}
+{% block content %}
+{% set o = result.output %}
+<h1>Schéma{% if o %} — {{ o.scope }} <span class="muted small">{{ o.branch }}, rang {{ o.seq }} · schéma posé ou modifié en dernier au rang {{ o.schema_rev }}</span>{% endif %}</h1>
+{{ m.result_head(result) }}
+{% if o %}
+<p class="small">Portée :
+{% for sc in o.scopes %}<a href="/schema?{{ qs(ctx, scope=sc) }}"{% if sc == o.scope %} style="font-weight:600"{% endif %}>{{ "monde" if sc == "world" else sc }}</a>{{ " · " if not loop.last }}{% endfor %}
+ <span class="muted">— ce que le monde accepte à ce point : un fait qui sort de ces types et relations est refusé (R-SCH-02) ; le schéma évolue par des éditions de schéma, versionnées (R-SCH-03).</span></p>
+
+<h2>Types</h2>
+<table>
+  <tr><th>type</th><th>hérite de</th><th>attributs</th><th>sous-types</th><th>entités</th><th>posé par</th></tr>
+  {% for t in o.schema.types %}
+  <tr id="type-{{ t.name }}"><td><b>{{ t.label }}</b>{% if t.label != t.name %} <span class="mono small muted">{{ t.name }}</span>{% endif %}</td>
+    <td class="mono small">{{ t.ancestors|join(" → ") or "—" }}</td>
+    <td class="small">{% for a in t.attributes %}<div><b>{{ a.label }}</b>{% if a.label != a.name %} <span class="mono muted">{{ a.name }}</span>{% endif %} : <span class="mono">{{ a.type }}</span>{% if a.required %} · <span title="obligatoire">requis</span>{% endif %}{% if a.min is not none or a.max is not none %} · bornes {{ a.min if a.min is not none else "…" }}–{{ a.max if a.max is not none else "…" }}{% endif %}{% if a.provenance and a.provenance != t.provenance %} <a class="mono muted" href="/edit/{{ a.provenance }}?{{ qs(ctx) }}">{{ a.provenance }}</a>{% endif %}</div>{% endfor %}
+      {% for a in t.inherited %}<div class="muted">{{ a.label }} <span class="mono">({{ a.type }}, de {{ a.owner }})</span></div>{% endfor %}</td>
+    <td class="mono small">{{ t.subtypes|join(", ") or "—" }}</td>
+    <td>{{ t.entities }}</td>
+    <td class="mono small">{% if t.provenance %}<a href="/edit/{{ t.provenance }}?{{ qs(ctx) }}">{{ t.provenance }}</a>{% endif %}</td></tr>
+  {% endfor %}
+</table>
+
+<h2>Relations</h2>
+{% if o.schema.relations %}<table>
+  <tr><th>relation</th><th>de</th><th>vers</th><th>cardinalité</th><th>faits</th><th>posée par</th></tr>
+  {% for r in o.schema.relations %}
+  <tr id="relation-{{ r.name }}"><td><b>{{ r.label }}</b>{% if r.label != r.name %} <span class="mono small muted">{{ r.name }}</span>{% endif %}{% if r.symmetric %} <span class="badge" title="symétrique : A — B vaut B — A">↔</span>{% endif %}</td>
+    <td class="mono small">{% for x in r["from"] %}<a href="#type-{{ x }}">{{ x }}</a>{{ ", " if not loop.last }}{% endfor %}</td>
+    <td class="mono small">{% for x in r.to %}<a href="#type-{{ x }}">{{ x }}</a>{{ ", " if not loop.last }}{% endfor %}</td>
+    <td class="small">{{ explain(r.cardinality) }}</td><td>{{ r.facts }}</td>
+    <td class="mono small">{% if r.provenance %}<a href="/edit/{{ r.provenance }}?{{ qs(ctx) }}">{{ r.provenance }}</a>{% endif %}</td></tr>
+  {% endfor %}
+</table>{% else %}<p class="muted">Aucune relation dans cette portée.</p>{% endif %}
+
+{% if o.sheets %}<h2>Fiches exigées <span class="muted small">R-MET-06</span></h2>
+<table><tr><th>système</th><th>type du monde</th><th>catégorie attendue</th></tr>
+  {% for s in o.sheets %}<tr><td><a href="/schema?{{ qs(ctx, scope=s.system) }}">{{ s.system }}</a></td><td class="mono">{{ s.world_type }}</td><td class="mono">{{ s.category }}</td></tr>{% endfor %}
+</table>{% endif %}
+
+<h2>Diagramme</h2>
+<pre class="mermaid" style="background:#fff">{{ o.mermaid }}</pre>
+<details><summary>Source Mermaid</summary><pre>{{ o.mermaid }}</pre></details>
+<script src="/static/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad: true, securityLevel: "strict"});</script>
+{% endif %}
+{% endblock %}

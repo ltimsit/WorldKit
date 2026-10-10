@@ -132,6 +132,7 @@ flowchart TB
 | I-VUE-08 | **Branches et historique** | Lignée des branches, points nommés, journal par branche, éditions (origine, lectures, écritures), transpositions, rejeux, historique des références ; comparaison de deux états. |
 | I-VUE-09 | **Mesures** | Mesures T2 (par lot, par opération, pièges, stabilité), historique des mesures, comparaison de modèles ou de prompts. |
 | I-VUE-10 | **Journal d'exécution** | Toutes les exécutions (qui, quoi, entrées, durée, appels au modèle, résultat), rejouables. |
+| I-VUE-12 | **Schéma** | Le schéma projeté d'un état (branche, point ; R-SCH-03), en lecture : types (héritage, attributs propres et hérités, bornes, sous-types), relations de → vers avec cardinalité et symétrie, systèmes de règles et fiches exigées (R-MET-06), usage dans l'état (entités par type, faits par relation), édition qui a posé chaque définition (relue dans le journal), diagramme Mermaid ; libellés français à côté des identifiants (R-SCH-08). Opération `schema.show`, commande `worldkit schema show`. |
 | I-VUE-11 | **Atelier d'ingestion** | Sources importées (texte collé) ; le texte d'une source avec ses mentions surlignées ; couches à lancer et relancer (coût estimé) ; gestes de l'auteur et leur portée ; règles d'atelier ; « Proposer » vers la revue (§8.8). |
 
 ## 6. Indicateurs (proposés)

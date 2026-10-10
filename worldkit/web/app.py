@@ -196,6 +196,16 @@ def create_app(db: str | Path) -> FastAPI:
         index = page.call("wiki.index", params_of(ctx, "branch", "point", "filter"), ctx["target"] or None)
         return render(request, "wiki_index.html", page, index=index)
 
+    @app.get("/schema", response_class=HTMLResponse)
+    def schema_screen(request: Request) -> HTMLResponse:
+        page = Page(db)
+        ctx = context(request)
+        params = params_of(ctx, "branch", "point")
+        if request.query_params.get("scope"):
+            params["scope"] = request.query_params["scope"]
+        result = page.call("schema.show", params, ctx["target"] or None)
+        return render(request, "schema.html", page, result=result)
+
     @app.get("/wiki/{entity}", response_class=HTMLResponse)
     def wiki_page(entity: str, request: Request) -> HTMLResponse:
         page = Page(db)
