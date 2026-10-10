@@ -36,14 +36,15 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [E-011](E-011-controles-c5.md) | faits de C5 qu'un contrôle sans modèle écarterait | S | résolue sur Corbelle |
 | [E-012](E-012-question-ciblee-limites.md) | limites de la question ciblée : synonymes, phrases non muettes | — | en grande partie résolue |
 | [E-013](E-013-critique-litteral.md) | le critique trop littéral met de côté un fait juste | — | ouverte (la v3 du critique, qui réglait « les bateliers », n'est pas adoptée : X-015 ; aucun faux rejet hors de Corbelle) |
-| [E-014](E-014-forme-courte-nouvelle.md) | la forme courte d'une entité nouvelle n'est pas repérée, et l'auteur ne peut pas l'y rattacher (« Ostrel ») | R | en cours (geste fait, repérage ouvert) |
+| [E-014](E-014-forme-courte-nouvelle.md) | la forme courte d'une entité nouvelle n'est pas repérée, et l'auteur ne peut pas l'y rattacher (« Ostrel ») | R | résolue (geste, puis règle B à vérifier : X-003, choix 40) |
 | [E-015](E-015-preuve-indirecte.md) | un fait est rattaché à un passage qui ne nomme pas ses deux entités (« sa soeur » en p2) | R | en cours (signalé sans décider dans l'atelier : 6 sur 106, tous à raison) |
+| [E-016](E-016-relation-voisine-acceptee.md) | une relation voisine prise faute de mieux, et acceptée par le critique (« tient » lu comme « gouverne ») | H | ouverte (à traiter bien plus tard) |
 
 | Expérience | Titre | Statut |
 |---|---|---|
 | [X-001](X-001-b1-haiku-reference.md) | Mesure de référence : b1 sous Haiku 4.5 (API), extracteur actuel | conclue |
 | [X-002](X-002-c1-c2-fenetre.md) | Repérer puis recouper : C1 et C2 sur une fenêtre au document (b1) | conclue (première itération) |
-| [X-003](X-003-formes-courtes.md) | Formes courtes : consigne (A) ou règle sans modèle (B) | conclue sur b1, non tranchée |
+| [X-003](X-003-formes-courtes.md) | Formes courtes : consigne (A) ou règle sans modèle (B) | conclue ; tranchée par l'auteur : B, à vérifier (choix 40) |
 | [X-004](X-004-c5-faits.md) | C5 : les faits entre entités confirmées (b1) | conclue (première itération) |
 | [X-005](X-005-question-ciblee.md) | Question ciblée sur les phrases muettes (hors schéma) | conclue (première itération) |
 | [X-006](X-006-corbelle-chaine.md) | La chaîne sur des notes brouillon (Corbelle) | conclue (diagnostic) |
