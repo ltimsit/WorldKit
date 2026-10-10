@@ -1,7 +1,7 @@
 # Cadre de l'interface
 
 **Objet :** vision, principes, découpage et points à trancher de l'interface de `worldkit`, conçue d'abord comme un **banc d'essai** : tester, suivre l'efficacité, contrôler, et obtenir des retours complets et explicites.
-**Version :** 1.7 — 6 octobre 2026. Tous les jalons d'interface (I0 à I9) sont faits ; I8 ouvre l'atelier d'ingestion (les entités ; une forme se rattache aussi à une entité nouvelle de la source), I9 y ajoute les faits ; les tests humains se font à l'écran. S'appuie sur *cadre-fondation.md* v1.21 et *cadre-technique.md* v2.18, qu'il cite sans les dupliquer.
+**Version :** 1.8 — 10 octobre 2026. Tous les jalons d'interface (I0 à I9) sont faits ; I8 ouvre l'atelier d'ingestion (les entités ; une forme se rattache aussi à une entité nouvelle de la source), I9 y ajoute les faits ; la page de wiki d'auteur montre ce que disent les documents (R-VUE-05) ; les tests humains se font à l'écran. S'appuie sur *cadre-fondation.md* v1.22 et *cadre-technique.md* v2.22, qu'il cite sans les dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (en attente). En cas de divergence, le cadre de la fondation puis le cadre technique prévalent.
 
 **Conventions**
@@ -128,7 +128,7 @@ flowchart TB
 | I-VUE-04 | **Banc de mécanismes** | Un mécanisme du catalogue (§3), son entrée, sa sortie commentée, avec la règle en cause pour chaque signalement. |
 | I-VUE-05 | **Revue** | Propositions (étiquettes, détail, dépendances, concurrence, diff contre l'état) ; questions de nature ; décisions ; rejeux ouverts et leurs conflits ; aperçu d'impact d'une redéfinition. |
 | I-VUE-06 | **Graphe** | Entités et relations, filtrés par branche, point, filtre (auteur / joueur), portée (monde, systèmes, fiches) ; mise en évidence des faits masqués, secrets, redéfinis plus tard, orphelins. |
-| I-VUE-07 | **Wiki** | Pages auteur et joueur côte à côte, à un point de l'historique ; provenance de chaque fait. |
+| I-VUE-07 | **Wiki** | Pages auteur et joueur côte à côte, à un point de l'historique ; provenance de chaque fait ; en vue d'auteur, **ce que disent les documents** (R-VUE-05) : passages qui nomment l'entité, portions surlignées, repère capté / non capté / affirmation, portions à vérifier en pointillé. |
 | I-VUE-08 | **Branches et historique** | Lignée des branches, points nommés, journal par branche, éditions (origine, lectures, écritures), transpositions, rejeux, historique des références ; comparaison de deux états. |
 | I-VUE-09 | **Mesures** | Mesures T2 (par lot, par opération, pièges, stabilité), historique des mesures, comparaison de modèles ou de prompts. |
 | I-VUE-10 | **Journal d'exécution** | Toutes les exécutions (qui, quoi, entrées, durée, appels au modèle, résultat), rejouables. |

@@ -1,7 +1,7 @@
 # Cadre conceptuel de la fondation
 
 **Objet :** base de vérité du modèle conceptuel de la fondation. Sert d'entrée à la conception technique.
-**Version :** 1.21 — 27 septembre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v25, section 00).
+**Version :** 1.22 — 10 octobre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v25, section 00).
 **Statut :** de référence. En cas de divergence avec l'analyse ou avec le cadre technique, ce document prévaut.
 
 **Conventions**
@@ -662,6 +662,7 @@ flowchart LR
 | R-VUE-02 | Une page d'entité **doit** montrer ses faits, ses fiches, ses pistes ouvertes, ses documents sources et, le cas échéant, sa consolidation `same_as`. |
 | R-VUE-03 | Une vue antérieure **doit** signaler les informations redéfinies plus tard. |
 | R-VUE-04 | Les éléments pour les joueurs sont prélevés par le MJ dans une vue publique ; pas d'outillage dédié. |
+| R-VUE-05 | En vue d'auteur, une page d'entité **doit** montrer **ce que disent les documents** : les passages des documents ingérés qui la nomment, chacun repéré *capté* (il soutient un fait de l'entité), *non capté* (il la nomme sans qu'aucun fait n'en vienne) ou *affirmation* (document en jeu, R-DOC-06). Ce n'est ni un fait ni une affirmation : rien n'entre dans l'état. Une vue joueur ne montre **aucun** passage : le texte brut ne se plafonne pas fait par fait (R-NOT-04) ; ce qui va aux joueurs est prélevé par le MJ (R-VUE-04). Exemple : la page d'Odon montre « « Le baron est un traître », murmure-t-on sur les quais. » (non capté) ; la page joueur ne le montre jamais. |
 
 ### 8.2 Consommation machine
 

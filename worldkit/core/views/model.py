@@ -162,6 +162,35 @@ class SheetSummary:
     attributes: list[AttributeLine]
 
 
+class PassageStatus(StrEnum):
+    """Repère d'un passage qui nomme une entité (R-VUE-05)."""
+
+    CAPTURED = "captured"       # il soutient un fait de l'entité présent dans l'état
+    UNCAPTURED = "uncaptured"   # il la nomme sans qu'aucun fait de l'état n'en vienne
+    CLAIM = "claim"             # document en jeu : il produit des affirmations, pas des faits (R-DOC-06)
+
+
+@dataclass(frozen=True)
+class PassageLine:
+    """Un passage d'un document ingéré qui nomme l'entité (R-VUE-05) : fourni par l'ingestion, montré en vue
+    d'auteur seulement. `spans` : portions qui la nomment (début, fin, à vérifier) ; une portion est à vérifier quand
+    sa casse diffère du nom connu (homographe possible, « une brume épaisse » pour Brume) : signalée sans décider."""
+
+    entity: str
+    document: str
+    passage: int
+    text: str
+    spans: tuple[tuple[int, int, bool], ...]
+    status: PassageStatus
+    facts: tuple[str, ...] = ()
+    obsolete: bool = False
+
+    @property
+    def to_check(self) -> bool:
+        """Toutes les portions sont à vérifier : le lien lui-même est incertain."""
+        return all(c for _, _, c in self.spans)
+
+
 @dataclass(frozen=True)
 class EntityPage:
     id: str
@@ -177,6 +206,7 @@ class EntityPage:
     claims: list[ClaimLine] = field(default_factory=list)
     drafts: list[str] = field(default_factory=list)     # pistes ouvertes : J6
     documents: list[str] = field(default_factory=list)  # documents sources (R-VUE-02)
+    passages: list[PassageLine] = field(default_factory=list)  # ce que disent les documents (R-VUE-05)
 
 
 @dataclass(frozen=True)
@@ -190,6 +220,8 @@ class View:
     redefined: frozenset = frozenset()
     # Pistes ouvertes par entité (R-VUE-02, R-SCN-09) : matériau d'auteur, jamais montré aux joueurs (R-VUE-04).
     drafts: Mapping[str, list[str]] = field(default_factory=dict)
+    # Passages qui nomment chaque entité (R-VUE-05) : fournis par l'ingestion, montrés en vue d'auteur seulement.
+    passages: Mapping[str, list[PassageLine]] = field(default_factory=dict)
 
     def _redefined(self, fid: tuple) -> bool:
         return bool(self.redefined) and any(v == fid and k in self.redefined for k, v in self.state.occupancy.items())
@@ -268,9 +300,28 @@ class View:
         documents = sorted({doc for m in members for doc, vis in self.sources.get(m, [])
                             if flt is Filter.AUTHOR or vis is Visibility.PUBLIC})
         drafts = sorted({d for m in members for d in self.drafts.get(m, [])}) if flt is Filter.AUTHOR else []
+        passages = self._passages(members) if flt is Filter.AUTHOR else []
         return EntityPage(entity, sorted(members), rec.type, self.title(entity), rec.closed,
                           rec.visibility, attributes, relations, identities, sheets, self.claims_of(members),
-                          drafts=drafts, documents=documents)
+                          drafts=drafts, documents=documents, passages=passages)
+
+    def _passages(self, members: set[str]) -> list[PassageLine]:
+        """Passages qui nomment un membre de la page (R-VUE-05) ; un passage qui en nomme deux paraît une fois :
+        portions et faits réunis, capté si l'un l'est."""
+        merged: dict[tuple[str, int], PassageLine] = {}
+        for m in sorted(members):
+            for line in self.passages.get(m, []):
+                key = (line.document, line.passage)
+                prev = merged.get(key)
+                if prev is None:
+                    merged[key] = line
+                    continue
+                status = PassageStatus.CAPTURED if PassageStatus.CAPTURED in (prev.status, line.status) \
+                    else prev.status
+                merged[key] = PassageLine(prev.entity, prev.document, prev.passage, prev.text,
+                                          tuple(sorted(set(prev.spans) | set(line.spans))), status,
+                                          tuple(sorted(set(prev.facts) | set(line.facts))), prev.obsolete)
+        return [merged[k] for k in sorted(merged)]
 
     def claims_of(self, members: set[str]) -> list[ClaimLine]:
         """Affirmations dont l'énonciateur est sur la page (R-DOC-06, R-DOC-07, R-NOT-05)."""

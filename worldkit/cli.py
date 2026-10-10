@@ -762,9 +762,11 @@ def _run_world(args: argparse.Namespace) -> int:
         state = world.state(args.branch, args.point)
         if args.command == "wiki":
             from worldkit.core.workflows.scenarios import open_drafts
+            from worldkit.ingest.passages import passages_by_entity
             from worldkit.ingest.review import sources
+            passages = passages_by_entity(world, state) if args.filter == "author" else {}  # R-VUE-05
             view = View(state, Filter(args.filter), sources(world, args.branch),
-                        world.redefined_after(args.branch, state.seq), open_drafts(world, args.branch))
+                        world.redefined_after(args.branch, state.seq), open_drafts(world, args.branch), passages)
             if args.wiki_command == "page":
                 page = view.page(args.entity)
                 if page is None:

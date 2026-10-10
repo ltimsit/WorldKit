@@ -1,7 +1,7 @@
 # Guide pas à pas
 
 **Objet :** apprendre à se servir de worldkit par l'exemple : construire le monde de démonstration Valmont, lire un résultat, écrire un changement, essayer dans un bac à sable, ingérer un lot étape par étape, faire un retcon, tester un mécanisme seul, mesurer un extracteur, vérifier après un changement de code. Chaque section donne les gestes dans l'interface, la commande équivalente et ce que vous devez voir.
-**Version :** 1.0 — 27 septembre 2026.
+**Version :** 1.1 — 10 octobre 2026.
 **Lecture :** les sections s'enchaînent sur un même monde ; suivez-les dans l'ordre la première fois. Les commandes se tapent sous PowerShell, **depuis la racine du projet**, environnement activé (`.venv\Scripts\activate`). Tout identifiant souligné dans l'interface (règle, étape, opération, statut) mène à sa définition ; en ligne de commande : `worldkit explain <code>`. La carte des écrans est dans *outils.md*, les définitions dans *glossaire.md*.
 **Ce guide est testé :** `tests/test_guide.py` exécute chaque bloc de commandes et vérifie chaque bloc « sortie » et chaque écran annoncé. S'il ment, la suite de tests échoue.
 
@@ -490,6 +490,24 @@ worldkit --db valmont.db call atelier.run --param doc_id=l-echoppe-de-bertille -
 À l'écran, chaque fait s'affiche **sous son passage**, en français (« Bertille — habite — Brume »), avec une pastille : **soutenu**, **douteux**, **mis de côté** par le critique (sa raison au survol), **rumeur** ou **note** (retenu par l'énonciation), **déjà connu** (un support), ou ce que vous en avez décidé ; **preuve indirecte** quand le passage ne nomme pas l'une des entités (« Son frère Mervin… » : Aldren n'y est pas nommé) : à vérifier, le fait n'est pas déplacé. Les faits écartés restent visibles, grisés : c'est là qu'on repère un faux rejet. Au survol d'un fait, sa preuve est surlignée dans le texte. Un clic ouvre son panneau : **garder**, **reprendre** (un fait écarté), **retirer**, **corriger** (sujet, relation ou attribut, objet ou valeur, dans des listes). **Ajouter un fait** couvre ce que les couches ont manqué : vous choisissez le passage, puis le fait.
 
 « Proposer » envoie, avec les entités et les alias, **tous les faits non écartés** : la revue les re-décide un par un. Si les entités de la source sont déjà parties, le bouton devient **« Proposer les faits »** : un second lot, qui ne porte que les faits.
+
+### Ce que disent les documents
+
+Une fois proposée, la source fait partie des documents ingérés. La page d'une entité, en vue d'auteur, montre alors **ce que disent les documents** : chaque passage qui la nomme, la forme surlignée, avec un repère : **capté** (le passage soutient un fait de l'entité, cité à la suite), **non capté** (il la nomme, mais aucun fait n'en est sorti : c'est ce que l'ingestion a laissé de côté), **affirmation** (document en jeu). Rien n'est appelé ni écrit : les noms et alias connus sont cherchés dans le texte, puis corrigés par vos gestes de l'atelier.
+
+```powershell
+worldkit --db valmont.db wiki page brume
+```
+
+```text sortie
+## Ce que disent les documents
+- l-echoppe-de-bertille §1 — non capté
+  > Bertille tient une échoppe de cordes sur le port de **Brume**.
+```
+
+<!-- écran /wiki/brume : "Ce que disent les documents" ; "échoppe de cordes" -->
+
+Une forme dont la casse diffère du nom connu (« une brume épaisse », ou « corbelle » dans des notes prises vite) est montrée **à vérifier** : homographe possible, à trancher d'un geste dans l'atelier. Un nom court qui n'est pas un alias (« Odon » seul, pour Odon de Brume) n'est pas trouvé : ajoutez-le comme alias, et tous les passages qui le citent apparaissent. La vue joueur ne montre aucun passage : le texte brut peut révéler plus que les faits publics. À l'écran : **Wiki**, page `brume`, section « Ce que disent les documents ». Bertille n'a pas encore de page : son entité attend en revue ; acceptée, elle aura la sienne, avec ses deux passages.
 
 ## 13. Pour aller plus loin
 

@@ -39,6 +39,7 @@ DISPLAYED = {
     "verdict de répétition à blanc": ["same", "gap", "divergence", "ignored"],
     "attendu de parcours": ["passed", "failed", "unstructured"],
     "filtre": ["author", "player"],
+    "repère d'un passage (R-VUE-05)": ["captured", "uncaptured", "claim", "to_check", "obsolete"],
 }
 
 

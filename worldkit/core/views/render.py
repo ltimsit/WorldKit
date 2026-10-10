@@ -11,7 +11,7 @@ from typing import Any
 
 from worldkit.core.projection.state import State
 
-from .model import AttributeLine, EntityPage, Filter, View, entity_visible, fact_visible
+from .model import AttributeLine, EntityPage, Filter, PassageLine, PassageStatus, View, entity_visible, fact_visible
 
 NON_PUBLIC = "(entité non publique)"
 
@@ -81,8 +81,50 @@ def render_page(page: EntityPage, view: View) -> str:
     out += [f"- {d}" for d in page.drafts] or ["- (aucune)"]
     out += ["", "## Documents sources"]
     out += [f"- {d}" for d in page.documents] or ["- (aucun)"]
+    if flt is Filter.AUTHOR:
+        out += ["", "## Ce que disent les documents"]
+        for p in page.passages:
+            out += [f"- {passage_heading(p)}", f"  > {excerpt(p, '**')}"]
+        if not page.passages:
+            out.append("- (aucun passage)")
     out.append("")
     return "\n".join(out)
+
+
+STATUS_FR = {PassageStatus.CAPTURED: "capté", PassageStatus.UNCAPTURED: "non capté",
+             PassageStatus.CLAIM: "affirmation"}
+
+
+def passage_heading(p: PassageLine) -> str:
+    """« notes-baron §1 — capté : odon.title » ; « — à vérifier : brume » ; « — document obsolète » (R-VUE-05)."""
+    text = f"{p.document} §{p.passage} — {STATUS_FR[p.status]}"
+    if p.facts:
+        text += " : " + ", ".join(p.facts)
+    doubtful = sorted({p.text[s:e] for s, e, c in p.spans if c})
+    if doubtful:
+        text += " — à vérifier : " + ", ".join(f"« {d} »" for d in doubtful)
+    if p.obsolete:
+        text += " — document obsolète"
+    return text
+
+
+def excerpt(p: PassageLine, mark: str = "", limit: int = 300) -> str:
+    """Le passage sur une ligne, coupé autour de la première portion s'il dépasse `limit` ; portions encadrées
+    par `mark` (gras en Markdown)."""
+    text, spans = p.text, sorted(p.spans)
+    lo, hi = 0, len(text)
+    if len(text) > limit:
+        lo = max(0, min(spans[0][0] - limit // 3, len(text) - limit)) if spans else 0
+        hi = lo + limit
+    parts, pos = [], lo
+    for s, e, _ in spans:
+        if s < pos or e > hi:
+            continue
+        parts += [text[pos:s], mark + text[s:e] + mark]
+        pos = e
+    parts.append(text[pos:hi])
+    line = " ".join("".join(parts).split())
+    return ("… " if lo > 0 else "") + line + (" …" if hi < len(text) else "")
 
 
 def export_graph(state: State, flt: Filter) -> dict[str, Any]:

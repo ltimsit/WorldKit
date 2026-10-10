@@ -50,3 +50,9 @@ a.term:hover { color: #6a5acd; }
 .guide .fence-cap { font-size: 11px; color: #777; margin-top: 8px; }
 .guide pre.fence-text { border-left: 3px solid #1b7f3b; }
 .guide .toc { position: sticky; top: 0; background: var(--bg); padding: 4px 0; border-bottom: 1px solid #ddd; }
+
+/* Ce que disent les documents (R-VUE-05) : portion qui nomme l'entité ; à vérifier en pointillé orange. */
+table.passages mark { background: #e6eefc; padding: 0 1px; }
+table.passages mark.check { background: var(--chg); outline: 1px dashed var(--chg-line); }
+table.passages tr.p-uncaptured td:first-child { border-left: 3px solid var(--chg-line); }
+.badge.check { background: var(--chg); }
