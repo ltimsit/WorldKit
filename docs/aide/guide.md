@@ -506,6 +506,44 @@ worldkit --db valmont.db call atelier.run --param doc_id=l-echoppe-de-bertille -
 
 « Proposer » envoie, avec les entités et les alias, **tous les faits non écartés** : la revue les re-décide un par un. Si les entités de la source sont déjà parties, le bouton devient **« Proposer les faits »** : un second lot, qui ne porte que les faits.
 
+### Ajouter une relation au schéma
+
+Quand aucune relation du schéma ne convient (« elle déteste les bateliers », « elle tient l'apothicairerie »), ne forcez pas une relation voisine : ajoutez-la. Dans le panneau d'un fait, **« Ajouter une relation au schéma… »** ouvre un formulaire prérempli par le fait (nom proposé, types des deux entités) ; dans la revue, un changement hors schéma porte le même lien. **Vérifier** montre l'édition sans rien écrire ; **Confirmer** l'écrit au journal du monde et rattache le fait à la nouvelle relation. Une édition de schéma ne se retire pas : elle se défait par une autre, d'où la confirmation. En ligne de commande, l'aperçu d'abord :
+
+```powershell
+worldkit --db valmont.db call schema.add_relation --param relation=hates --param subject=odon --param object=mervin --param label=déteste
+```
+
+```text sortie
+schema.add_relation [write] → world : pending
+écrira l'édition schema-hates au journal
+```
+
+Puis la même commande avec `--param confirm=true`, qui l'écrit :
+
+```powershell
+worldkit --db valmont.db call schema.add_relation --param relation=hates --param subject=odon --param object=mervin --param label=déteste --param confirm=true
+worldkit --db valmont.db schema show
+```
+
+```text sortie
+schema.add_relation [write] → world : ok
+- déteste (hates) : Character → Character · many_to_many · 0 fait(s) · schema-hates
+```
+
+Les types viennent des deux entités (Odon et Mervin sont des personnages) ; élargissez-les dans le formulaire (une faction peut détester aussi). Pour retrouver la relation quand vous repartirez de zéro, **exportez** le schéma dans le fichier de votre monde :
+
+```powershell
+worldkit --db valmont.db schema export --out valmont-schema.yaml
+```
+
+```text sortie
+valmont-schema.yaml écrit
+(éditions de schéma depuis le départ : schema-hates)
+```
+
+<!-- écran /schema/add?relation=hates&subject=odon&object=mervin : "Ajouter une relation au schéma" ; "existe déjà" -->
+
 ### Ce que disent les documents
 
 Une fois proposée, la source fait partie des documents ingérés. La page d'une entité, en vue d'auteur, montre alors **ce que disent les documents** : chaque passage qui la nomme, la forme surlignée, avec un repère : **capté** (le passage soutient un fait de l'entité, cité à la suite), **non capté** (il la nomme, mais aucun fait n'en est sorti : c'est ce que l'ingestion a laissé de côté), **affirmation** (document en jeu). Rien n'est appelé ni écrit : les noms et alias connus sont cherchés dans le texte, puis corrigés par vos gestes de l'atelier.

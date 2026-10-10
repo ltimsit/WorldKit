@@ -54,7 +54,7 @@
     <input type="hidden" name="total" value="{{ d.changes|selectattr('state', 'equalto', 'open')|list|length }}">
     <table>{% for c in d.changes %}<tr class="{{ 'removed' if c.state in ['refused'] else '' }}">
       <td>{% if c.state == "open" %}<input type="checkbox" name="keep" value="{{ c.index }}" {{ '' if 'optional' in c.tags else 'checked' }}>{% endif %} [{{ c.index }}]</td>
-      <td>{{ c.text }}</td><td class="small">{{ c.tags|join(", ") }}{% if c.state != "open" %} — {{ c.state }}{% endif %}</td>
+      <td>{{ c.text }}</td><td class="small">{{ c.tags|join(", ") }}{% if c.state != "open" %} — {{ c.state }}{% endif %}{% if "out_of_schema" in c.tags and c.change.op == "add_relation" and c.state == "open" %}<br><a href="/schema/add?{{ {"relation": c.change.relation, "subject": c.change["from"], "object": c.change.to, "target": target or "", "back": "/review" ~ ("?target=" ~ target if target else "")}|urlencode }}">ajouter au schéma…</a>{% endif %}</td>
       <td class="small">{% if c.detail.occupied_by %}l'état contient : {{ c.detail.occupied_by.fact|join(" ") }}{% if c.detail.occupied_by.value is defined %} = {{ c.detail.occupied_by.value }}{% endif %}<br>{% endif %}
         {% for x in c.detail.get("competes_with", []) %}concurrente de {{ x }}<br>{% endfor %}{% for x in c.detail.get("conflicts_with", []) %}en conflit avec {{ x }}<br>{% endfor %}
         {% for x in c.detail.get("contradicts", []) %}contredit {{ x }}<br>{% endfor %}{% if c.detail.suggested %}suggestion : {{ c.detail.suggested }}{% endif %}</td></tr>{% endfor %}</table>

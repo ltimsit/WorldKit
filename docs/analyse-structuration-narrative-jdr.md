@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v43** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v44** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -1224,6 +1224,19 @@ La voie **traçable** est retenue partout où elle ne retarde pas le premier éc
 
 **Décision.** T-ING-21 complétée (*cadre-technique.md*), couche « mentions » de l'atelier (I-ATL-02). Choix fait sans validation explicite : l'élargissement à toute personne connue, que seul le marquage rend acceptable.
 
+### 00.64 Ajouter une relation au schéma depuis l'atelier (v44)
+
+> Décision du 10 octobre 2026 (*chantier-ingestion.md*, choix 41 ; X-017).
+
+**Problème.** La première session réelle de l'atelier (X-017) a montré que le premier coût des faits n'est pas le modèle mais le **schéma** : cinq relations manquantes (« au bord de », « tient », « près de », « déteste », « complote avec »), chacune ajoutée à la main par une édition YAML, un bac et « Rendre réel », après une question sur la forme à écrire ; et une relation voisine acceptée faute de mieux (« tient » lu comme « gouverne », E-016).
+
+**Voies comparées.**
+- *Où écrire* : dans un bac puis « Rendre réel », règle générale de l'interface (I-ACT-01), mais c'est le parcours coûteux observé ; **retenu** : au journal du monde, après une confirmation explicite, comme les gestes de l'atelier (une édition de schéma ne se retire jamais, R-CYC-01).
+- *Périmètre* : « ajouter », « relation existante » avec mémoire de la tournure et « ignorer » avec mémoire, d'un coup (touche les prompts, à mesurer) ; **retenu** : « ajouter » seul, les deux autres restent les gestes existants (corriger, retirer, acceptation partielle).
+- *Report dans un monde d'auteur* : écriture automatique dans le fichier du monde (effet de bord hors de la base), ou une ligne à copier par relation ; **retenu** : une commande d'export du schéma projeté, relu par le validateur.
+
+**Décision.** I-ATL-09, I-VUE-12 complétée (*cadre-interface.md* v1.9). Choix faits sans validation explicite : l'identifiant de l'édition (`schema-<relation>`, suffixé s'il est pris) ; les types préremplis sont ceux des deux entités du fait seulement (l'auteur élargit) ; l'export omet les valeurs par défaut et remplace les commentaires du fichier par un en-tête généré.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1837,6 +1850,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 88. Comment l'auteur corrige-t-il ce que les couches d'ingestion repèrent, et comment une correction profite-t-elle aux sources suivantes ? — **Réponse (v41) :** ✅ Un atelier d'annotation : gestes de l'auteur sur les mentions, trois portées, règles d'atelier pour les corrections négatives retenues, « Proposer » vers la revue (00.61).
 89. Comment l'auteur voit-il ce que ses textes disent d'une entité, faits ou non ? — **Réponse (v42) :** ✅ Sur la page d'auteur, les passages des documents ingérés qui la nomment, trouvés sans modèle par les noms connus et corrigés par l'atelier, repérés capté, non capté ou affirmation ; une forme en casse différente est à vérifier ; rien en vue joueur (00.62).
 90. Comment trouver « Odon » seul ou « Ysolde » sans modèle, sans confondre deux homonymes ? — **Réponse (v43) :** ✅ Une règle : un mot du nom d'une seule personne connue, marqué à vérifier ; un prénom partagé n'est jamais une forme courte ; l'alias tranche (00.63).
+91. Comment l'auteur fait-il évoluer le schéma quand une relation manque, sans écrire d'édition à la main ? — **Réponse (v44) :** ✅ Depuis le fait (atelier) ou le changement hors schéma (revue), un formulaire prérempli : vérifier, puis confirmer l'écriture au journal ; le fait est rattaché ; un export reporte le schéma dans le fichier d'un monde d'auteur (00.64).
 
 ---
 

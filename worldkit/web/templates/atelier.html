@@ -100,6 +100,8 @@
     {% set d = f.draft %}
     <p>Corriger : {{ fact_fields(view, d) }} <button name="action" value="correct">Corriger</button></p>
   </form>
+  {% if d.op == "add_relation" %}{% set known = view.relations|map(attribute="id")|list %}
+  <p class="small">Aucune relation ne convient ? <a href="/schema/add?{{ {"relation": d.relation if d.relation not in known else "", "subject": d["from"], "object": d.to, "doc_id": view.doc_id, "ann_id": f.id, "back": "/atelier/" ~ view.doc_id ~ "?fact=" ~ f.id}|urlencode }}">Ajouter une relation au schéma…</a> <span class="muted">(le fait y sera rattaché)</span></p>{% endif %}
 </div>
 {% endif %}
 {% if chosen %}{% set v = chosen.value %}

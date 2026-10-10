@@ -565,6 +565,7 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 38. *Trois portées pour une correction* : acté au cadre d'interface (I-ATL-03).
 39. *Ce que disent les documents (§10.6, niveau 1)* : acté aux cadres (R-VUE-05, T-ING-21).
 40. *Formes courtes : règle B à vérifier (X-003)* : acté au cadre technique (T-ING-21) ; les homonymes de prénom ne sont jamais des formes courtes, l'alias tranche.
+41. *« Ajouter au schéma » (§6.6, premier incrément)* : acté au cadre d'interface (I-ATL-09) ; écriture au journal du monde après confirmation ; « relation existante » avec mémoire de la tournure et « ignorer » avec mémoire restent à faire ; report dans un monde d'auteur par `worldkit schema export`.
 
 ## 14. Questions ouvertes
 
@@ -620,6 +621,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 10. Les écarts restants de l'extracteur actuel (E-001 et E-005 par un vocabulaire d'attribut, E-002 par l'annotation), par les remèdes les moins coûteux.
 11. **Ingérer plus que les faits, niveau 1** (fait, R-VUE-05, T-ING-21) : passages qui nomment une entité sur sa page d'auteur, capté ou non capté. Formes courtes : règle B à vérifier (fait, choix 40). Suites possibles : le niveau 2 à la phrase, puis les notes par facette (niveau 3).
 12. **Première session réelle de l'atelier** (fait, [X-017](recherche-ingestion/X-017-premiere-session-atelier.md)) : mentions justes sans correction (16 clics contre 27 gestes simulés) ; 5 gestes sur 6 sur les faits viennent du schéma (5 relations ajoutées à la main) ; prochaine étape : le geste « ajouter au schéma » (§6.6).
+13. **« Ajouter au schéma »** (fait, I-ATL-09) : depuis l'atelier et la revue, aperçu puis confirmation, fait rattaché ; export du schéma vers un monde d'auteur. Restent : la mémoire des tournures (« relation existante », §10.5) et celle des refus (« ignorer »).
 
 ## 17. Références
 
