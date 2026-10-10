@@ -21,12 +21,12 @@
 
 {# Page de wiki structurée ; `status` : (section, clé) → added | removed | changed (comparaison, I2) #}
 {% macro entity_page(p, ctx_q, status={}) %}
-<h3>{{ p.title }} <code>{{ p.id }}</code> <span class="muted">{{ p.type }}{% if p.closed %} · close{% endif %}</span> {{ vis(p.visibility) }}</h3>
+<h3>{{ p.title }} <code>{{ p.id }}</code> <span class="muted">{{ p.type_label or p.type }}{% if p.type_label and p.type_label != p.type %} <span class="mono small">{{ p.type }}</span>{% endif %}{% if p.closed %} · close{% endif %}</span> {{ vis(p.visibility) }}</h3>
 {% if p.members|length > 1 %}<p class="small muted">page consolidée : {{ p.members|join(", ") }}</p>{% endif %}
 <table>
   <tr><th>attribut</th><th>valeur</th><th>notoriété</th><th>provenance</th></tr>
   {% for a in p.attributes %}{% set st = status.get(("attributes", a.fact|factkey), "") %}
-  <tr class="{{ st }}"><td>{{ a.name }}{% if a.entity != p.id %} <span class="muted small">({{ a.entity }})</span>{% endif %}</td>
+  <tr class="{{ st }}"><td>{{ a.label or a.name }}{% if a.label and a.label != a.name %} <span class="mono small muted">{{ a.name }}</span>{% endif %}{% if a.entity != p.id %} <span class="muted small">({{ a.entity }})</span>{% endif %}</td>
     <td>{{ a.value }}{% if a.redefined_later %} <span class="redefined">redéfini plus tard</span>{% endif %}</td>
     <td>{{ vis(a.visibility) }}</td><td class="mono small"><a href="/edit/{{ a.provenance }}?{{ ctx_q }}">{{ a.provenance }}</a></td></tr>
   {% endfor %}
@@ -34,7 +34,7 @@
 <table>
   <tr><th>relation</th><th>autre</th><th>sens</th><th>notoriété</th><th>provenance</th></tr>
   {% for r in p.relations %}{% set st = status.get(("relations", r.fact|factkey), "") %}
-  <tr class="{{ st }}"><td>{{ r.relation }}</td>
+  <tr class="{{ st }}"><td>{{ r.label or r.relation }}{% if r.label and r.label != r.relation %} <span class="mono small muted">{{ r.relation }}</span>{% endif %}</td>
     <td>{% if r.other %}<a href="/wiki/{{ r.other }}?{{ ctx_q }}">{{ r.other }}</a>{% else %}<span class="muted">(non publique)</span>{% endif %}</td>
     <td>{{ "→" if r.direction == "out" else "←" }}</td><td>{{ vis(r.visibility) }}{% if r.redefined_later %} <span class="redefined">redéfini plus tard</span>{% endif %}</td>
     <td class="mono small"><a href="/edit/{{ r.provenance }}?{{ ctx_q }}">{{ r.provenance }}</a></td></tr>
@@ -44,7 +44,7 @@
   {% for s in p.sheets %}{% set sb = status.get(("sheet_bindings", s.sheet), "") %}
   <table><tr class="{{ sb }}"><th colspan="4">{{ s.system }} ({{ s.category }}) <code>{{ s.sheet }}</code></th></tr>
     {% for a in s.attributes %}{% set st = status.get(("sheets", a.fact|factkey), "") %}
-    <tr class="{{ st }}"><td>{{ a.name }}</td><td>{{ a.value }}</td><td>{{ vis(a.visibility) }}</td><td class="mono small">{{ a.provenance }}</td></tr>
+    <tr class="{{ st }}"><td>{{ a.label or a.name }}{% if a.label and a.label != a.name %} <span class="mono small muted">{{ a.name }}</span>{% endif %}</td><td>{{ a.value }}</td><td>{{ vis(a.visibility) }}</td><td class="mono small">{{ a.provenance }}</td></tr>
     {% endfor %}</table>
   {% endfor %}
 {% endif %}

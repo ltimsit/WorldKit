@@ -31,7 +31,7 @@
 {% for n in result.output.nodes %}<tr class="{{ {'added': 'added', 'removed': 'removed', 'changed': 'changed'}.get(n.status, '') }}"><td><a href="/wiki/{{ n.id }}?{{ qs(ctx) }}" class="mono">{{ n.id }}</a> {{ n.label }}</td><td>{{ n.type }}</td><td>{{ n.layer }}</td><td>{{ m.vis(n.visibility) }}</td>
 <td class="small">{{ "close" if n.closed }}{% for c in n.changed_attributes or [] %} {{ c.name }} : {{ c.before }} → {{ c.after }}{% endfor %}</td></tr>{% endfor %}</table>
 <table><tr><th>arête</th><th>couche</th><th>notoriété</th><th>marques</th><th>provenance</th></tr>
-{% for e in result.output.edges %}<tr class="{{ {'added': 'added', 'removed': 'removed', 'changed': 'changed'}.get(e.status, '') }}"><td class="mono small">{{ e.source }} —{{ e.relation }}→ {{ e.target }}</td><td>{{ e.layer }}</td><td>{{ m.vis(e.visibility) }}</td>
+{% for e in result.output.edges %}<tr class="{{ {'added': 'added', 'removed': 'removed', 'changed': 'changed'}.get(e.status, '') }}"><td class="mono small">{{ e.source }} —{{ e.relation_label or e.relation }}{% if e.relation_label and e.relation_label != e.relation %} ({{ e.relation }}){% endif %}→ {{ e.target }}</td><td>{{ e.layer }}</td><td>{{ m.vis(e.visibility) }}</td>
 <td class="small">{{ (e.marks or [])|join(", ") }}{{ " calculée" if e.computed }}</td><td class="mono small">{{ e.provenance or "" }}</td></tr>{% endfor %}</table>
 {% endif %}
 {% endblock %}
@@ -71,12 +71,12 @@
   const detail = document.getElementById("detail");
   cy.on("tap", "node, edge", (evt) => {
     const d = evt.target.data();
-    let html = `<h3>${esc(d.label)} <code>${esc(d.id)}</code></h3><p class="small">${esc(d.type || d.relation || "")} · couche ${esc(d.layer)} · notoriété ${esc(d.visibility)}${d.status ? " · " + esc(d.status) : ""}</p>`;
+    let html = `<h3>${esc(d.label)} <code>${esc(d.id)}</code></h3><p class="small">${esc(d.type_label && d.type_label !== d.type ? d.type_label + " (" + d.type + ")" : (d.type || (d.relation_label && d.relation_label !== d.relation ? d.relation_label + " (" + d.relation + ")" : d.relation) || ""))} · couche ${esc(d.layer)} · notoriété ${esc(d.visibility)}${d.status ? " · " + esc(d.status) : ""}</p>`;
     if (d.marks && d.marks.length) html += `<p class="small">marques : ${esc(d.marks.join(", "))}</p>`;
     if (d.provenance) html += `<p class="small">provenance : <code>${esc(d.provenance)}</code></p>`;
     if (d.sheet) html += `<p class="small">fiche de ${esc(d.sheet.of)} dans ${esc(d.sheet.system)} (${esc(d.sheet.category)})</p>`;
     if (d.attributes && d.attributes.length) {
-      html += "<table class='small'>" + d.attributes.map((a) => `<tr><td>${esc(a.name)}</td><td>${esc(a.value)}</td><td>${esc(a.visibility || "")}</td><td>${esc((a.marks || []).join(", "))}</td></tr>`).join("") + "</table>";
+      html += "<table class='small'>" + d.attributes.map((a) => `<tr><td>${esc(a.label && a.label !== a.name ? a.label + " (" + a.name + ")" : a.name)}</td><td>${esc(a.value)}</td><td>${esc(a.visibility || "")}</td><td>${esc((a.marks || []).join(", "))}</td></tr>`).join("") + "</table>";
     }
     if (d.changed_attributes && d.changed_attributes.length) {
       html += "<p class='small'>changements :</p><ul class='small'>" + d.changed_attributes.map((c) => `<li>${esc(c.name)} : ${esc(c.before)} → ${esc(c.after)}</li>`).join("") + "</ul>";

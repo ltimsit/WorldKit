@@ -52,7 +52,7 @@ def test_w01_projection_is_deterministic_R_HIS_02(world):
 def test_w01_author_brume_ruled_by_odon(state):
     page = author(state).page("brume")
     assert ("in", "rules", "odon") in rels(page)
-    assert "Odon de Brume (`odon`) rules" in render_page(page, author(state))
+    assert "Odon de Brume (`odon`) gouverne (rules)" in render_page(page, author(state))  # R-SCH-09
 
 
 def test_w01_author_aldren_closed_poisoned_killed_by_mervin(state):
