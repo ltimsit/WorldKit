@@ -12,6 +12,7 @@ les facultatifs du gold sont neutres. Elle n'entre pas dans `pytest` avec un vra
 
 from __future__ import annotations
 
+import re
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from dataclasses import dataclass, field, replace
@@ -251,7 +252,10 @@ def check_facts(facts: list[Fact], entities: list[Confirmed], schema: Any, state
     - une relation du schéma dont les types ne conviennent pas (« rules » vers une Faction) est écartée ;
     - un alias égal au nom ou à un alias connu de l'entité (« la Sorgue » pour la Sorgue) est écarté ;
     - une valeur proche de la valeur connue (« bourgmèstre » pour « bourgmestre ») prend la valeur connue : c'est
-      un support, pas une collision.
+      un support, pas une collision ;
+    - une valeur « X de <entité> » devient « X » quand le sujet est déjà relié à cette entité, dans l'état ou par un
+      fait de la même réponse (« régent de Brume » pour Odon, qui gouverne Brume : « régent ») ; la forme d'origine
+      reste en précision (`exact`) (E-005, choix 42).
     """
     from rapidfuzz.distance import JaroWinkler
 
@@ -261,9 +265,24 @@ def check_facts(facts: list[Fact], entities: list[Confirmed], schema: Any, state
     for f in (state.facts.values() if state is not None else ()):
         if f.kind == "value" and f.name == "aliases" and f.subject in names:
             names[f.subject].add(fold(str(f.value)))
+    related: dict[str, set[str]] = {}
+    for f in (state.facts.values() if state is not None else ()):
+        if f.kind == "rel" and f.target:
+            related.setdefault(f.subject, set()).add(f.target)
+            related.setdefault(f.target, set()).add(f.subject)
+    for fact in facts:
+        d = fact.draft
+        if d["op"] == "add_relation":
+            related.setdefault(d["from"], set()).add(d["to"])
+            related.setdefault(d["to"], set()).add(d["from"])
     kept = []
     for fact in facts:
         d = fact.draft
+        if d["op"] in ("set_attribute", "add_value") and d.get("attribute") != "aliases":
+            short = without_complement(str(d["value"]), {e: names.get(e, set()) for e in related.get(d["entity"], ())})
+            if short is not None:
+                fact.exact = fact.exact or str(d["value"])
+                fact.draft = d = {**d, "value": short}
         if d["op"] == "add_relation" and d["relation"] in schema.relations:
             r = schema.relations[d["relation"]]
             subject, target = types.get(d["from"]), types.get(d["to"])
@@ -281,6 +300,20 @@ def check_facts(facts: list[Fact], entities: list[Confirmed], schema: Any, state
                     fact.draft = {**d, "value": known.value}  # « bourgmèstre » : la valeur connue
         kept.append(fact)
     return kept
+
+
+_COMPLEMENT = re.compile(r"\s+(?:de la|de l['’]|des|du|de|d['’])\s*", re.IGNORECASE)
+
+
+def without_complement(value: str, related: dict[str, set[str]]) -> str | None:
+    """« régent de Brume » → « régent » si « Brume » nomme une entité reliée au sujet (`related` : entité → noms
+    pliés) ; None sinon. La tête garde au plus trois mots : une phrase n'est pas raccourcie (E-005)."""
+    from .matching import fold
+    for m in _COMPLEMENT.finditer(value):
+        head, tail = value[:m.start()].strip(), value[m.end():].strip()
+        if head and len(head.split()) <= 3 and any(fold(tail) in forms for forms in related.values()):
+            return head
+    return None
 
 
 def _locate(window: Window, evidence: str) -> int | None:

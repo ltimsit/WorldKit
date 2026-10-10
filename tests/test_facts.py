@@ -241,3 +241,23 @@ def test_critic_v3_adds_two_rules_without_dropping_the_proximity_motive_X_015():
     v3 = Critic(None, PROFILE, v3=True).prompt(fact, "x", entities, context.schema)[0]
     assert v2 == CRITIC_SYSTEM and v3.startswith(CRITIC_SYSTEM) and "tisserands" in v3 and "près de" in v3
     assert Critic(None, PROFILE, v3=True).version.startswith("critic-3")
+
+
+def test_a_value_loses_its_complement_when_the_subject_is_linked_to_it_E_005():
+    """« Odon porte le titre de régent de Brume » : Odon gouverne Brume, la valeur est « régent » ; la forme d'origine
+    reste en précision. Sans lien, ou pour une phrase, rien ne change (choix 42 du chantier)."""
+    from worldkit.periphery.facts import Confirmed, Fact, check_facts, without_complement
+    assert without_complement("régent de Brume", {"brume": {"brume"}}) == "régent"
+    assert without_complement("régent de Brume", {}) is None
+    assert without_complement("ancien régent du port de Brume", {"brume": {"brume"}}) is None
+    from support import base_world
+    state = base_world().state()
+    entities = [Confirmed("odon", "Character", "Odon de Brume"), Confirmed("brume", "Place", "Brume"),
+                Confirmed("mervin", "Character", "Mervin")]
+    title = Fact({"op": "set_attribute", "entity": "odon", "attribute": "title", "value": "régent de Brume"},
+                 "Odon porte le titre de régent de Brume.", 1)
+    kept = check_facts([title], entities, state.world, state, [])
+    assert kept[0].draft["value"] == "régent" and kept[0].exact == "régent de Brume"
+    other = Fact({"op": "set_attribute", "entity": "mervin", "attribute": "title", "value": "régent de Brume"},
+                 "…", 1)
+    assert check_facts([other], entities, state.world, state, [])[0].draft["value"] == "régent de Brume"

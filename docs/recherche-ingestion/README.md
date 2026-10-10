@@ -27,7 +27,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [E-002](E-002-roi-gris.md) | « le Roi Gris » créé au lieu d'un alias d'Aldren II | R, T | ouverte |
 | [E-003](E-003-conseil-valeur.md) | « le conseil des marchands » pris pour une valeur, jamais créé | N | résolue sur b1 (C1, C2, C5) |
 | [E-004](E-004-depuis-la-chute.md) | « depuis la Chute » donne `odon involved_in la-chute` | H | résolue sur Corbelle par le critique |
-| [E-005](E-005-regent-de-brume.md) | « régent de Brume » au lieu de « régent » | S | ouverte |
+| [E-005](E-005-regent-de-brume.md) | « régent de Brume » au lieu de « régent » | S | résolue sur b1 (règle sans modèle, choix 42) |
 | [E-006](E-006-designations-nouvelles.md) | des désignations proposées comme entités nouvelles | N | résolue sur b1 |
 | [E-007](E-007-hors-schema-omis.md) | une relation hors schéma est omise (« vassal du roi Mervin ») | — | résolue sur b1 |
 | [E-008](E-008-variantes-de-surface.md) | une variante de surface d'un nom devient une entité nouvelle (Corbelle) | R | en cours (8 → 3) |

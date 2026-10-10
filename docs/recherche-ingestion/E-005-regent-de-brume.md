@@ -1,6 +1,6 @@
 # E-005 — « régent de Brume » au lieu de « régent »
 
-- **Statut** : ouverte
+- **Statut** : résolue sur b1 (règle sans modèle, 11 octobre 2026 ; choix 42 du chantier)
 - **Classe** : S (forme de surface) ; consigne explicite ignorée
 - **Où** : b1, `notes-baron` v1, passage 7 ; extraction monolithique (future couche C5)
 - **Observé avec** : Claude Haiku 4.5, `api-haiku`, prompt version 3, 4 octobre 2026 ; 2 passes sur 2, identiques ([X-001](X-001-b1-haiku-reference.md)). Non observé sous Sonnet 5.
@@ -31,6 +31,16 @@ La règle 9 du prompt cite ce cas mot pour mot : « sous leur forme la plus cour
 
 - **4 octobre 2026, X-004** : persiste dans C5, malgré une consigne de forme courte réduite à cinq règles (exemple pris hors de Valmont). Argument de plus pour le remède déterministe (vocabulaire d'attribut).
 
+- **11 octobre 2026, règle sans modèle** (décision de l'auteur : la règle d'abord, le vocabulaire déclaré plus tard) : dans les contrôles d'après C5 (`check_facts`), une valeur « X de <entité> » devient « X » quand le sujet est déjà relié à cette entité, dans l'état ou par un fait de la même réponse ; la tête garde au plus trois mots ; la forme d'origine reste en précision (`exact`, « le texte dit plus précisément » dans l'atelier). Mesuré par **rejeu** des réponses de X-004, sans appel :
+
+  | b1, Haiku 4.5 | Avant : précision / rappel | Après |
+  |---|---|---|
+  | entités du gold | 0,867 / 0,765 | **0,933 / 0,824** |
+  | entités de la chaîne | 0,929 / 0,765 | **1,0 / 0,824** |
+  | questions (gold) | 0,875 / 0,70 | **1,0 / 0,80** |
+
+  « régent de Brume » disparaît, « régent » est trouvé. Corbelle (réponses de X-004, entités du gold) : inchangé (0,333 / 0,5 avant comme après). Deux jeux de traces plus anciens (`c-x007-gold`, `c-x004-chain`) ne sont plus rejouables (prompts changés depuis).
+
 ## Conclusion
 
-À venir. Avec E-001, argument pour un vocabulaire par attribut dans le schéma, essayé avant toute couche.
+Résolue sans modèle ni déclaration. Le vocabulaire par attribut (chantier §10.5) reste prévu pour les synonymes (E-001, « cité portuaire » → « port »), quand l'écart réapparaîtra sur un vrai texte.
