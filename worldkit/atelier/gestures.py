@@ -27,6 +27,18 @@ def _same_form(a: store.Annotation, form: str) -> bool:
     return a.kind == "mention" and fold(a.value.get("text", "")) == form
 
 
+def _designated(world: Any, branch: str, doc: Any, a: store.Annotation) -> dict[str, Any]:
+    """Ce que désignait une mention avant d'être retirée ou ignorée (le retrait efface `entity`) : la dernière
+    annotation de sa chaîne qui désignait une entité, connue ou nouvelle. Lu dans l'historique (ajout seul)."""
+    history = {h.ann_id: h for h in store.history(world, branch, doc)}
+    while a is not None:
+        v = a.value
+        if v.get("entity") or v.get("new"):
+            return {k: v[k] for k in ("entity", "new", "candidates", "type") if k in v}
+        a = history.get(a.replaces) if a.replaces is not None else None
+    return {}
+
+
 def gesture(world: Any, branch: str, doc_id: str, action: str, scope: str = "source", ann_id: int | None = None,
             passage: int | None = None, start: int | None = None, end: int | None = None,
             entity: str | None = None, type_: str | None = None) -> list[int]:
@@ -79,6 +91,8 @@ def gesture(world: Any, branch: str, doc_id: str, action: str, scope: str = "sou
         [a for a in layers.effective(world, branch, doc) if _same_form(a, form)]
     for a in targets:
         value = dict(a.value)
+        if action in ("keep", "correct") and not value.get("entity") and not value.get("new"):
+            value.update(_designated(world, branch, doc, a))  # reprendre une mention retirée : ce qu'elle désignait
         if action == "correct":
             if entity is not None:
                 value["entity"] = None if entity == "new" else entity

@@ -397,3 +397,26 @@ def test_a_model_launch_runs_in_the_background_and_the_page_follows_it_I_LLM_01(
     from worldkit.service.session import Session
     with Session(db) as s:
         assert s.runs.result(run_id).trace.llm_calls == 1  # l'appel est compté dans la trace
+
+
+def test_keeping_a_removed_mention_restores_what_it_designated():
+    """Retirer efface l'entité de la mention ; la garder ensuite la reprend (« la guilde », nouvelle : confirmée)."""
+    world = base_world()
+    doc = store.import_source(world, NOTES)
+    layers.run_mentions(world, "reference", doc.doc_id, FakeFinder([("conseil des marchands", "Faction")]))
+    conseil = next(a for a in layers.effective(world, "reference", doc) if a.value["text"] == "conseil des marchands")
+    gestures.gesture(world, "reference", doc.doc_id, "remove", ann_id=conseil.ann_id)
+    removed = next(a for a in layers.effective(world, "reference", doc) if a.value["text"] == "conseil des marchands")
+    assert removed.value["entity"] is None
+    gestures.gesture(world, "reference", doc.doc_id, "keep", ann_id=removed.ann_id)
+    kept = next(a for a in layers.effective(world, "reference", doc) if a.value["text"] == "conseil des marchands")
+    assert kept.status == "kept" and kept.value["entity"] == "new:conseil des marchands"
+    assert "conseil-des-marchands" in proposing.new_entities(world, "reference", doc)
+    entities, _ = layers.confirmed_entities(world, "reference", doc)
+    assert "new:conseil-des-marchands" in {e.id for e in entities}  # proposable dans la correction d'un fait
+    # une mention déjà gardée sans entité (avant ce correctif) se répare par un nouveau « garder »
+    store.add_annotation(world, "reference", doc, "mention", {**kept.value, "entity": None}, "author", kept.passage,
+                         kept.start, kept.end, "sure", "kept", kept.ann_id)
+    broken = next(a for a in layers.effective(world, "reference", doc) if a.value["text"] == "conseil des marchands")
+    gestures.gesture(world, "reference", doc.doc_id, "keep", ann_id=broken.ann_id)
+    assert "conseil-des-marchands" in proposing.new_entities(world, "reference", doc)
