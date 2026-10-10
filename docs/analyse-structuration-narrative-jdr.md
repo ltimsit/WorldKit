@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v42** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v43** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -1211,6 +1211,19 @@ La voie **traçable** est retenue partout où elle ne retarde pas le premier éc
 
 **Décision.** R-VUE-05 (*cadre-fondation.md* §8.1), T-ING-21 (*cadre-technique.md*), I-VUE-07 complété (*cadre-interface.md*). Choix faits sans validation explicite : repère *affirmation* pour tout document en jeu (`voice: in_world`), sans regarder les paroles rapportées d'un document d'auteur ; un lot est visible au point de la vue s'il a été ouvert au plus tard à ce point ; les formes courtes (« Odon » pour Odon de Brume, X-003 variante B) ne sont pas cherchées : l'alias est le remède.
 
+### 00.63 Formes courtes : une règle, signalée (v43)
+
+> Décision du 10 octobre 2026 (*chantier-ingestion.md*, choix 40 ; X-003).
+
+**Problème.** « Odon » seul, « Ysolde », « Ostrel » n'étaient trouvés ni par la recherche des noms connus de l'atelier, ni dans « Ce que disent les documents » (00.62) ; X-003 avait laissé ouvert le choix entre une consigne au modèle (A) et une règle sans modèle (B), à égalité sur b1.
+
+**Voies comparées.**
+- A, consigne au modèle : plus de bruit sur Corbelle (X-006), et dépend d'un appel.
+- B d'origine : ne cherche que les personnes dont le nom complet est dans le document ; ne trouve jamais « Ysolde » dans les notes de Corbelle.
+- **Retenu (l'auteur)** : B, parce que les homonymes de nom et de prénom se traitent mieux par une règle ; élargi à toute personne connue ; chaque forme courte est **à vérifier**, comme une casse différente (X-012) ; un mot porté par deux personnes n'est jamais une forme courte ; l'alias rend sûr et tranche un homonyme.
+
+**Décision.** T-ING-21 complétée (*cadre-technique.md*), couche « mentions » de l'atelier (I-ATL-02). Choix fait sans validation explicite : l'élargissement à toute personne connue, que seul le marquage rend acceptable.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1823,6 +1836,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 87. Comment apprendre à se servir de l'outil sans risque que le mode d'emploi soit faux ? — **Réponse (v40) :** ✅ Un guide pas à pas (gestes, commandes, sorties attendues) exécuté par les tests, maintenu à chaque jalon (00.60).
 88. Comment l'auteur corrige-t-il ce que les couches d'ingestion repèrent, et comment une correction profite-t-elle aux sources suivantes ? — **Réponse (v41) :** ✅ Un atelier d'annotation : gestes de l'auteur sur les mentions, trois portées, règles d'atelier pour les corrections négatives retenues, « Proposer » vers la revue (00.61).
 89. Comment l'auteur voit-il ce que ses textes disent d'une entité, faits ou non ? — **Réponse (v42) :** ✅ Sur la page d'auteur, les passages des documents ingérés qui la nomment, trouvés sans modèle par les noms connus et corrigés par l'atelier, repérés capté, non capté ou affirmation ; une forme en casse différente est à vérifier ; rien en vue joueur (00.62).
+90. Comment trouver « Odon » seul ou « Ysolde » sans modèle, sans confondre deux homonymes ? — **Réponse (v43) :** ✅ Une règle : un mot du nom d'une seule personne connue, marqué à vérifier ; un prénom partagé n'est jamais une forme courte ; l'alias tranche (00.63).
 
 ---
 

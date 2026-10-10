@@ -431,12 +431,12 @@ atelier.import [write] → world : ok
 doc_id: l-echoppe-de-bertille
 passages: 2
 atelier.run [write] → world : ok
-proposed : 2
+proposed : 3
 new : 0
 calls: 0
 ```
 
-La source a pris son identifiant du titre ; elle a deux passages. Sans modèle, la couche « mentions » ne trouve que les **noms connus** : « Brume », et « Le régent Odon » (depuis la section 6, le titre « régent » n'est porté que par Odon). Bertille, inconnue, lui échappe. Avec le modèle (`--param model=true`), elle chercherait aussi les noms nouveaux ; l'appel est d'abord **estimé**, puis lancé seulement avec `--param confirm=true` :
+La source a pris son identifiant du titre ; elle a deux passages. Sans modèle, la couche « mentions » ne trouve que les **noms connus** : « Brume », « Le régent » (depuis la section 6, le titre « régent » n'est porté que par Odon) et « Odon », **forme courte** d'Odon de Brume, marquée **à vérifier** (pointillé orange) : un prénom ou un nom seul est cherché pour toute personne connue, sauf s'il est porté par deux personnes (« Jehan », pour Jehan Marcastel et Jehan Leblond). Bertille, inconnue, lui échappe. Avec le modèle (`--param model=true`), elle chercherait aussi les noms nouveaux ; l'appel est d'abord **estimé**, puis lancé seulement avec `--param confirm=true` :
 
 ```powershell
 worldkit --db valmont.db call atelier.run --param doc_id=l-echoppe-de-bertille --param model=true
@@ -458,9 +458,9 @@ atelier.annotate [write] → world : ok
 written : 2
 ```
 
-<!-- écran /atelier/l-echoppe-de-bertille : "Bertille" ; "Proposer" ; "décidée(s)" -->
+<!-- écran /atelier/l-echoppe-de-bertille : "Bertille" ; "Proposer" ; "décidée(s)" ; "étiquettes sous les mentions" -->
 
-À l'écran : **Atelier**, la source `l-echoppe-de-bertille`. Les mentions sont surlignées : bleu pour une entité connue, vert pour une nouvelle, jaune en pointillé pour un **doute** (à vous de choisir l'entité), grisé barré pour une mention retirée ou ignorée ; un trait plein marque ce que vous avez décidé. Un clic sur une mention ouvre ses gestes : garder, retirer, ignorer (« ce n'est pas une entité »), corriger (autre entité, nouvelle entité, autre type), avec une portée : cette occurrence, toute la source, ou **retenir pour le monde**. Les menus d'entités listent d'abord les **nouvelles de cette source** : « Ostrel » seul, après « Bertrand Ostrel », se rattache à Bertrand Ostrel au lieu de créer une seconde entité ; retenu pour le monde, il part comme alias de l'entité créée. À la portée de la source, un rattachement ne vaut que pour ce texte (« jehan » désigne ici Jehan Marcastel, pas Jehan Leblond) : le panneau de la mention l'indique (« alias proposé : non »), et la liste **Rattachements non retenus**, au-dessus du texte, permet d'en **retenir** un avant de proposer. Une version de source ne se propose qu'une fois : elle est ensuite marquée « déjà proposée ». Retenu pour le monde, un rattachement devient un alias proposé ; un geste négatif (« vallée n'est pas une entité ») devient une **règle d'atelier**, appliquée aux sources suivantes. Relancer la couche ne touche jamais à ce que vous avez décidé.
+À l'écran : **Atelier**, la source `l-echoppe-de-bertille`. Les mentions sont surlignées : bleu pour une entité connue, vert pour une nouvelle, jaune en pointillé pour un **doute** (à vous de choisir l'entité), grisé barré pour une mention retirée ou ignorée ; un trait plein marque ce que vous avez décidé. Sous chaque mention, une petite **étiquette** dit pourquoi elle est liée : « nom », « alias », « titre » (« Le régent » : Odon porte seul ce titre ; ce n'est pas un alias), « forme courte ? » (« Odon »), « nouvelle », « doute » ; après un geste, ce que vous avez décidé et sa portée : « ajoutée · ce texte » sous les deux « Bertille », « gardée · alias » pour une forme retenue pour le monde. Une case au-dessus du texte masque les étiquettes. Un clic sur une mention ouvre ses gestes : garder, retirer, ignorer (« ce n'est pas une entité »), corriger (autre entité, nouvelle entité, autre type), avec une portée : cette occurrence, toute la source, ou **retenir pour le monde**. Les menus d'entités listent d'abord les **nouvelles de cette source** : « Ostrel » seul, après « Bertrand Ostrel », se rattache à Bertrand Ostrel au lieu de créer une seconde entité ; retenu pour le monde, il part comme alias de l'entité créée. À la portée de la source, un rattachement ne vaut que pour ce texte (« jehan » désigne ici Jehan Marcastel, pas Jehan Leblond) : le panneau de la mention l'indique (« alias proposé : non »), et la liste **Rattachements non retenus**, au-dessus du texte, permet d'en **retenir** un avant de proposer. Une version de source ne se propose qu'une fois : elle est ensuite marquée « déjà proposée ». Retenu pour le monde, un rattachement devient un alias proposé ; un geste négatif (« vallée n'est pas une entité ») devient une **règle d'atelier**, appliquée aux sources suivantes. Relancer la couche ne touche jamais à ce que vous avez décidé.
 
 Enfin, **Proposer** : les entités nouvelles que vous avez confirmées et les alias retenus partent en un lot, par le circuit habituel (étapes E1 à E9+), jusqu'à la revue. Ce qui n'a pas été décidé ne part pas.
 
@@ -507,7 +507,7 @@ worldkit --db valmont.db wiki page brume
 
 <!-- écran /wiki/brume : "Ce que disent les documents" ; "échoppe de cordes" -->
 
-Une forme dont la casse diffère du nom connu (« une brume épaisse », ou « corbelle » dans des notes prises vite) est montrée **à vérifier** : homographe possible, à trancher d'un geste dans l'atelier. Un nom court qui n'est pas un alias (« Odon » seul, pour Odon de Brume) n'est pas trouvé : ajoutez-le comme alias, et tous les passages qui le citent apparaissent. La vue joueur ne montre aucun passage : le texte brut peut révéler plus que les faits publics. À l'écran : **Wiki**, page `brume`, section « Ce que disent les documents ». Bertille n'a pas encore de page : son entité attend en revue ; acceptée, elle aura la sienne, avec ses deux passages.
+Une forme dont la casse diffère du nom connu (« une brume épaisse », ou « corbelle » dans des notes prises vite) est montrée **à vérifier** : homographe possible, à trancher d'un geste dans l'atelier. Une forme courte d'un nom de personne (« Odon » seul, pour Odon de Brume) est trouvée, elle aussi à vérifier ; un prénom porté par deux personnes ne l'est pas. Pour la rendre sûre, ou pour trancher un homonyme, ajoutez-la comme alias de la bonne personne : tous les passages qui la citent apparaissent. La vue joueur ne montre aucun passage : le texte brut peut révéler plus que les faits publics. À l'écran : **Wiki**, page `brume`, section « Ce que disent les documents ». Bertille n'a pas encore de page : son entité attend en revue ; acceptée, elle aura la sienne, avec ses deux passages.
 
 ## 13. Pour aller plus loin
 

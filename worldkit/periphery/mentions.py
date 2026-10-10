@@ -162,11 +162,13 @@ STOPWORDS = {"de", "du", "des", "la", "le", "les", "l", "d", "et", "von", "van",
 
 
 def short_forms(window: Window, mentions: list[Mention], entities: tuple[KnownEntity, ...], schema: Any,
-                person_types: tuple[str, ...] = ("Character",)) -> list[Mention]:
+                person_types: tuple[str, ...] = ("Character",), anywhere: bool = False) -> list[Mention]:
     """Variante B (sans modèle) : les mots d'un nom de personne repérée (« Odon » dans « Odon de Brume ») sont
     cherchés dans la fenêtre, sauf un mot qui est lui-même un nom connu (« Brume ») ou qui appartient au nom de
-    plusieurs personnes. Recherche sensible à la casse : un mot à majuscule. Heuristique : `person_types` dépend
-    du schéma du monde (ici le schéma de Valmont)."""
+    plusieurs personnes (« Jehan » pour Jehan Marcastel et Jehan Leblond : homonymes). Recherche sensible à la casse :
+    un mot à majuscule. Avec `anywhere` (choix 40 du chantier), toute personne connue est cherchée, même absente de la
+    fenêtre en entier (« Ysolde » sans « Ysolde Marcastel ») : la forme trouvée est **à vérifier** (`check_of`), un
+    alias la rend sûre. Heuristique : `person_types` dépend du schéma du monde (ici le schéma de Valmont)."""
     def is_person(t: str | None) -> bool:
         return t is not None and any(t in schema.types and schema.is_subtype(t, p) for p in person_types)
 
@@ -184,15 +186,33 @@ def short_forms(window: Window, mentions: list[Mention], entities: tuple[KnownEn
             if len(w) >= 3 and w[0].isupper() and w.casefold() not in STOPWORDS and name_key(w) not in known_keys:
                 words.setdefault(w, set()).add(eid)
     found = []
+    types = {e.id: e.type for e in entities}
     for w, owners in words.items():
-        if len(owners) != 1 or not any(m.entity in owners for m in mentions):
+        if len(owners) != 1 or not (anywhere or any(m.entity in owners for m in mentions)):
             continue  # mot partagé, ou personne absente de la fenêtre
         eid = next(iter(owners))
         for start in (m.start() for m in re.finditer(r"(?<![\w-])" + re.escape(w) + r"(?![\w-])", window.text)):
-            if not any(k.start <= start and start + len(w) <= k.end for k in mentions):
+            if window.is_struck(start, start + len(w)):
+                continue  # texte barré : corrigé par l'auteur (E-009)
+            if not any(k.start <= start and start + len(w) <= k.end for k in mentions + found):
                 found.append(Mention(w, start, window.passage_at(start), next(
-                    (m.type for m in mentions if m.entity == eid), None), "short", entity=eid, rule="short"))
+                    (m.type for m in mentions if m.entity == eid), types.get(eid)), "short", entity=eid,
+                    rule="short"))
     return found
+
+
+_ARTICLE = re.compile(r"^(?:(?:les|le|la)\s+|l['’]\s*)", re.IGNORECASE)
+
+
+def check_of(m: Mention, names: tuple[str, ...]) -> str | None:
+    """Pourquoi une mention sans modèle est **à vérifier** (signal sans décision, X-012) : `short`, forme courte d'un
+    nom de personne (choix 40) ; `case`, casse différente du nom connu, article mis à part (« une brume épaisse »
+    pour Brume, « corbelle » dans des notes brouillon : homographe possible). Sinon None."""
+    if m.rule == "short":
+        return "short"
+    if m.rule == "exact" and _ARTICLE.sub("", m.text).strip() not in {_ARTICLE.sub("", n).strip() for n in names}:
+        return "case"
+    return None
 
 
 @dataclass

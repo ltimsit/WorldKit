@@ -48,7 +48,8 @@ def css_class(a: dict[str, Any]) -> str:
         state = "new"
     else:
         state = "known"
-    return f"ann ann-{state}" + (" ann-author" if a["by_author"] else "")
+    check = " ann-check" if v.get("check") and not a["by_author"] and state != "off" else ""  # à vérifier (choix 40)
+    return f"ann ann-{state}" + check + (" ann-author" if a["by_author"] else "")
 
 
 def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_factory: Callable[[], Any],

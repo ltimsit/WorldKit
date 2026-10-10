@@ -1,6 +1,6 @@
 # X-003 — Formes courtes : consigne (A) ou règle sans modèle (B)
 
-- **Statut** : conclue sur b1, **non tranchée** (les deux variantes font jeu égal sur ce corpus)
+- **Statut** : conclue sur b1 ; **tranchée par l'auteur le 10 octobre 2026 : B, à vérifier** (choix 40 du chantier, T-ING-21)
 - **Hypothèse** : les mentions manquées par C1 en X-002 (« Odon » seul, « le baron ») se récupèrent soit par une consigne de plus au modèle (A), soit par une règle déterministe (B), et la mesure dit laquelle choisir.
 - **Couches et modèles** : C1a, C1b, C2 de [X-002](X-002-c1-c2-fenetre.md) ; Claude Haiku 4.5 par l'API (substitut).
 - **Écarts liés** : formes courtes d'X-002 ; [E-006](E-006-designations-nouvelles.md) (ouvert en cours de route).
@@ -47,3 +47,12 @@ Seule erreur de recoupement dans tous les cas : le Roi Gris (E-002, à l'auteur)
 - [E-006](E-006-designations-nouvelles.md) traité ensuite (règle déterministe avec abstention) : entités nouvelles proposées 6 → 3, fausses 4 → 1.
 - Le gold de b1 ne note pas certaines vraies mentions (« le baron » en notes p1 et p3, « la Chute » en p7, « baron de Brume ») : à compléter (classe G) pour que les « en trop » ne mesurent plus que des erreurs.
 - Passer ensuite à C5 (faits entre entités confirmées), dont E-003 attend la vérification.
+
+## Décision (10 octobre 2026)
+
+L'auteur choisit **B** : une règle sans modèle, parce que les homonymes de nom et de prénom (« Jehan » Marcastel et « Jehan » Leblond) se traitent mieux par une règle explicite que par une consigne au modèle. Deux ajustements :
+
+- **à vérifier** : une forme courte est un signal, pas une décision (X-012) ; elle est marquée dans l'atelier et dans « Ce que disent les documents » ; un geste ou un **alias** la rend sûre, et l'alias tranche aussi un homonyme ;
+- **toute personne connue** est cherchée, même si son nom complet n'est pas dans le document (« Ysolde » pour Ysolde Marcastel, que B d'origine ne trouvait jamais sur Corbelle, X-006) ; c'est le marquage qui rend cet élargissement acceptable. Un mot porté par deux personnes n'est jamais une forme courte.
+
+Défaut de la couche « mentions » de l'atelier et de T-ING-21 ; l'option `--short-forms` de la mesure garde la variante d'origine (personnes repérées dans la fenêtre).
