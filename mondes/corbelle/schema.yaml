@@ -1,0 +1,83 @@
+# Schéma du monde Corbelle de l'auteur — celui du corpus corbelle-v1 (copie du schéma par défaut, R-SCH-05, avec
+# lives_in), plus quatre relations ajoutées par l'auteur à l'atelier le 10 octobre 2026 : on_river, runs, near, hates.
+# Le corpus garde hates hors schéma (instrument de mesure de la question ciblée, E-007) : ne pas les fusionner.
+# À copier et adapter pour chaque monde. Identifiants en anglais (R-SCH-07),
+# libellés français via labels (R-SCH-08).
+# Pas d'attribut de prose libre (« description ») : la prose reste dans les documents (T-ING-03).
+schema: corbelle
+copied_from: fantasy-default
+version: 1
+
+types:
+  Character:
+    labels: { fr: "Personnage" }
+    attributes:
+      name:      { type: text, required: true, labels: { fr: "nom" } }
+      aliases:   { type: "list[text]", labels: { fr: "autres noms" } }
+      title:     { type: text, labels: { fr: "titre" } }
+      condition: { type: text, labels: { fr: "état" } }
+
+  Place:
+    labels: { fr: "Lieu" }
+    attributes:
+      name:     { type: text, required: true, labels: { fr: "nom" } }
+      aliases:  { type: "list[text]", labels: { fr: "autres noms" } }
+      category: { type: text, labels: { fr: "catégorie" } }
+
+  Faction:
+    labels: { fr: "Faction" }
+    attributes:
+      name:    { type: text, required: true, labels: { fr: "nom" } }
+      aliases: { type: "list[text]", labels: { fr: "autres noms" } }
+
+  Creature:
+    labels: { fr: "Créature" }
+    attributes:
+      name:       { type: text, required: true, labels: { fr: "nom" } }
+      aliases:    { type: "list[text]", labels: { fr: "autres noms" } }
+      weaknesses: { type: "list[text]", labels: { fr: "faiblesses" } }
+
+  Item:
+    labels: { fr: "Objet" }
+    attributes:
+      name:   { type: text, required: true, labels: { fr: "nom" } }
+      origin: { type: text, labels: { fr: "origine" } }
+
+  Event:
+    labels: { fr: "Événement" }
+    attributes:
+      name: { type: text, required: true, labels: { fr: "nom" } }
+      date: { type: text, labels: { fr: "date" } }
+
+  Concept:
+    labels: { fr: "Concept" }
+    attributes:
+      name: { type: text, required: true, labels: { fr: "nom" } }
+
+  Text:
+    labels: { fr: "Écrit du monde" }
+    attributes:
+      name:        { type: text, required: true, labels: { fr: "titre" } }
+      author_name: { type: text, labels: { fr: "auteur" } }
+      date:        { type: text, labels: { fr: "date" } }
+
+relations:
+  located_in:   { from: Place, to: Place, cardinality: many_to_one, labels: { fr: "situé dans" } }
+  rules:        { from: [Character, Faction], to: Place, cardinality: one_to_many, labels: { fr: "gouverne" } }
+  member_of:    { from: Character, to: Faction, labels: { fr: "membre de" } }
+  based_in:     { from: Faction, to: Place, cardinality: many_to_one, labels: { fr: "siège à" } }
+  sibling_of:   { from: Character, to: Character, symmetric: true, labels: { fr: "frère ou sœur de" } }
+  spouse_of:    { from: Character, to: Character, symmetric: true, cardinality: one_to_one, labels: { fr: "époux ou épouse de" } }
+  parent_of:    { from: Character, to: Character, labels: { fr: "parent de" } }
+  owns:         { from: [Character, Faction], to: Item, cardinality: one_to_many, labels: { fr: "possède" } }
+  involved_in:  { from: [Character, Faction, Creature], to: Event, labels: { fr: "impliqué dans" } }
+  haunts:       { from: Creature, to: Place, labels: { fr: "hante" } }
+  killed:       { from: [Character, Creature], to: Character, cardinality: one_to_many, labels: { fr: "a tué" } }
+  worships:     { from: [Character, Faction], to: [Concept, Creature], labels: { fr: "vénère" } }
+  commissioned: { from: [Character, Faction], to: Text, cardinality: one_to_many, labels: { fr: "a commandé" } }
+  lives_in:     { from: Character, to: Place, cardinality: many_to_one, labels: { fr: "habite" } }
+  # Ajoutées par l'auteur (atelier, notes de Corbelle, 10 octobre 2026)
+  on_river:     { from: Place, to: Place, cardinality: many_to_one, labels: { fr: "au bord de" } }
+  runs:         { from: [Character, Faction], to: Place, cardinality: one_to_many, labels: { fr: "tient" } }
+  near:         { from: Place, to: Place, symmetric: true, labels: { fr: "près de" } }
+  hates:        { from: [Character, Faction], to: [Character, Faction], labels: { fr: "déteste" } }
