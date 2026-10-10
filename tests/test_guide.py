@@ -73,8 +73,10 @@ def test_the_guide_runs_and_says_the_truth_I_AID_02(tmp_path, monkeypatch):
             for command in body.splitlines():
                 if not command.startswith("worldkit "):
                     continue
-                argv = [str(db) if a == "valmont.db" else str(files[a]) if a in files else a
-                        for a in shlex.split(command)[1:]]
+                args = shlex.split(command)[1:]
+                argv = [str(db) if a == "valmont.db" else str(files[a]) if a in files
+                        else str(tmp_path / a) if i and args[i - 1] == "--out" else a  # rien d'écrit dans le projet
+                        for i, a in enumerate(args)]
                 with contextlib.redirect_stdout(out):
                     main(argv)
                 executed += 1
