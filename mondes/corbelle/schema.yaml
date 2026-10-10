@@ -1,6 +1,7 @@
 # Schéma du monde Corbelle de l'auteur — celui du corpus corbelle-v1 (copie du schéma par défaut, R-SCH-05, avec
-# lives_in), plus quatre relations ajoutées par l'auteur à l'atelier le 10 octobre 2026 : on_river, runs, near, hates.
-# Le corpus garde hates hors schéma (instrument de mesure de la question ciblée, E-007) : ne pas les fusionner.
+# lives_in), plus cinq relations ajoutées par l'auteur à l'atelier le 10 octobre 2026 : on_river, runs, near, hates,
+# conspires_with.
+# Le corpus garde hates et conspires_with hors schéma (instrument de mesure de la question ciblée, E-007) : ne pas les fusionner.
 # À copier et adapter pour chaque monde. Identifiants en anglais (R-SCH-07),
 # libellés français via labels (R-SCH-08).
 # Pas d'attribut de prose libre (« description ») : la prose reste dans les documents (T-ING-03).
@@ -81,3 +82,4 @@ relations:
   runs:         { from: [Character, Faction], to: Place, cardinality: one_to_many, labels: { fr: "tient" } }
   near:         { from: Place, to: Place, symmetric: true, labels: { fr: "près de" } }
   hates:        { from: [Character, Faction], to: [Character, Faction], labels: { fr: "déteste" } }
+  conspires_with: { from: [Character, Faction], to: [Character, Faction], symmetric: true, labels: { fr: "complote avec" } }
