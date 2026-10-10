@@ -10,17 +10,17 @@ from worldkit.core.world import World
 
 AUTHOR = ROOT / "mondes" / "corbelle"
 CORPUS = ROOT / "corpus" / "corbelle-v1" / "corbelle"
-ADDED = {"on_river", "runs", "near", "hates"}
+ADDED = {"on_river", "runs", "near", "hates", "conspires_with"}
 
 
 def relations(path):
     return yaml.safe_load(path.read_text(encoding="utf-8"))["relations"]
 
 
-def test_the_author_corbelle_is_the_corpus_plus_four_relations_and_the_corpus_keeps_hates_out_E_007():
+def test_the_author_corbelle_is_the_corpus_plus_its_relations_and_the_corpus_keeps_them_out_E_007():
     mine, corpus = relations(AUTHOR / "schema.yaml"), relations(CORPUS / "schema.yaml")
     assert set(mine) - set(corpus) == ADDED and all(mine[r] == corpus[r] for r in corpus)
-    assert "hates" not in corpus  # le cas hors schéma de la question ciblée
+    assert {"hates", "conspires_with"}.isdisjoint(corpus)  # les cas hors schéma de la question ciblée
 
 
 def test_the_author_corbelle_builds_from_scratch():

@@ -6,8 +6,8 @@ mesure** (son schéma, son gold et ses tests ne changent pas au fil du travail),
 ## Corbelle (`corbelle/`)
 
 Tiré du corpus `corpus/corbelle-v1/corbelle/` (même état de base), avec un schéma complété par l'auteur : `on_river`
-(« au bord de »), `runs` (« tient »), `near` (« près de », symétrique), `hates` (« déteste »). Le corpus, lui, garde
-`hates` hors schéma : c'est le cas qui éprouve la question ciblée (E-007).
+(« au bord de »), `runs` (« tient »), `near` (« près de », symétrique), `hates` (« déteste »), `conspires_with` (« complote avec », symétrique). Le corpus, lui, garde `hates` et
+`conspires_with` hors schéma : ce sont les cas qui éprouvent la question ciblée (E-007).
 
 Repartir de zéro (PowerShell, depuis la racine du projet) :
 
