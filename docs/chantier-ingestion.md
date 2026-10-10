@@ -349,8 +349,9 @@ Usages, dans l'ordre où ils viendront : **relire et retrouver** (suivre la cons
 | Facettes | déclarées par le **schéma, par type** (versionnées, avec libellés), des facettes par défaut dans le schéma par défaut, et toujours « autre » | liste fermée pour un petit modèle ; modifiable par l'auteur comme une relation |
 | Notoriété | **comme un fait** : déclarée (défaut : celle du document, sinon non qualifiée), modifiable en revue, **plafonnée** par les entités que la bribe nomme (R-NOT-04, mentions résolues de l'atelier) | une note ne révèle pas une entité secrète ; base des textes « pour des joueurs » |
 | Frontière avec les faits | **complémentaires** : la couche passe après les faits confirmés et ne décrit que ce qu'aucun fait ne dit | pas de doublon ; une caractéristique récurrente en note peut devenir un attribut proposé (les notes sont l'incubateur du schéma) |
+| Sujets d'une note | **un ou plusieurs sujets, sans ordre**, et des **mentions** (nommées, non décrites) : « Ysolde et Jehan se disputent à chaque fête des lanternes » a deux sujets à égalité ; « Ysolde, la sœur du bourgmestre, porte toujours une fiole » a un sujet (Ysolde) et une mention (Jehan) ; la couche propose, l'auteur corrige | aucun choix arbitraire de « source » (R-PRI-03) ; la note est un seul objet, à sa propre clé, corrigée ou retirée une fois ; en entier sur la page de chaque sujet, en lien « mentionné dans » sur celle d'une mention ; notoriété plafonnée par sujets et mentions ; une facette par note (« autre » si les types des sujets n'en partagent pas) |
 
-Restent ouverts : l'approche des incohérences (comparer les formes courtes d'une même facette et d'un même aspect, signalées sans décider, ou une lecture par un modèle) ; la description consolidée (niveau 4) ; une note qui concerne deux entités (sujet unique et références, ou plusieurs sujets) ; le grain de la couche (fenêtre ou passage) et son coût.
+Restent ouverts : l'approche des incohérences (comparer les formes courtes d'une même facette et d'un même aspect, signalées sans décider, ou une lecture par un modèle) ; la description consolidée (niveau 4) ; le grain de la couche (fenêtre ou passage) et son coût.
 
 **Traduire une fois, lire plusieurs fois** : la résolution des références est faite une seule fois et gardée sous forme d'annotations sur le texte original, pas de réécriture. Raisons : la notoriété d'une note redevient calculable par le noyau (plafonnement par les entités citées, R-NOT-04) ; l'identité peut évoluer (`same_as`, R-IDT-04, redéfinition) ; la provenance reste exacte (R-HIS-01).
 
@@ -586,6 +587,7 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 45. **Facettes déclarées par le schéma, par type**, avec défauts et « autre » (§10.6).
 46. **Notoriété d'une note comme celle d'un fait**, plafonnée par les entités nommées (R-NOT-04) (§10.6).
 47. **Notes et faits complémentaires** : la couche « descriptions » passe après les faits et ne décrit que ce qu'aucun fait ne dit (§10.6).
+48. **Une note a un ou plusieurs sujets, sans ordre, et des mentions** : pas de « source » arbitraire quand deux entités s'équivalent (§10.6).
 
 ## 14. Questions ouvertes
 
