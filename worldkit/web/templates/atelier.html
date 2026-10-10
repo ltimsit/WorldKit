@@ -4,7 +4,7 @@
 <style>
   .passage { line-height: 1.9; margin: .6em 0; padding: .4em .6em; border-left: 3px solid var(--line, #ddd); }
   .ann { padding: 0 .15em; border-radius: 3px; text-decoration: none; color: inherit; border: 1px solid transparent; }
-  .ann-known { background: #dbeafe; } .ann-new { background: #dcfce7; } .ann-doubt { background: #fef3c7; border-style: dashed; border-color: #d97706; }
+  .ann-known { background: #dbeafe; } .ann-new { background: #dcfce7; } .ann-doubt { background: #fef3c7; border-style: dashed; border-color: #d97706; } .ann-check { outline: 1px dashed #d97706; outline-offset: 1px; }
   .ann-off { background: #eee; color: #888; text-decoration: line-through; }
   .ann-author { border-color: #333; border-style: solid; }
   .ann.on { outline: 2px solid #2563eb; }
@@ -65,7 +65,7 @@
   {% if indicators.facts %} · {{ indicators.facts }} fait(s), {{ indicators.facts_to_send }} partiront{% endif %}
   </div>
 </div>
-<p class="small legend"><span class="ann ann-known">connue</span><span class="ann ann-new">nouvelle</span><span class="ann ann-doubt">doute</span><span class="ann ann-off">retirée, ignorée</span><span class="ann ann-known ann-author">décidée par l'auteur</span> · Cliquer une mention pour la traiter ; sélectionner un mot pour ajouter une mention.</p>
+<p class="small legend"><span class="ann ann-known">connue</span><span class="ann ann-new">nouvelle</span><span class="ann ann-doubt">doute</span><span class="ann ann-known ann-check" title="forme courte, ou casse différente du nom connu">à vérifier</span><span class="ann ann-off">retirée, ignorée</span><span class="ann ann-known ann-author">décidée par l'auteur</span> · Cliquer une mention pour la traiter ; sélectionner un mot pour ajouter une mention.</p>
 
 <div style="display:grid; grid-template-columns: 3fr 2fr; gap: 1.2em">
 <div>
@@ -98,7 +98,7 @@
 <div class="stat">
   <h3>« {{ v.text }} » <span class="small muted">p{{ chosen.passage }}</span></h3>
   <p class="small">{% if v.entity and not v.entity.startswith('new:') %}rattachée à <b>{{ names[v.entity].name if v.entity in names else v.entity }}</b> <span class="mono">({{ v.entity }})</span>{% elif v.new or (v.entity or '').startswith('new:') %}entité <b>nouvelle</b>{% else %}<b>doute</b>{% endif %}
-  · type {{ v.type or "?" }} · règle {{ v.rule or "?" }} · {{ chosen.origin }} · {{ chosen.status }}{% if v.reason %} · {{ v.reason }}{% endif %}</p>
+  · type {{ v.type or "?" }} · règle {{ v.rule or "?" }}{% if v.check %} · <b>à vérifier</b> ({{ "forme courte d'un nom de personne" if v.check == "short" else "casse différente du nom connu" }}){% endif %} · {{ chosen.origin }} · {{ chosen.status }}{% if v.reason %} · {{ v.reason }}{% endif %}</p>
   {% for t in view.attachments if chosen.id in t.ann_ids %}<p class="small">alias proposé : {% if t.retained %}<b>oui</b> (retenu pour le monde : « {{ t.text }} » deviendra un autre nom de {{ t.name }}){% else %}<b>non</b> (« {{ t.text }} » désigne {{ t.name }} dans cette source seulement ; « retenir pour le monde » pour en faire un alias){% endif %}</p>{% endfor %}
   {% if v.candidates %}<p class="small">candidats : {% for c in v.candidates %}<b>{{ names[c].name if c in names else c }}</b> <span class="mono">({{ c }})</span>{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
   <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">

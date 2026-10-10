@@ -209,3 +209,26 @@ def test_the_wiki_screen_highlights_the_spans_I_VUE_07(tmp_path):
     assert '<mark class="check" title="à vérifier : casse différente du nom connu">brume</mark>' in author
     assert "<mark>Brume</mark>" in author
     assert "Ce que disent les documents" not in client.get("/wiki/brume?filter=player").text
+
+
+# --- Formes courtes des personnes (choix 40 du chantier) ---
+
+def test_a_short_form_of_a_person_is_linked_and_to_check(valmont):
+    """« Odon siège lui-même au conseil » : « Odon » pour Odon de Brume, trouvé sans modèle, à vérifier."""
+    assert forms(at(lines(valmont, "odon"), "notes-baron", 4)) == [("Odon", True)]
+
+
+def test_a_word_shared_by_two_people_is_not_a_short_form():
+    """« jehan » : Jehan Marcastel et Jehan Leblond (homonymes) ; « Ysolde » : une seule personne, même sans son nom
+    complet dans le document."""
+    w = corbelle_world()
+    ingest(w, "c1", corbelle_documents(), NOTHING)
+    assert forms(at(lines(w, "ysolde-marcastel"), "brouillon-corbelle", 4)) == [("Ysolde", True)]
+    assert not any("Jehan" == line.text[s:e] for e_ in ("jehan-marcastel", "jehan-leblond")
+                   for line in lines(w, e_) for s, e, _ in line.spans)
+
+
+def test_an_alias_makes_a_short_form_sure():
+    w = after_w05()
+    w.apply(edit({"op": "add_value", "entity": "odon", "attribute": "aliases", "value": "Odon"}))
+    assert forms(at(lines(w, "odon"), "notes-baron", 4)) == [("Odon", False)]

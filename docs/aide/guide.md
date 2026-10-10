@@ -431,12 +431,12 @@ atelier.import [write] → world : ok
 doc_id: l-echoppe-de-bertille
 passages: 2
 atelier.run [write] → world : ok
-proposed : 2
+proposed : 3
 new : 0
 calls: 0
 ```
 
-La source a pris son identifiant du titre ; elle a deux passages. Sans modèle, la couche « mentions » ne trouve que les **noms connus** : « Brume », et « Le régent Odon » (depuis la section 6, le titre « régent » n'est porté que par Odon). Bertille, inconnue, lui échappe. Avec le modèle (`--param model=true`), elle chercherait aussi les noms nouveaux ; l'appel est d'abord **estimé**, puis lancé seulement avec `--param confirm=true` :
+La source a pris son identifiant du titre ; elle a deux passages. Sans modèle, la couche « mentions » ne trouve que les **noms connus** : « Brume », « Le régent » (depuis la section 6, le titre « régent » n'est porté que par Odon) et « Odon », **forme courte** d'Odon de Brume, marquée **à vérifier** (pointillé orange) : un prénom ou un nom seul est cherché pour toute personne connue, sauf s'il est porté par deux personnes (« Jehan », pour Jehan Marcastel et Jehan Leblond). Bertille, inconnue, lui échappe. Avec le modèle (`--param model=true`), elle chercherait aussi les noms nouveaux ; l'appel est d'abord **estimé**, puis lancé seulement avec `--param confirm=true` :
 
 ```powershell
 worldkit --db valmont.db call atelier.run --param doc_id=l-echoppe-de-bertille --param model=true
@@ -507,7 +507,7 @@ worldkit --db valmont.db wiki page brume
 
 <!-- écran /wiki/brume : "Ce que disent les documents" ; "échoppe de cordes" -->
 
-Une forme dont la casse diffère du nom connu (« une brume épaisse », ou « corbelle » dans des notes prises vite) est montrée **à vérifier** : homographe possible, à trancher d'un geste dans l'atelier. Un nom court qui n'est pas un alias (« Odon » seul, pour Odon de Brume) n'est pas trouvé : ajoutez-le comme alias, et tous les passages qui le citent apparaissent. La vue joueur ne montre aucun passage : le texte brut peut révéler plus que les faits publics. À l'écran : **Wiki**, page `brume`, section « Ce que disent les documents ». Bertille n'a pas encore de page : son entité attend en revue ; acceptée, elle aura la sienne, avec ses deux passages.
+Une forme dont la casse diffère du nom connu (« une brume épaisse », ou « corbelle » dans des notes prises vite) est montrée **à vérifier** : homographe possible, à trancher d'un geste dans l'atelier. Une forme courte d'un nom de personne (« Odon » seul, pour Odon de Brume) est trouvée, elle aussi à vérifier ; un prénom porté par deux personnes ne l'est pas. Pour la rendre sûre, ou pour trancher un homonyme, ajoutez-la comme alias de la bonne personne : tous les passages qui la citent apparaissent. La vue joueur ne montre aucun passage : le texte brut peut révéler plus que les faits publics. À l'écran : **Wiki**, page `brume`, section « Ce que disent les documents ». Bertille n'a pas encore de page : son entité attend en revue ; acceptée, elle aura la sienne, avec ses deux passages.
 
 ## 13. Pour aller plus loin
 

@@ -1,7 +1,7 @@
 # Cadre technique de la fondation
 
 **Objet :** décisions techniques de la fondation : éléments structurants, découpage en modules, architecture, articulation entre le noyau et l'ingestion, stratégie de test et étapes de construction.
-**Version :** 2.22 — 10 octobre 2026. S'appuie sur *cadre-fondation.md* v1.22, qu'il cite sans le dupliquer.
+**Version :** 2.23 — 10 octobre 2026. S'appuie sur *cadre-fondation.md* v1.22, qu'il cite sans le dupliquer.
 **Statut :** de travail. Chaque décision porte un statut : **validé** (acté avec l'auteur) ou **proposé** (argumenté, en attente de validation). En cas de divergence, *cadre-fondation.md* prévaut.
 
 **Conventions**
@@ -313,10 +313,10 @@ Exemple (W08) : « Système B : niveau 7, menace 8. », sans marqueur dans le be
 **T-ING-21 — Passages qui nomment une entité.** *(validé ; R-VUE-05, R-HIS-02, R-PRI-01, R-PRI-03, T-ARC-01)*
 Calculés à la lecture, sans modèle et sans écriture (`worldkit/ingest/passages.py`), passés à la vue comme les documents sources ; le noyau ne fait que filtrer (vue d'auteur seulement) et réunir les membres d'une page consolidée.
 - **Documents** : la dernière version de chaque document d'un lot visible de la branche (lignée, R-HIS-02), ouvert au plus tard au point de la vue. Les sources d'atelier non proposées et les anciennes versions n'entrent pas ; un document obsolète reste, marqué (R-DOC-05, R-PRI-01). Même limite que la lecture des annotations par lignée : un lot ouvert sur la parente après la création d'une branche, avant toute nouvelle édition de la parente, reste visible de la branche.
-- **Liens** : les noms et alias de l'état trouvés tels quels (C1a : sans casse, texte barré écarté, « le <titre> » porté par une seule entité). Une décision de l'auteur dans l'atelier sur une portion l'emporte (gardée ou corrigée : le lien qu'il a dit ; retirée ou ignorée : aucun) ; les règles d'atelier de la branche s'appliquent. Toujours à jour : un alias ajouté fait apparaître après coup les passages qui le citaient.
-- **À vérifier** : une portion dont la casse diffère du nom connu, article mis à part, est montrée et signalée sans décider (X-012) : homographe possible (« une brume épaisse ») ou note brouillon (« corbelle »).
+- **Liens** : les noms et alias de l'état trouvés tels quels (C1a : sans casse, texte barré écarté, « le <titre> » porté par une seule entité), et les **formes courtes** des personnes : un mot à majuscule du nom d'une seule personne connue, qui n'est pas lui-même un nom connu (« Odon », « Ysolde » ; jamais « Jehan », porté par Jehan Marcastel et Jehan Leblond), même si le nom complet n'est pas dans le document. Une décision de l'auteur dans l'atelier sur une portion l'emporte (gardée ou corrigée : le lien qu'il a dit ; retirée ou ignorée : aucun) ; les règles d'atelier de la branche s'appliquent. Toujours à jour : un alias ajouté fait apparaître après coup les passages qui le citaient.
+- **À vérifier** : une forme courte, ou une portion dont la casse diffère du nom connu, article mis à part, est montrée et signalée sans décider (X-012) : homographe possible (« une brume épaisse ») ou note brouillon (« corbelle »). Un alias la rend sûre. La couche « mentions » de l'atelier applique les mêmes formes courtes et le même signal (`check` : `short` ou `case`).
 - **Repère** : *capté* si le passage soutient (table `supports`, T-ING-11) un fait présent dans l'état qui touche l'entité ; *affirmation* si le document est en jeu (`voice: in_world`) ; sinon *non capté*.
-- **Limite connue** : une forme courte qui n'est ni un nom ni un alias (« Odon » pour Odon de Brume) n'est pas trouvée ; l'ajouter comme alias la fait apparaître partout.
+- **Limite connue** : un prénom porté par deux personnes (« jehan ») et une forme en minuscules ne sont jamais des formes courtes ; l'alias de la bonne personne tranche.
 Exemple : sur le contre-corpus des pièges, le passage « Une brume épaisse … les quais de Brume » paraît sur la page de Brume, « Brume » sûr et « brume » à vérifier.
 
 **T-ING-19 — Extracteur oracle.** *(validé)*

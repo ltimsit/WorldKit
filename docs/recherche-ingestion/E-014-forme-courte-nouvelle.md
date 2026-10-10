@@ -1,6 +1,6 @@
 # E-014 — La forme courte d'une entité nouvelle n'est pas repérée, et l'auteur ne peut pas l'y rattacher
 
-- **Statut** : en cours (le geste de l'auteur est fait ; le repérage reste à trancher, X-003)
+- **Statut** : résolue (le geste de l'auteur, puis le repérage par la règle B à vérifier, X-003, choix 40)
 - **Classe** : R (résolution : une forme courte qui désigne une entité nouvelle de la même source)
 - **Où** : Corbelle c1, `brouillon-corbelle.md`, passage 6 ; couche « mentions » de l'atelier (C1b, C2), gestes de l'atelier
 - **Observé avec** : Claude Haiku 4.5 par l'API (profil `api-haiku`, substitut), un lancement de la couche avec le modèle dans l'atelier, 6 octobre 2026 ; observé par l'auteur à l'écran (test humain, T3)
@@ -46,4 +46,4 @@ Deux défauts en découlent à l'écran :
 
 ## Conclusion
 
-Le geste manquait : il est fait. Le repérage de la forme courte reste ouvert : il dépend du choix entre A et B de X-003, que Corbelle peut départager.
+Le geste manquait : il est fait. Le repérage est fait depuis le choix B de X-003 (10 octobre 2026) : la couche « mentions » propose « Ostrel » rattaché à Bertrand Ostrel, entité nouvelle repérée dans la source, marqué à vérifier.

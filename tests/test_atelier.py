@@ -420,3 +420,16 @@ def test_keeping_a_removed_mention_restores_what_it_designated():
     broken = next(a for a in layers.effective(world, "reference", doc) if a.value["text"] == "conseil des marchands")
     gestures.gesture(world, "reference", doc.doc_id, "keep", ann_id=broken.ann_id)
     assert "conseil-des-marchands" in proposing.new_entities(world, "reference", doc)
+
+
+def test_short_forms_are_proposed_to_check_and_homonyms_are_not_choice_40():
+    """Couche « mentions » sans modèle : « Ostrel » pour Bertrand Ostrel (nouvelle, E-014) et « Odon » pour Odon de
+    Brume, à vérifier ; jamais un mot porté par deux personnes."""
+    world = base_world()
+    doc = store.import_source(world, GUILDE + "\nOdon le soupçonne.\n")
+    layers.run_mentions(world, "reference", doc.doc_id, FakeFinder([("Bertrand Ostrel", "Character")]))
+    current = {(a.value["text"], a.value["entity"], a.value.get("check")) for a in layers.effective(world, "reference", doc)
+               if a.kind == "mention"}
+    assert ("Ostrel", "new:bertrand ostrel", "short") in current
+    assert ("Odon", "odon", "short") in current
+    assert ("Bertrand Ostrel", "new:bertrand ostrel", None) in current

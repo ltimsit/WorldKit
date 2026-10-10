@@ -1,6 +1,6 @@
 """Couches de l'atelier (I8, T3) : elles **écrivent des annotations**, que l'auteur garde, corrige ou retire.
 
-Couche « mentions » : C1a (noms connus, sans modèle), C1b (le modèle, une question sur le document entier, si un
+Couche « mentions » : C1a (noms connus, sans modèle, et formes courtes des personnes, à vérifier : choix 40), C1b (le modèle, une question sur le document entier, si un
 `finder` est donné), C2 (recoupement par score), énonciation (une note de travail ne crée pas d'entité), signaux en
 option ; puis les décisions de l'auteur et les règles d'atelier.
 
@@ -67,7 +67,8 @@ def run_mentions(world: Any, branch: str, doc_id: str, finder: Any = None, with_
     from worldkit.ingest.batch import extraction_context
     from worldkit.periphery.facts import enunciation
     from worldkit.periphery.matching import fold
-    from worldkit.periphery.mentions import Resolver, known_mentions, merge, similar_mentions, window_of
+    from worldkit.periphery.mentions import (Resolver, check_of, known_mentions, merge, short_forms, similar_mentions,
+                                             window_of)
     doc = store.source(world, doc_id)
     state = world.state(branch)
     context = extraction_context(world, state)
@@ -82,6 +83,9 @@ def run_mentions(world: Any, branch: str, doc_id: str, finder: Any = None, with_
     for m in mentions:
         resolver.resolve(m)
     resolver.cluster_new(mentions)
+    mentions = sorted(mentions + short_forms(window, mentions, context.entities, context.schema, anywhere=True),
+                      key=lambda m: m.start)  # « Ysolde », « Ostrel » : à vérifier (choix 40)
+    names = {e.id: e.names for e in context.entities}
     starts = {index: start for index, start, _ in window.passages}
     author = [a for a in store.current(world, branch, doc)
               if a.by_author and a.kind == "mention" and a.passage is not None]
@@ -108,7 +112,7 @@ def run_mentions(world: Any, branch: str, doc_id: str, finder: Any = None, with_
         if entity and entity.startswith("new:") and enunciation(window.passage_texts.get(m.passage, "")) == "note":
             continue  # une note de travail ne crée pas d'entité (X-010)
         value = {"text": m.text, "type": m.type, "entity": entity, "candidates": candidates, "rule": rule,
-                 "source": m.source, "reason": m.reason}
+                 "source": m.source, "reason": m.reason, "check": check_of(m, names.get(m.entity or "", ()))}
         confidence = "doubt" if rule in ("doubt", "ambiguous") else m.confidence
         store.add_annotation(world, branch, doc, "mention", value, origin, m.passage, start, end, confidence)
         report.proposed += 1

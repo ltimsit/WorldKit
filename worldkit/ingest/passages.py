@@ -6,11 +6,13 @@ Niveau 1 du chantier « ingérer plus que les faits » (*chantier-ingestion.md* 
   ouvert au plus tard au point de la vue. Les sources d'atelier non proposées et les anciennes versions n'entrent pas ;
   un document obsolète reste, marqué (R-DOC-05, R-PRI-01).
 - **Liens** : les noms et alias de l'état trouvés dans le texte, comme C1a (`known_mentions` : sans casse, texte barré
-  écarté, « le baron » quand un seul porte le titre), puis corrigés par l'atelier : une décision de l'auteur sur une
+  écarté, « le baron » quand un seul porte le titre), et les formes courtes des personnes (« Ysolde » pour Ysolde
+  Marcastel, sauf un mot porté par deux personnes : choix 40), puis corrigés par l'atelier : une décision de l'auteur sur une
   portion l'emporte (gardée ou corrigée : le lien qu'il a dit ; retirée ou ignorée : aucun lien) ; les règles
   d'atelier de la branche s'appliquent (`not_entity`, `not_entity_of`).
-- **À vérifier** : une occurrence dont la casse diffère du nom connu (« une brume épaisse » pour Brume, « corbelle »
-  dans des notes brouillon) est montrée, signalée sans décider (X-012) ; une décision de l'auteur la rend sûre.
+- **À vérifier** : une forme courte, ou une occurrence dont la casse diffère du nom connu (« une brume épaisse » pour
+  Brume, « corbelle » dans des notes brouillon), est montrée, signalée sans décider (X-012, `check_of`) ; une décision
+  de l'auteur ou un alias la rend sûre.
 - **Repère** : capté (le passage soutient un fait de l'entité présent dans l'état, table `supports`), non capté, ou
   affirmation (document en jeu, R-DOC-06).
 
@@ -25,8 +27,6 @@ from types import SimpleNamespace
 from typing import Any
 
 from worldkit.core.views import PassageLine, PassageStatus
-
-_ARTICLE = re.compile(r"^(?:(?:les|le|la)\s+|l['’]\s*)", re.IGNORECASE)
 
 
 def _documents(world: Any, state: Any) -> list[tuple[str, str, str]]:
@@ -81,7 +81,7 @@ def passages_by_entity(world: Any, state: Any) -> dict[str, list[PassageLine]]:
     from worldkit.atelier import store as atelier
     from worldkit.atelier.propose import _label
     from worldkit.periphery.matching import fold
-    from worldkit.periphery.mentions import Resolver, known_mentions
+    from worldkit.periphery.mentions import Resolver, check_of, known_mentions, short_forms
 
     from .batch import extraction_context
     from .store import loads_key
@@ -90,7 +90,7 @@ def passages_by_entity(world: Any, state: Any) -> dict[str, list[PassageLine]]:
     atelier.ensure_tables(conn)
     context = extraction_context(world, state)
     entities = tuple(e for e in context.entities if e.id in state.entities)
-    forms = {e.id: {_ARTICLE.sub("", n).strip() for n in e.names} for e in entities}  # casse comparée sans article
+    names = {e.id: e.names for e in entities}
     titles = Resolver.from_state(context, state).titles
     rules = atelier.rules(world, state.branch)
     out: dict[str, list[PassageLine]] = {}
@@ -119,7 +119,8 @@ def passages_by_entity(world: Any, state: Any) -> dict[str, list[PassageLine]]:
             entity = created.get(label) if label is not None else a.value.get("entity")
             if entity in state.entities:
                 links.setdefault((entity, a.passage), []).append((a.start, a.end, False))
-        for m in known_mentions(window, entities, titles):
+        known = known_mentions(window, entities, titles)
+        for m in known + short_forms(window, known, entities, state.world, anywhere=True):
             if m.passage is None or m.entity not in state.entities:
                 continue
             start, end = m.start - starts[m.passage], m.end - starts[m.passage]
@@ -128,8 +129,7 @@ def passages_by_entity(world: Any, state: Any) -> dict[str, list[PassageLine]]:
             form = fold(m.text)
             if any(r.form == form and (r.kind == "not_entity" or r.target == m.entity) for r in rules):
                 continue
-            to_check = m.rule == "exact" and _ARTICLE.sub("", m.text).strip() not in forms.get(m.entity, set())
-            links.setdefault((m.entity, m.passage), []).append((start, end, to_check))
+            links.setdefault((m.entity, m.passage), []).append((start, end, check_of(m, names[m.entity]) is not None))
 
         supported: dict[int, set[Any]] = {}
         for idx, key in conn.execute("SELECT passage_idx, fact_key FROM supports WHERE doc_id = ? AND version_fp = ?",
