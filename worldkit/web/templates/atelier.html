@@ -7,6 +7,7 @@
   .ann-known { background: #dbeafe; } .ann-new { background: #dcfce7; } .ann-doubt { background: #fef3c7; border-style: dashed; border-color: #d97706; } .ann-check { outline: 1px dashed #d97706; outline-offset: 1px; }
   .ann-off { background: #eee; color: #888; text-decoration: line-through; }
   .ann-author { border-color: #333; border-style: solid; }
+  .ann { -webkit-user-drag: none; user-select: text; }
   /* Étiquette sous une mention (pourquoi elle est liée) : pseudo-élément, hors du texte (positions intactes). */
   .with-how .passage { line-height: 2.6; }
   .with-how .ann[data-how] { position: relative; display: inline-block; line-height: 1.3; }
@@ -78,10 +79,10 @@
 <div>
 {% for p in view.passages %}{% set pieces, nested = atelier_spans(p.text, p.annotations) %}
 <div class="passage" data-passage="{{ p.index }}"><span class="small muted">p{{ p.index }}</span>
-<span class="ptext">{% for piece in pieces %}{% if piece.ann %}<a class="{{ atelier_class(piece.ann) }}{{ ' on' if chosen and chosen.id == piece.ann.id }}{{ ' how-check' if piece.ann.how and piece.ann.how.check }}"{% if piece.ann.how %} data-how="{{ piece.ann.how.label }}"{% endif %} href="?ann={{ piece.ann.id }}" title="{{ piece.ann.value.entity or ('nouvelle' if piece.ann.value.new else 'doute') }} · {{ piece.ann.origin }}">{{ piece.text }}</a>{% else %}{{ piece.text }}{% endif %}{% endfor %}</span>
-{% if nested %}<div class="small chips">imbriquées : {% for a in nested %}<a class="{{ atelier_class(a) }}" href="?ann={{ a.id }}">{{ a.value.text }}</a>{% if a.how %} <span class="muted">({{ a.how.label }})</span>{% endif %}{% endfor %}</div>{% endif %}
+<span class="ptext">{% for piece in pieces %}{% if piece.ann %}<a class="{{ atelier_class(piece.ann) }}{{ ' on' if chosen and chosen.id == piece.ann.id }}{{ ' how-check' if piece.ann.how and piece.ann.how.check }}"{% if piece.ann.how %} data-how="{{ piece.ann.how.label }}"{% endif %} href="/atelier/{{ view.doc_id|urlencode }}?ann={{ piece.ann.id }}" draggable="false" title="{{ piece.ann.value.entity or ('nouvelle' if piece.ann.value.new else 'doute') }} · {{ piece.ann.origin }}">{{ piece.text }}</a>{% else %}{{ piece.text }}{% endif %}{% endfor %}</span>
+{% if nested %}<div class="small chips">imbriquées : {% for a in nested %}<a class="{{ atelier_class(a) }}" href="/atelier/{{ view.doc_id|urlencode }}?ann={{ a.id }}" draggable="false">{{ a.value.text }}</a>{% if a.how %} <span class="muted">({{ a.how.label }})</span>{% endif %}{% endfor %}</div>{% endif %}
 {% if p.facts %}<ul class="facts">{% for f in p.facts %}<li class="fact{{ ' fact-off' if f.excluded }}{{ ' fact-author' if f.by_author }}{{ ' on' if chosen_fact and chosen_fact.id == f.id }}" data-start="{{ f.start if f.start is not none else '' }}" data-end="{{ f.end if f.end is not none else '' }}">
-  <a href="?fact={{ f.id }}" title="{{ f.reason or '' }}{{ ' · couche ' ~ f.layer if f.layer }}"><span class="pill pill-{{ f.state.split(' ')[0] }}">{{ f.state }}</span>{% if f.indirect %}<span class="pill pill-douteux" title="le passage ne nomme pas : {{ f.indirect|join(', ') }} ; la preuve tient par une coréférence (« sa soeur », « elle ») : vérifier le passage">preuve indirecte</span>{% endif %}<span class="fact-label">{{ f.label }}</span></a>
+  <a href="/atelier/{{ view.doc_id|urlencode }}?fact={{ f.id }}" title="{{ f.reason or '' }}{{ ' · couche ' ~ f.layer if f.layer }}"><span class="pill pill-{{ f.state.split(' ')[0] }}">{{ f.state }}</span>{% if f.indirect %}<span class="pill pill-douteux" title="le passage ne nomme pas : {{ f.indirect|join(', ') }} ; la preuve tient par une coréférence (« sa soeur », « elle ») : vérifier le passage">preuve indirecte</span>{% endif %}<span class="fact-label">{{ f.label }}</span></a>
   {% if f.evidence and f.layer != 'author' %}<span class="evidence small">« {{ f.evidence|truncate(90) }} »</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
 </div>{% endfor %}
 </div>
@@ -128,13 +129,13 @@
   <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
     <input type="hidden" name="action" value="add"><input type="hidden" name="passage" id="add-passage">
     <input type="hidden" name="start" id="add-start"><input type="hidden" name="end" id="add-end">
-    <p>sélection : <b id="add-text" class="muted">sélectionner un mot dans le texte</b></p>
+    <p>sélection : <b id="add-text" class="muted">sélectionner un mot dans le texte (une mention déjà surlignée : la cliquer pour la garder ou la corriger)</b></p>
     <p><select name="entity"><option value="new">nouvelle entité</option>{% if view.new_entities %}<optgroup label="nouvelles de cette source">{% for e in view.new_entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type or "?" }}, nouvelle)</option>{% endfor %}</optgroup>{% endif %}<optgroup label="du monde">{% for e in view.entities %}<option value="{{ e.id }}">{{ e.name }} ({{ e.type }})</option>{% endfor %}</optgroup></select>
        <select name="type">{% for t in view.types %}<option>{{ t }}</option>{% endfor %}</select></p>
     <p>portée <label><input type="radio" name="scope" value="occurrence"> cette occurrence</label>
       <label><input type="radio" name="scope" value="source" checked> toute la source</label>
       <label><input type="radio" name="scope" value="world"> retenir pour le monde</label>
-      <button>Ajouter</button></p>
+      <button id="add-button" disabled title="sélectionner d'abord une portion du texte">Ajouter</button></p>
   </form>
 </div>
 {% if view.fact_entities %}<div class="stat" id="add-fact">
@@ -197,6 +198,8 @@
     document.getElementById("add-end").value = end;
     const label = document.getElementById("add-text");
     label.textContent = "« " + chosen + " » (p" + box.dataset.passage + ")"; label.classList.remove("muted");
+    const button = document.getElementById("add-button");
+    if (button) { button.disabled = false; button.title = ""; }
   });
 </script>
 {% endblock %}
