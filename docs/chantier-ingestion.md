@@ -338,6 +338,20 @@ Le cadre exclut la prose des faits pour éviter les collisions (T-ING-03). On pe
 
 Une idée d'intrigue (« le baron pourrait trahir ») peut devenir une piste d'auteur proposée (R-SCN-09). Rumeurs et croyances restent hors périmètre (cadre de la fondation §1.4).
 
+**Conception des notes (brainstorm du 11 octobre 2026, choix 43 à 47 ; pas encore actée dans les cadres).**
+
+Usages, dans l'ordre où ils viendront : **relire et retrouver** (suivre la construction du graphe ; l'auteur retrouve une information) ; **à anticiper** : le **wiki encyclopédique** (version rédigée et structurée de la page), des **textes produits pour l'auteur** à partir des notes (« une description de l'arrivée d'Ysolde, pour des joueurs qui ne la connaissent pas »), l'extraction d'informations par un agent, la **détection d'incohérences** (approche à choisir). Un LLM joueur reste hors cadre.
+
+| Question | Choix | Conséquence |
+|---|---|---|
+| Forme d'une bribe | **citation exacte**, rangée par facette, et une **forme courte** facultative « aspect : valeur » quand c'est une caractéristique (« une vieille rousse sèche » → âge : vieille · cheveux : roux · corpulence : sèche) | la citation garantit la provenance (jamais inventée) ; la forme courte prépare les incohérences par comparaison et le wiki encyclopédique |
+| Où elle vit | **atelier, puis journal** : une couche « descriptions » écrit des annotations (garder, corriger, retirer) ; « Proposer » les envoie comme **notes** au journal, nouvelle sorte d'élément sans collision ; acceptables **en lot** par passage dans la revue | branches, retcons et vues comme le reste ; R-PRI-05 inchangé (validation humaine) |
+| Facettes | déclarées par le **schéma, par type** (versionnées, avec libellés), des facettes par défaut dans le schéma par défaut, et toujours « autre » | liste fermée pour un petit modèle ; modifiable par l'auteur comme une relation |
+| Notoriété | **comme un fait** : déclarée (défaut : celle du document, sinon non qualifiée), modifiable en revue, **plafonnée** par les entités que la bribe nomme (R-NOT-04, mentions résolues de l'atelier) | une note ne révèle pas une entité secrète ; base des textes « pour des joueurs » |
+| Frontière avec les faits | **complémentaires** : la couche passe après les faits confirmés et ne décrit que ce qu'aucun fait ne dit | pas de doublon ; une caractéristique récurrente en note peut devenir un attribut proposé (les notes sont l'incubateur du schéma) |
+
+Restent ouverts : l'approche des incohérences (comparer les formes courtes d'une même facette et d'un même aspect, signalées sans décider, ou une lecture par un modèle) ; la description consolidée (niveau 4) ; une note qui concerne deux entités (sujet unique et références, ou plusieurs sujets) ; le grain de la couche (fenêtre ou passage) et son coût.
+
 **Traduire une fois, lire plusieurs fois** : la résolution des références est faite une seule fois et gardée sous forme d'annotations sur le texte original, pas de réécriture. Raisons : la notoriété d'une note redevient calculable par le noyau (plafonnement par les entités citées, R-NOT-04) ; l'identité peut évoluer (`same_as`, R-IDT-04, redéfinition) ; la provenance reste exacte (R-HIS-01).
 
 ### 10.7 Écartés, reportés ou à reconsidérer
@@ -567,6 +581,11 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 40. *Formes courtes : règle B à vérifier (X-003)* : acté au cadre technique (T-ING-21) ; les homonymes de prénom ne sont jamais des formes courtes, l'alias tranche.
 41. *« Ajouter au schéma » (§6.6, premier incrément)* : acté au cadre d'interface (I-ATL-09) ; écriture au journal du monde après confirmation ; « relation existante » avec mémoire de la tournure et « ignorer » avec mémoire restent à faire ; report dans un monde d'auteur par `worldkit schema export`.
 42. **Forme des valeurs, par étapes** (E-005) : d'abord une règle sans modèle après C5 (« X de <entité reliée au sujet> » → « X », forme d'origine gardée en précision) ; le vocabulaire déclaré par attribut (§10.5) plus tard, si un écart de synonyme (E-001) réapparaît sur un vrai texte.
+43. **Notes descriptives : citation exacte + forme courte facultative** « aspect : valeur » (§10.6).
+44. **Notes : atelier puis journal** ; nouvelle sorte d'élément du monde, sans collision, acceptable en lot (§10.6).
+45. **Facettes déclarées par le schéma, par type**, avec défauts et « autre » (§10.6).
+46. **Notoriété d'une note comme celle d'un fait**, plafonnée par les entités nommées (R-NOT-04) (§10.6).
+47. **Notes et faits complémentaires** : la couche « descriptions » passe après les faits et ne décrit que ce qu'aucun fait ne dit (§10.6).
 
 ## 14. Questions ouvertes
 
