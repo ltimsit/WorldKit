@@ -27,6 +27,18 @@ def _same_form(a: store.Annotation, form: str) -> bool:
     return a.kind == "mention" and fold(a.value.get("text", "")) == form
 
 
+def _designated(world: Any, branch: str, doc: Any, a: store.Annotation) -> dict[str, Any]:
+    """Ce que désignait une mention avant d'être retirée ou ignorée (le retrait efface `entity`) : la dernière
+    annotation de sa chaîne qui désignait une entité, connue ou nouvelle. Lu dans l'historique (ajout seul)."""
+    history = {h.ann_id: h for h in store.history(world, branch, doc)}
+    while a is not None:
+        v = a.value
+        if v.get("entity") or v.get("new"):
+            return {k: v[k] for k in ("entity", "new", "candidates", "type") if k in v}
+        a = history.get(a.replaces) if a.replaces is not None else None
+    return {}
+
+
 def gesture(world: Any, branch: str, doc_id: str, action: str, scope: str = "source", ann_id: int | None = None,
             passage: int | None = None, start: int | None = None, end: int | None = None,
             entity: str | None = None, type_: str | None = None) -> list[int]:
@@ -79,6 +91,8 @@ def gesture(world: Any, branch: str, doc_id: str, action: str, scope: str = "sou
         [a for a in layers.effective(world, branch, doc) if _same_form(a, form)]
     for a in targets:
         value = dict(a.value)
+        if action in ("keep", "correct") and not value.get("entity") and not value.get("new"):
+            value.update(_designated(world, branch, doc, a))  # reprendre une mention retirée : ce qu'elle désignait
         if action == "correct":
             if entity is not None:
                 value["entity"] = None if entity == "new" else entity
@@ -114,6 +128,47 @@ def _check_draft(draft: dict[str, Any] | None) -> dict[str, Any]:
     return {"op": draft["op"], **{k: str(draft[k]).strip() for k in needed}}
 
 
+def _check_schema(world: Any, branch: str, doc: Any, draft: dict[str, Any]) -> dict[str, Any]:
+    """Un fait corrigé ou ajouté doit tenir dans le schéma : relation compatible avec les types de ses entités,
+    attribut du type du sujet (R-SCH-02). Signalé au geste, avec ce qui est possible, plutôt qu'à la revue. Une
+    relation inconnue du schéma passe : le hors schéma se décide à la revue (chantier §6.6)."""
+    from worldkit.periphery.facts import _is_a
+    schema = world.state(branch).world
+    entities, _ = layers.confirmed_entities(world, branch, doc)
+    known = {e.id: e for e in entities}
+    state = world.state(branch)
+
+    def type_of(eid: str) -> str | None:
+        return known[eid].type if eid in known else state.entities[eid].type if eid in state.entities else None
+
+    def name(eid: str) -> str:
+        return known[eid].name if eid in known else eid
+
+    def fr(labels: dict[str, str] | None, default: str) -> str:
+        return (labels or {}).get("fr", default)
+    if draft["op"] == "add_relation":
+        r = schema.relations.get(draft["relation"])
+        a, b = type_of(draft["from"]), type_of(draft["to"])
+        if r is None or a is None or b is None:
+            return draft
+
+        def fits(d: Any, x: str, y: str) -> bool:
+            return _is_a(schema, x, d.from_) and _is_a(schema, y, d.to)
+        if fits(r, a, b) or (r.symmetric and fits(r, b, a)):
+            return draft
+        possible = sorted(f"« {fr(d.labels, rel)} »" for rel, d in schema.relations.items()
+                          if fits(d, a, b) or (d.symmetric and fits(d, b, a)))
+        raise ValueError(f"« {fr(r.labels, draft['relation'])} » va de {' ou '.join(r.from_)} vers {' ou '.join(r.to)} : "
+                         f"{name(draft['from'])} ({a}) → {name(draft['to'])} ({b}) sort du schéma ; possibles entre "
+                         f"ces types : {', '.join(possible) or 'aucune relation'}")
+    t = type_of(draft["entity"])
+    if t is not None and t in schema.types and draft["attribute"] not in schema.attributes_of(t):
+        possible = sorted(f"« {fr(d.labels, attr)} »" for attr, d in schema.attributes_of(t).items() if attr != "name")
+        raise ValueError(f"l'attribut « {draft['attribute']} » n'existe pas pour {name(draft['entity'])} ({t}) ; "
+                         f"possibles : {', '.join(possible) or 'aucun'}")
+    return draft
+
+
 def fact_gesture(world: Any, branch: str, doc_id: str, action: str, ann_id: int | None = None,
                  passage: int | None = None, draft: dict[str, Any] | None = None) -> list[int]:
     """Un geste sur un fait (Q1, Q4 d'I9) ; écrit une annotation d'origine « auteur » (ajout seul, R-HIS-01).
@@ -130,7 +185,7 @@ def fact_gesture(world: Any, branch: str, doc_id: str, action: str, ann_id: int 
         texts = {p.index: p.text for p in doc.passages}
         if passage not in texts:
             raise ValueError("ajout d'un fait : passage invalide")
-        value = {"draft": _check_draft(draft), "evidence": texts[passage], "layer": "author", "phrase": "",
+        value = {"draft": _check_schema(world, branch, doc, _check_draft(draft)), "evidence": texts[passage], "layer": "author", "phrase": "",
                  "exact": "", "verdict": None, "reason": None, "voice": None, "support": False}
         return [store.add_annotation(world, branch, doc, "fact", value, "author", passage, None, None, "sure", "kept")]
     target = next((a for a in layers.effective(world, branch, doc) if a.ann_id == ann_id and a.kind == "fact"), None)
@@ -139,7 +194,7 @@ def fact_gesture(world: Any, branch: str, doc_id: str, action: str, ann_id: int 
     value = dict(target.value)
     if action == "correct":
         value["origin_draft"] = value.get("origin_draft") or value["draft"]
-        value["draft"] = _check_draft(draft)
+        value["draft"] = _check_schema(world, branch, doc, _check_draft(draft))
     status = {"keep": "kept", "remove": "removed", "correct": "corrected"}[action]
     return [store.add_annotation(world, branch, doc, "fact", value, "author", target.passage, target.start,
                                  target.end, "sure", status, target.ann_id)]

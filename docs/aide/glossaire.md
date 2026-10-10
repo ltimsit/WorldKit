@@ -1,7 +1,7 @@
 # Glossaire complémentaire de l'outil
 
 **Objet :** définir ce que l'outil affiche et que les glossaires des cadres ne définissent pas : statuts, sortes d'opérations, codes de signalement, valeurs d'énumérations, marques du graphe, vocabulaire des exécutions, des bacs, des parcours et des mesures. Une ligne par terme ; un même nom technique n'est défini qu'une fois, ici ou dans un cadre.
-**Version :** 1.1 — 4 octobre 2026. Complète les glossaires de *cadre-fondation.md* (§3), *cadre-technique.md* (§10) et *cadre-interface.md* (§12), sans les répéter.
+**Version :** 1.2 — 10 octobre 2026. Complète les glossaires de *cadre-fondation.md* (§3), *cadre-technique.md* (§10) et *cadre-interface.md* (§12), sans les répéter.
 **Lecture :** ces tableaux alimentent l'aide de l'interface (`/aide`) et `worldkit explain` (I-AID-01). Corriger une définition ici la corrige partout. Un test vérifie que tout statut, code ou valeur affichable a sa ligne.
 
 ---
@@ -79,6 +79,11 @@ Un signalement (`Issue`) porte un code, une sévérité, un message et la règle
 | Ajouté | `added` | Comparaison : présent à droite seulement. |
 | Retiré | `removed` | Deux sens. **Comparaison** : présent à gauche seulement. **Annotation d'atelier** : mention que l'auteur a retirée (ce n'est pas une mention utile ici) ; elle reste tracée. |
 | Changé | `changed` | Comparaison : présent des deux côtés avec une valeur différente. |
+| Ce que disent les documents | `passages` | Section d'une page de wiki, en vue d'auteur seulement (R-VUE-05, T-ING-21) : les passages des documents ingérés qui nomment l'entité, formes surlignées, chacun avec un repère (capté, non capté, affirmation). Calculée sans modèle à chaque lecture : un alias ajouté fait apparaître les passages qui le citaient. |
+| Capté | `captured` | Repère d'un passage dans « Ce que disent les documents » : il soutient un fait de l'entité présent dans l'état ; ces faits sont cités. |
+| Non capté | `uncaptured` | Repère d'un passage qui nomme l'entité sans qu'aucun fait de l'état n'en vienne : ce que l'ingestion a laissé de côté (une description, un jugement, une relation hors schéma). Exemple : « elle deteste les bateliers » sur la page d'Ysolde. |
+| À vérifier | `to_check` | Portion d'un passage qui nomme l'entité dans une casse différente du nom connu (« une brume épaisse » pour Brume, « corbelle » dans des notes brouillon) : homographe possible, montrée et signalée sans décider (X-012) ; un geste dans l'atelier la tranche. |
+| Obsolète | `obsolete` | Statut d'un document que l'auteur a déclaré obsolète (R-DOC-05) ; ses passages restent dans « Ce que disent les documents », marqués. |
 | Identique | `same` | Deux sens. **Comparaison** : présent des deux côtés, à l'identique. **Verdict** de répétition à blanc : l'action rejouée donne exactement le même résultat que dans le bac. |
 
 ## 4. Exécutions, bacs et tâches de fond

@@ -117,7 +117,7 @@ def test_correcting_adding_and_removing_facts_and_a_relaunch_respects_them_R_HIS
     member = next(a for a in facts_of(world, doc) if a.value["draft"].get("relation") == "member_of")
     title = next(a for a in facts_of(world, doc) if a.value["draft"].get("attribute") == "title")
     gestures.fact_gesture(world, "reference", doc.doc_id, "correct", member.ann_id,
-                          draft={"op": "add_relation", "from": "new:bertrand-ostrel", "relation": "member_of",
+                          draft={"op": "add_relation", "from": "new:bertrand-ostrel", "relation": "sibling_of",
                                  "to": "odon"})
     gestures.fact_gesture(world, "reference", doc.doc_id, "remove", title.ann_id)
     gestures.fact_gesture(world, "reference", doc.doc_id, "add", passage=member.passage,
@@ -128,7 +128,7 @@ def test_correcting_adding_and_removing_facts_and_a_relaunch_respects_them_R_HIS
     report = layers.run_facts(world, "reference", doc.doc_id, finder)  # relance : ne refait pas ce que l'auteur a décidé
     assert report.skipped_by_author == 2 and report.proposed == 0
     drafts = [d for ds in proposing.fact_drafts(world, "reference", doc).values() for d in ds]
-    assert {"op": "add_relation", "from": "new:bertrand-ostrel", "relation": "member_of", "to": "odon"} in drafts
+    assert {"op": "add_relation", "from": "new:bertrand-ostrel", "relation": "sibling_of", "to": "odon"} in drafts
     assert {"op": "add_relation", "from": "odon", "relation": "rules", "to": "brume"} in drafts
     assert not any(d.get("attribute") == "title" for d in drafts)  # retiré
 
@@ -216,3 +216,21 @@ def test_a_proof_that_does_not_name_an_entity_is_flagged_and_judged_even_if_know
     title = facts_of(world, doc)[0]
     assert title.value["support"] and title.value["indirect"] == ["odon"] and title.value["verdict"] == "unsure"
     assert title.passage == 2  # rien n'est déplacé : nommer deux entités n'est pas affirmer un fait
+
+
+def test_a_corrected_or_added_fact_must_fit_the_schema_R_SCH_02():
+    """« Bertrand Ostrel gouverne Odon » : `rules` va vers un lieu ; refusé au geste, avec les relations possibles."""
+    world, doc = source_with_ostrel()
+    layers.run_facts(world, "reference", doc.doc_id, FakeFinder([MEMBER]))
+    member = next(a for a in facts_of(world, doc) if a.value["draft"].get("relation") == "member_of")
+    with pytest.raises(ValueError, match="sort du schéma ; possibles entre ces types : .*frère ou sœur de"):
+        gestures.fact_gesture(world, "reference", doc.doc_id, "correct", member.ann_id,
+                              draft={"op": "add_relation", "from": "new:bertrand-ostrel", "relation": "rules",
+                                     "to": "odon"})
+    with pytest.raises(ValueError, match="n'existe pas pour Bertrand Ostrel"):
+        gestures.fact_gesture(world, "reference", doc.doc_id, "add", passage=member.passage,
+                              draft={"op": "set_attribute", "entity": "new:bertrand-ostrel", "attribute": "category",
+                                     "value": "port"})
+    assert gestures.fact_gesture(world, "reference", doc.doc_id, "add", passage=member.passage,
+                                 draft={"op": "add_relation", "from": "odon", "relation": "detests",
+                                        "to": "new:bertrand-ostrel"})  # hors schéma : décidé à la revue (§6.6)

@@ -61,6 +61,21 @@ def nest(query: dict[str, str]) -> dict[str, Any]:
     return out
 
 
+def passage_html(line: dict[str, Any]) -> Any:
+    """Un passage de « Ce que disent les documents » (R-VUE-05), échappé, ses portions surlignées : `mark.check`
+    pour une portion à vérifier (casse différente du nom connu)."""
+    from markupsafe import Markup, escape
+    text, pos, out = line["text"], 0, []
+    for start, end, check in sorted(line["spans"]):
+        if start < pos:
+            continue
+        cls = ' class="check" title="à vérifier : casse différente du nom connu"' if check else ""
+        out += [str(escape(text[pos:start])), f"<mark{cls}>{escape(text[start:end])}</mark>"]
+        pos = end
+    out.append(str(escape(text[pos:])))
+    return Markup("".join(out))
+
+
 class Page:
     """Les appels faits pour un écran, dans l'ordre : ils sont montrés sous l'écran."""
 
@@ -85,6 +100,7 @@ def create_app(db: str | Path) -> FastAPI:
     env.filters["factkey"] = lambda fact: json.dumps(fact)
     env.filters["yaml"] = lambda x: yaml.safe_dump(x, allow_unicode=True, sort_keys=False, width=100).rstrip()
     env.filters["tojson_pretty"] = lambda x: json.dumps(x, ensure_ascii=False, indent=2, sort_keys=True)
+    env.filters["passage_html"] = passage_html
 
     def raw_link(r: Result) -> str:
         params = flatten(r.params)

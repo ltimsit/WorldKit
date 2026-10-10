@@ -60,6 +60,14 @@
   {% endfor %}</table>{% endif %}
 {% if p.drafts %}<h3>Pistes ouvertes</h3><ul>{% for d in p.drafts %}<li>{{ d }}</li>{% endfor %}</ul>{% endif %}
 {% if p.documents %}<p class="small muted">documents sources : {{ p.documents|join(", ") }}</p>{% endif %}
+{% if p.passages %}<h3>Ce que disent les documents <span class="muted small">vue d'auteur · R-VUE-05</span></h3><table class="passages">
+  <tr><th>document</th><th>passage</th><th>repère</th></tr>
+  {% for l in p.passages %}
+  <tr class="p-{{ l.status }}"><td class="mono small">{{ l.document }} §{{ l.passage }}{% if l.obsolete %} <span class="badge">{{ explain("obsolete") }}</span>{% endif %}</td>
+    <td>{{ l|passage_html }}</td>
+    <td class="small"><span class="badge">{{ explain(l.status) }}</span>{% for f in l.facts %}<br><span class="mono">{{ f }}</span>{% endfor %}
+      {% if l.spans|selectattr(2)|list %}<br><span class="badge check">{{ explain("to_check") }}</span>{% endif %}</td></tr>
+  {% endfor %}</table>{% endif %}
 {% endmacro %}
 
 {# Champs d'un fait de l'atelier (I9) : sujet, relation ou attribut, objet ou valeur, choisis dans des listes. #}

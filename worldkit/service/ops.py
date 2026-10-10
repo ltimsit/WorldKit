@@ -27,12 +27,15 @@ def _branch(ctx: Context, branch: str | None) -> str:
 def _view(ctx: Context, flt: str, branch: str | None, point: str | int | None) -> Any:
     from worldkit.core.views import Filter, View
     from worldkit.core.workflows.scenarios import open_drafts
+    from worldkit.ingest.passages import passages_by_entity
     from worldkit.ingest.review import sources
     w = ctx.world
     assert w is not None
     b = _branch(ctx, branch)
     state = w.state(b, point)
-    return View(state, Filter(flt), sources(w, b), w.redefined_after(b, state.seq), open_drafts(w, b)), state
+    passages = passages_by_entity(w, state) if flt == "author" else {}  # vue d'auteur seulement (R-VUE-05)
+    return View(state, Filter(flt), sources(w, b), w.redefined_after(b, state.seq), open_drafts(w, b),
+                passages), state
 
 
 class NoParams(Params):
