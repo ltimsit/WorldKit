@@ -40,6 +40,7 @@ DISPLAYED = {
     "attendu de parcours": ["passed", "failed", "unstructured"],
     "filtre": ["author", "player"],
     "repère d'un passage (R-VUE-05)": ["captured", "uncaptured", "claim", "to_check", "obsolete"],
+    "cardinalité (I-VUE-12)": ["many_to_one", "one_to_many", "one_to_one", "many_to_many"],
     "étiquette d'une mention (I-ATL-05)": ["how", "exact", "title", "short", "case", "similar", "designation", "new",
                                            "doubt", "ambiguous"],
 }

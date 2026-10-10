@@ -115,6 +115,21 @@ edges : 4
 
 À l'écran : **Graphe**, entité `aldren-ii`, filtre joueur. La bordure des nœuds code la notoriété ; une arête pointillée est secrète (en vue auteur seulement) ; un clic sur un nœud ouvre son détail ; la légende sous le graphe renvoie à chaque marque.
 
+Ce que le monde **accepte** se lit dans son **schéma** : les types, leurs attributs, et surtout, pour chaque relation, de quel type vers quel type elle va. Un fait qui en sort est refusé.
+
+```powershell
+worldkit --db valmont.db schema show
+```
+
+```text sortie
+- gouverne (rules) : Character, Faction → Place · one_to_many
+- situé dans (located_in) : Place → Place · many_to_one
+```
+
+« Gouverne » va d'un personnage ou d'une faction vers un **lieu** : « Odon gouverne la guilde » n'est pas possible. La cardinalité dit combien de cibles une source peut avoir (`one_to_many` : un lieu n'a qu'un souverain). Le schéma est versionné comme le reste : `--point @base` le lit à un point passé, `--scope system-a` montre un système de règles. À l'écran : **Schéma**, avec l'édition qui a posé chaque définition, le nombre d'entités et de faits de chaque sorte, et un diagramme.
+
+<!-- écran /schema : "gouverne" ; "Fiches exigées" -->
+
 ## 5. Écrire un changement et lire une contradiction
 
 Une **édition** est une liste de **changements** ; on l'écrit en YAML. Supposons que Mervin s'empare de Brume :

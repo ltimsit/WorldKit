@@ -78,6 +78,10 @@ Un signalement (`Issue`) porte un code, une sévérité, un message et la règle
 | Orphelin | `orphan` | Marque d'un fait d'origine documentaire qui a perdu son dernier support (passage supprimé à la ré-ingestion) ; signalé, jamais retiré d'office (R-FAI-06). |
 | Ajouté | `added` | Comparaison : présent à droite seulement. |
 | Retiré | `removed` | Deux sens. **Comparaison** : présent à gauche seulement. **Annotation d'atelier** : mention que l'auteur a retirée (ce n'est pas une mention utile ici) ; elle reste tracée. |
+| Plusieurs vers un | `many_to_one` | Cardinalité d'une relation : chaque source a au plus une cible (« situé dans » : un lieu est dans un seul lieu). Une seconde cible pour la même source est une collision (R-FAI-05). |
+| Un vers plusieurs | `one_to_many` | Cardinalité d'une relation : chaque cible a au plus une source (« gouverne » : un lieu a un seul souverain, qui peut en gouverner plusieurs). |
+| Un vers un | `one_to_one` | Cardinalité d'une relation : au plus une cible par source et une source par cible (« époux ou épouse de »). |
+| Plusieurs vers plusieurs | `many_to_many` | Cardinalité d'une relation sans limite (« membre de ») : jamais de collision par cardinalité. |
 | Changé | `changed` | Comparaison : présent des deux côtés avec une valeur différente. |
 | Ce que disent les documents | `passages` | Section d'une page de wiki, en vue d'auteur seulement (R-VUE-05, T-ING-21) : les passages des documents ingérés qui nomment l'entité, formes surlignées, chacun avec un repère (capté, non capté, affirmation). Calculée sans modèle à chaque lecture : un alias ajouté fait apparaître les passages qui le citaient. |
 | Capté | `captured` | Repère d'un passage dans « Ce que disent les documents » : il soutient un fait de l'entité présent dans l'état ; ces faits sont cités. |

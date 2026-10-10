@@ -815,6 +815,10 @@ def build_parser() -> argparse.ArgumentParser:
     schema_cmds = schema.add_subparsers(dest="schema_command", required=True)
     validate = schema_cmds.add_parser("validate", help="valider un ou plusieurs schémas (R-SCH-02, T-SCH-01)")
     validate.add_argument("files", nargs="+", metavar="fichier.yaml")
+    show = schema_cmds.add_parser("show", help="schéma d'un état : types, attributs, relations (de → vers), systèmes")
+    show.add_argument("--branch", default=None)
+    show.add_argument("--point", default=None, help="rang, point nommé (@base) ou head")
+    show.add_argument("--scope", default=None, help="world (défaut) ou un système de règles (system-a…)")
 
     world = commands.add_parser("world", help="créer un monde")
     world_cmds = world.add_subparsers(dest="world_command", required=True)
@@ -1078,12 +1082,57 @@ def _serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _schema_show(args: argparse.Namespace) -> int:
+    """`worldkit schema show` : le schéma projeté d'un état, lisible (I-VUE-12, R-SCH-03)."""
+    from worldkit.service import Session
+    params = {k: v for k, v in (("branch", args.branch), ("point", args.point), ("scope", args.scope)) if v}
+    with Session(args.db) as s:
+        r = s.call("schema.show", params, record=False)
+    if r.output is None:
+        _print_issues_views(r.issues)
+        return 1
+    o, sch = r.output, r.output["schema"]
+
+    def named(label: str, name: str) -> str:
+        return label if label == name else f"{label} ({name})"
+
+    def attribute(a: dict[str, Any]) -> str:
+        details = [a["type"]] + (["requis"] if a["required"] else [])
+        if a["min"] is not None or a["max"] is not None:
+            details.append(f"{'…' if a['min'] is None else a['min']}–{'…' if a['max'] is None else a['max']}")
+        return f"{a['name']} ({', '.join(details)})"
+    print(f"schéma {o['scope']} — {o['branch']}, rang {o['seq']} (dernière modification du schéma au rang "
+          f"{o['schema_rev']}) ; portées : {', '.join(o['scopes'])}")
+    print(f"Types ({len(sch['types'])})")
+    for t in sch["types"]:
+        attrs = ", ".join(attribute(a) for a in t["attributes"])
+        parent = f" · hérite de {' → '.join(t['ancestors'])}" if t["ancestors"] else ""
+        print(f"- {named(t['label'], t['name'])}{parent} · {t['entities']} entité(s) · {t['provenance'] or '?'}")
+        if attrs:
+            print(f"    attributs : {attrs}")
+    print(f"Relations ({len(sch['relations'])})")
+    for rel in sch["relations"]:
+        arrow = "↔" if rel["symmetric"] else "→"
+        print(f"- {named(rel['label'], rel['name'])} : {', '.join(rel['from'])} {arrow} {', '.join(rel['to'])} · "
+              f"{rel['cardinality']} · {rel['facts']} fait(s) · {rel['provenance'] or '?'}")
+    if o["sheets"]:
+        print("Fiches exigées (R-MET-06)")
+        for f in o["sheets"]:
+            print(f"- {f['system']} : {f['world_type']} → {f['category']}")
+    return 0
+
+
+def _print_issues_views(issues: Any) -> None:
+    for i in issues:
+        print(f"[{i.rule}] {i.code} : {i.message}")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     args = build_parser().parse_args(argv)
     if args.command == "schema":
-        return _schema_validate(args.files)
+        return _schema_show(args) if args.schema_command == "show" else _schema_validate(args.files)
     try:
         if args.command == "serve":
             return _serve(args)

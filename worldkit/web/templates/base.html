@@ -16,6 +16,7 @@
     <a href="/?{{ q }}" class="{{ 'on' if path == '/' }}">Tableau de bord</a>
     <a href="/wiki?{{ q }}" class="{{ 'on' if path.startswith('/wiki') or path.startswith('/compare') }}">Wiki</a>
     <a href="/graph?{{ q }}" class="{{ 'on' if path.startswith('/graph') }}">Graphe</a>
+    <a href="/schema?{{ q }}" class="{{ 'on' if path.startswith('/schema') }}">Schéma</a>
     <a href="/branches?{{ q }}" class="{{ 'on' if path == '/branches' }}">Branches</a>
     <a href="/journal?{{ q }}" class="{{ 'on' if path.startswith('/journal') or path.startswith('/edit') }}">Journal</a>
     <a href="/editor?{{ qs(ctx) }}" class="{{ 'on' if path.startswith('/editor') }}">Saisie</a>
