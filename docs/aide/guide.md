@@ -83,8 +83,8 @@ worldkit --db valmont.db wiki page aldren-ii
 ```
 
 ```text sortie
-- death_cause : poison _[secret · e003]_
-- Mervin (`mervin`) killed → (cette entité) _[secret · e003]_
+- cause de la mort (death_cause) : poison _[secret · e003]_
+- Mervin (`mervin`) a tué (killed) → (cette entité) _[secret · e003]_
 ```
 
 ```powershell
@@ -92,11 +92,11 @@ worldkit --db valmont.db wiki page aldren-ii --filter player
 ```
 
 ```text sortie
-- title : roi
-- sibling_of → Mervin (`mervin`)
+- titre (title) : roi
+- frère ou sœur de (sibling_of) → Mervin (`mervin`)
 ```
 
-La vue joueur ne montre ni la cause de la mort ni le meurtre ; chaque fait de la vue auteur donne sa **notoriété** et l'édition qui l'a établi (`e003`, sa **provenance**). À l'écran : **Wiki**, page `aldren-ii`, et le filtre « joueur » dans la barre de contexte ; le lien « comparer » met les deux vues côte à côte.
+La vue joueur ne montre ni la cause de la mort ni le meurtre. Chaque attribut et chaque relation s'affichent par leur **libellé** du schéma, suivi de leur identifiant (« frère ou sœur de (sibling_of) »). Chaque fait de la vue auteur donne sa **notoriété** et l'édition qui l'a établi (`e003`, sa **provenance**). À l'écran : **Wiki**, page `aldren-ii`, et le filtre « joueur » dans la barre de contexte ; le lien « comparer » met les deux vues côte à côte.
 
 <!-- écran /wiki/aldren-ii : "death_cause" ; "poison" -->
 <!-- écran /wiki/aldren-ii?filter=player : "Aldren II" ; "roi" -->
@@ -200,7 +200,7 @@ sandbox.create [admin] → world : ok
 note: Odon régent
 edit.apply [write] → sandbox:1 : ok
 status: applied
-- title : régent
+- titre (title) : régent
 ```
 
 ```powershell
@@ -208,7 +208,7 @@ worldkit --db valmont.db call wiki.page --param entity=odon
 ```
 
 ```text sortie
-- title : baron
+- titre (title) : baron
 ```
 
 Le monde de travail n'a pas bougé. **Rendre réel** rejoue les écritures du bac sur le monde de travail : d'abord une répétition à blanc sur une copie fraîche, dont chaque action reçoit un verdict (`same`, `gap`, `divergence`) ; puis, avec `--yes`, l'application en tout ou rien.
@@ -224,7 +224,7 @@ rendre réel le bac 1 (chaîne [1]) : pending
 edit.apply (sandbox:1) : identique
 répétition réussie : relancer avec --yes pour appliquer au monde de travail
 rendre réel le bac 1 (chaîne [1]) : ok
-- title : régent
+- titre (title) : régent
 ```
 
 À l'écran : choisissez « bac 1 » dans la barre de contexte pour lire le bac ; **Saisie** applique par défaut dans un bac ; le Tableau de bord liste les bacs avec le lien « rendre réel », qui montre la répétition à blanc avant d'appliquer.
@@ -327,7 +327,7 @@ rejeu r1 : nouvelle branche reference-r1 depuis le rang 4
 g2 : rejouée → g2@reference-r1
 rejeu r1 terminé : reference-r1 remplace reference, archivée (consultable)
 branche de référence : reference-r1 (R-MON-02)
-- death_cause : fièvre _[secret · r1.redefinition]_
+- cause de la mort (death_cause) : fièvre _[secret · r1.redefinition]_
 ```
 
 La nouvelle branche devient la **référence** ; l'ancienne est archivée, lisible, jamais modifiée. À l'écran : **Branches** montre la lignée ; **Comparer** met la page d'Aldren sur les deux branches côte à côte ; le **Graphe** en mode comparaison marque l'arête `killed` comme retirée. Si une édition rejouée entre en conflit, le rejeu s'arrête et la **Revue** (section « Rejeux ouverts ») demande de garder, adapter ou écarter.

@@ -828,7 +828,30 @@ def review_show(ctx: Context, p: ProposalId) -> Output:
                    "closed_reason": found.closed_reason, "blocked": blocked(head, found.doc),
                    "awaiting_nature": awaiting_nature(ctx.world, found),
                    "changes": [{"index": c.index, "text": describe_change(c.change), "change": c.change,
-                                "tags": sorted(c.tags), "detail": c.detail, "state": c.state} for c in found.changes]})
+                                "in_french": in_french(c.change, head), "tags": sorted(c.tags), "detail": c.detail,
+                                "state": c.state} for c in found.changes]})
+
+
+def in_french(change: Any, state: Any) -> str | None:
+    """Un changement de fait dit avec les noms et les libellés du schéma (R-SCH-09) : « Bertrand Ostrel — membre de
+    — la Guilde des Bateliers », « Agathe — titre : abbesse » ; None pour les autres opérations."""
+    from worldkit.core.views.model import relation_label
+
+    def name(eid: str) -> str:
+        f = state.facts.get(("attr", eid, "name"))
+        return str(f.value) if f is not None else eid
+    op = getattr(change, "op", "")
+    if op in ("add_relation", "remove_relation"):
+        sign = "" if op == "add_relation" else "plus : "
+        return f"{sign}{name(change.from_)} — {relation_label(state, change.relation, change.scope)} — {name(change.to)}"
+    if op in ("set_attribute", "add_value"):
+        rec = state.entities.get(change.entity)
+        label = change.attribute
+        if rec is not None and rec.type in state.world.types:
+            d = state.world.attributes_of(rec.type).get(change.attribute)
+            label = (d.labels or {}).get("fr", change.attribute) if d is not None else change.attribute
+        return f"{name(change.entity)} — {label}{' +' if op == 'add_value' else ''} : {change.value}"
+    return None
 
 
 class ChooseParams(Params):

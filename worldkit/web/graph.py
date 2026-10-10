@@ -61,7 +61,8 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
                     classes.append("computed")
                 if e.get("status"):
                     classes.append(f"status-{e['status']}")
-                elements.append({"data": {**e, "label": e["relation"]}, "classes": " ".join(classes)})
+                elements.append({"data": {**e, "label": e.get("relation_label") or e["relation"]},  # R-SCH-09
+                                 "classes": " ".join(classes)})
         safe_json = json.dumps(elements, ensure_ascii=False).replace("</", r"<\/")  # pas de </script> dans une donnée
         return render(request, "graph.html", page, result=result, elements=safe_json,
                       layers=LAYERS, chosen=layers, entity=chosen_entity, depth=depth, full=full,

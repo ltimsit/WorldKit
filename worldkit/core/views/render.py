@@ -28,10 +28,16 @@ def _name(view: View, entity: str) -> str:
     return f"{title} (`{entity}`)" if title != entity else f"`{entity}`"
 
 
+def term(label: str, name: str) -> str:
+    """Libellé puis identifiant (R-SCH-09, I-PRI-01) : « frère ou sœur de (sibling_of) » ; l'identifiant seul s'il
+    n'a pas de libellé."""
+    return f"{label} ({name})" if label and label != name else name
+
+
 def render_page(page: EntityPage, view: View) -> str:
     flt = view.filter
     status = " — close" if page.closed else ""
-    out = [f"# {page.title}", "", f"`{page.id}` · {page.type}{status}"]
+    out = [f"# {page.title}", "", f"`{page.id}` · {term(page.type_label, page.type)}{status}"]
     if flt is Filter.AUTHOR:
         out[-1] += f" · {page.visibility}"
     if len(page.members) > 1:
@@ -44,14 +50,16 @@ def render_page(page: EntityPage, view: View) -> str:
     for (entity, name), lines in grouped.items():
         for a in lines:
             later = " — redéfini plus tard" if a.redefined_later else ""
-            out.append(f"- {name} : {a.value}{later}{_meta(flt, a.visibility, a.provenance, entity, page.id)}")
+            out.append(f"- {term(a.label, name)} : {a.value}{later}"
+                       f"{_meta(flt, a.visibility, a.provenance, entity, page.id)}")
     if not page.attributes:
         out.append("- (aucun)")
 
     out += ["", "## Relations"]
     for r in page.relations:
         other = _name(view, r.other) if r.other else NON_PUBLIC
-        text = f"- {r.relation} → {other}" if r.direction == "out" else f"- {other} {r.relation} → (cette entité)"
+        rel = term(r.label, r.relation)
+        text = f"- {rel} → {other}" if r.direction == "out" else f"- {other} {rel} → (cette entité)"
         later = " — redéfini plus tard" if r.redefined_later else ""
         out.append(text + later + _meta(flt, r.visibility, r.provenance, r.entity, page.id))
     if not page.relations:
@@ -73,7 +81,7 @@ def render_page(page: EntityPage, view: View) -> str:
 
     out += ["", "## Fiches"]
     for sh in page.sheets:
-        values = ", ".join(f"{a.name} {a.value}" for a in sh.attributes) or "vide"
+        values = ", ".join(f"{term(a.label, a.name)} {a.value}" for a in sh.attributes) or "vide"
         out.append(f"- {sh.system} ({sh.category}) : {values}")
     if not page.sheets:
         out.append("- (aucune)")

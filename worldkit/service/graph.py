@@ -32,8 +32,8 @@ def _label(state: Any, eid: str) -> str:
 
 def build(world: Any, branch: str | None, point: Any, flt_name: str, layers: list[str]) -> dict[str, Any]:
     """Le graphe complet d'un état, dans les couches demandées."""
-    from worldkit.core.views.model import (Filter, effective_visibility, entity_visibility, entity_visible,
-                                           fact_visible)
+    from worldkit.core.views.model import (Filter, attribute_label, effective_visibility, entity_visibility,
+                                           entity_visible, fact_visible, relation_label, type_label)
     from worldkit.ingest.review import orphan_fact_ids, sources
     flt = Filter(flt_name)
     branch = branch or world.reference_branch
@@ -66,12 +66,14 @@ def build(world: Any, branch: str | None, point: Any, flt_name: str, layers: lis
         layer = layer_of(rec)
         if layer not in layers or not entity_visible(state, eid, flt):
             continue
-        attributes = [{"name": f.name, "value": f.value, "visibility": str(f.visibility),
+        attributes = [{"name": f.name, "label": attribute_label(state, eid, f.name), "value": f.value,
+                       "visibility": str(f.visibility),
                        "effective": str(effective_visibility(f, state)), "provenance": f.established_by,
                        "marks": marks(f), "fact": list(f.id)}
                       for f in sorted(state.facts_of(eid), key=lambda f: repr(f.id))
                       if f.kind != "rel" and fact_visible(f, state, flt)]
-        node = {"id": eid, "label": _label(state, eid), "type": rec.type, "layer": layer,
+        node = {"id": eid, "label": _label(state, eid), "type": rec.type, "type_label": type_label(state, eid),
+                "layer": layer,
                 "visibility": str(entity_visibility(state, eid)), "closed": rec.closed, "attributes": attributes,
                 "provenance": rec.established_by}
         if rec.sheet is not None:
@@ -87,6 +89,7 @@ def build(world: Any, branch: str | None, point: Any, flt_name: str, layers: lis
             continue
         eid = "|".join(map(str, f.id))
         edges[eid] = {"id": eid, "source": f.subject, "target": f.target, "relation": f.name,
+                      "relation_label": relation_label(state, f.name, f.scope),
                       "visibility": str(f.visibility), "effective": str(effective_visibility(f, state)),
                       "provenance": f.established_by, "marks": marks(f), "layer": layer, "fact": list(f.id),
                       **({"kind": f.same_as_kind} if f.same_as_kind else {})}

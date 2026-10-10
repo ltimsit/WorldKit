@@ -43,6 +43,42 @@ def effective_visibility(fact: Fact, state: State) -> Visibility:
     return min(levels, key=_RANK.__getitem__)
 
 
+def _schema_of(state: State, scope: str) -> object | None:
+    return state.world if scope == WORLD_SCOPE else state.systems.get(scope)
+
+
+def relation_label(state: State, relation: str, scope: str = WORLD_SCOPE) -> str:
+    """Libellé français d'une relation du schéma (R-SCH-08, R-SCH-09) ; l'identifiant s'il n'y en a pas (relations
+    de la plateforme comprises : `same_as`, `counterpart_of`)."""
+    schema = _schema_of(state, scope)
+    r = schema.relations.get(relation) if schema is not None else None
+    return (r.labels or {}).get("fr", relation) if r is not None else relation
+
+
+def attribute_label(state: State, entity: str, attribute: str) -> str:
+    """Libellé français d'un attribut, cherché dans le type de l'entité et ses ancêtres ; pour une fiche, dans la
+    catégorie de son système (R-MET-02)."""
+    rec = state.entities.get(entity)
+    if rec is None:
+        return attribute
+    scope, type_ = (rec.sheet.system, rec.sheet.category) if rec.sheet is not None else (rec.scope, rec.type)
+    schema = _schema_of(state, scope)
+    if schema is None or type_ not in schema.types:
+        return attribute
+    d = schema.attributes_of(type_).get(attribute)
+    return (d.labels or {}).get("fr", attribute) if d is not None else attribute
+
+
+def type_label(state: State, entity: str) -> str:
+    """Libellé français du type d'une entité (« Personnage » pour Character)."""
+    rec = state.entities.get(entity)
+    if rec is None:
+        return ""
+    schema = _schema_of(state, rec.scope)
+    t = schema.types.get(rec.type) if schema is not None else None
+    return (t.labels or {}).get("fr", rec.type) if t is not None else rec.type
+
+
 def fact_visible(fact: Fact, state: State, flt: Filter) -> bool:
     if flt is Filter.AUTHOR:
         return True
@@ -122,6 +158,7 @@ class AttributeLine:
     provenance: str
     fact: tuple = ()        # identifiant du fait affiché
     redefined_later: bool = False  # R-VUE-03
+    label: str = ""         # libellé du schéma (R-SCH-08, R-SCH-09) ; vide : l'identifiant
 
 
 @dataclass(frozen=True)
@@ -134,6 +171,7 @@ class RelationLine:
     provenance: str
     fact: tuple = ()
     redefined_later: bool = False  # R-VUE-03
+    label: str = ""         # libellé du schéma (R-SCH-08, R-SCH-09) ; vide : l'identifiant
 
 
 @dataclass(frozen=True)
@@ -207,6 +245,7 @@ class EntityPage:
     drafts: list[str] = field(default_factory=list)     # pistes ouvertes : J6
     documents: list[str] = field(default_factory=list)  # documents sources (R-VUE-02)
     passages: list[PassageLine] = field(default_factory=list)  # ce que disent les documents (R-VUE-05)
+    type_label: str = ""    # libellé du type (R-SCH-09)
 
 
 @dataclass(frozen=True)
@@ -275,7 +314,7 @@ class View:
             if f.kind in ("attr", "value"):
                 if f.subject in members:
                     attributes.append(AttributeLine(f.subject, f.name, f.value, vis, f.established_by, f.id,
-                                                    self._redefined(f.id)))
+                                                    self._redefined(f.id), attribute_label(s, f.subject, f.name)))
             elif f.name == "same_as":
                 ends = [f.subject, f.target or ""]
                 peer = next((e for e in ends if e != entity), ends[0])
@@ -284,16 +323,19 @@ class View:
                 if f.subject in members:
                     other = f.target or ""
                     relations.append(RelationLine("out", f.name, f.subject, self.display(other), vis,
-                                                  f.established_by, f.id, self._redefined(f.id)))
+                                                  f.established_by, f.id, self._redefined(f.id),
+                                                  relation_label(s, f.name, f.scope)))
                 if f.target in members:
                     relations.append(RelationLine("in", f.name, f.target or "", self.display(f.subject), vis,
-                                                  f.established_by, f.id, self._redefined(f.id)))
+                                                  f.established_by, f.id, self._redefined(f.id),
+                                                  relation_label(s, f.name, f.scope)))
 
         sheets = []
         for sid, srec in sorted(s.entities.items()):
             if srec.sheet is not None and not srec.closed and srec.sheet.of in members \
                     and entity_visible(s, sid, flt):
-                lines = [AttributeLine(sid, f.name, f.value, f.visibility, f.established_by, f.id)
+                lines = [AttributeLine(sid, f.name, f.value, f.visibility, f.established_by, f.id,
+                                       label=attribute_label(s, sid, f.name))
                          for f in s.facts_of(sid) if f.kind != "rel" and fact_visible(f, s, flt)]
                 sheets.append(SheetSummary(sid, srec.sheet.system, srec.sheet.category, lines))
 
@@ -303,7 +345,7 @@ class View:
         passages = self._passages(members) if flt is Filter.AUTHOR else []
         return EntityPage(entity, sorted(members), rec.type, self.title(entity), rec.closed,
                           rec.visibility, attributes, relations, identities, sheets, self.claims_of(members),
-                          drafts=drafts, documents=documents, passages=passages)
+                          drafts=drafts, documents=documents, passages=passages, type_label=type_label(s, entity))
 
     def _passages(self, members: set[str]) -> list[PassageLine]:
         """Passages qui nomment un membre de la page (R-VUE-05) ; un passage qui en nomme deux paraît une fois :
