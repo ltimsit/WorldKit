@@ -40,6 +40,8 @@ DISPLAYED = {
     "attendu de parcours": ["passed", "failed", "unstructured"],
     "filtre": ["author", "player"],
     "repère d'un passage (R-VUE-05)": ["captured", "uncaptured", "claim", "to_check", "obsolete"],
+    "étiquette d'une mention (I-ATL-05)": ["how", "exact", "title", "short", "case", "similar", "designation", "new",
+                                           "doubt", "ambiguous"],
 }
 
 

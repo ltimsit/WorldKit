@@ -7,6 +7,12 @@
   .ann-known { background: #dbeafe; } .ann-new { background: #dcfce7; } .ann-doubt { background: #fef3c7; border-style: dashed; border-color: #d97706; } .ann-check { outline: 1px dashed #d97706; outline-offset: 1px; }
   .ann-off { background: #eee; color: #888; text-decoration: line-through; }
   .ann-author { border-color: #333; border-style: solid; }
+  /* Étiquette sous une mention (pourquoi elle est liée) : pseudo-élément, hors du texte (positions intactes). */
+  .with-how .passage { line-height: 2.6; }
+  .with-how .ann[data-how] { position: relative; display: inline-block; line-height: 1.3; }
+  .with-how .ann[data-how]::after { content: attr(data-how); position: absolute; left: 0; top: 100%; font-size: 9.5px;
+    line-height: 1.1; color: #6b6b70; white-space: nowrap; pointer-events: none; }
+  .with-how .ann.how-check::after { color: #b45309; }
   .ann.on { outline: 2px solid #2563eb; }
   .panel { position: sticky; top: .5em; }
   .legend span { margin-right: 1em; }
@@ -65,14 +71,15 @@
   {% if indicators.facts %} · {{ indicators.facts }} fait(s), {{ indicators.facts_to_send }} partiront{% endif %}
   </div>
 </div>
+<p class="small"><label><input type="checkbox" id="show-how" checked> étiquettes sous les mentions</label> <span class="muted">(pourquoi une mention est liée : nom, alias, titre, forme courte… ; « ? » : à vérifier ; après un geste, ce que vous avez décidé et sa portée)</span></p>
 <p class="small legend"><span class="ann ann-known">connue</span><span class="ann ann-new">nouvelle</span><span class="ann ann-doubt">doute</span><span class="ann ann-known ann-check" title="forme courte, ou casse différente du nom connu">à vérifier</span><span class="ann ann-off">retirée, ignorée</span><span class="ann ann-known ann-author">décidée par l'auteur</span> · Cliquer une mention pour la traiter ; sélectionner un mot pour ajouter une mention.</p>
 
-<div style="display:grid; grid-template-columns: 3fr 2fr; gap: 1.2em">
+<div id="atelier-grid" class="with-how" style="display:grid; grid-template-columns: 3fr 2fr; gap: 1.2em">
 <div>
 {% for p in view.passages %}{% set pieces, nested = atelier_spans(p.text, p.annotations) %}
 <div class="passage" data-passage="{{ p.index }}"><span class="small muted">p{{ p.index }}</span>
-<span class="ptext">{% for piece in pieces %}{% if piece.ann %}<a class="{{ atelier_class(piece.ann) }}{{ ' on' if chosen and chosen.id == piece.ann.id }}" href="?ann={{ piece.ann.id }}" title="{{ piece.ann.value.entity or ('nouvelle' if piece.ann.value.new else 'doute') }} · {{ piece.ann.origin }}">{{ piece.text }}</a>{% else %}{{ piece.text }}{% endif %}{% endfor %}</span>
-{% if nested %}<div class="small chips">imbriquées : {% for a in nested %}<a class="{{ atelier_class(a) }}" href="?ann={{ a.id }}">{{ a.value.text }}</a>{% endfor %}</div>{% endif %}
+<span class="ptext">{% for piece in pieces %}{% if piece.ann %}<a class="{{ atelier_class(piece.ann) }}{{ ' on' if chosen and chosen.id == piece.ann.id }}{{ ' how-check' if piece.ann.how and piece.ann.how.check }}"{% if piece.ann.how %} data-how="{{ piece.ann.how.label }}"{% endif %} href="?ann={{ piece.ann.id }}" title="{{ piece.ann.value.entity or ('nouvelle' if piece.ann.value.new else 'doute') }} · {{ piece.ann.origin }}">{{ piece.text }}</a>{% else %}{{ piece.text }}{% endif %}{% endfor %}</span>
+{% if nested %}<div class="small chips">imbriquées : {% for a in nested %}<a class="{{ atelier_class(a) }}" href="?ann={{ a.id }}">{{ a.value.text }}</a>{% if a.how %} <span class="muted">({{ a.how.label }})</span>{% endif %}{% endfor %}</div>{% endif %}
 {% if p.facts %}<ul class="facts">{% for f in p.facts %}<li class="fact{{ ' fact-off' if f.excluded }}{{ ' fact-author' if f.by_author }}{{ ' on' if chosen_fact and chosen_fact.id == f.id }}" data-start="{{ f.start if f.start is not none else '' }}" data-end="{{ f.end if f.end is not none else '' }}">
   <a href="?fact={{ f.id }}" title="{{ f.reason or '' }}{{ ' · couche ' ~ f.layer if f.layer }}"><span class="pill pill-{{ f.state.split(' ')[0] }}">{{ f.state }}</span>{% if f.indirect %}<span class="pill pill-douteux" title="le passage ne nomme pas : {{ f.indirect|join(', ') }} ; la preuve tient par une coréférence (« sa soeur », « elle ») : vérifier le passage">preuve indirecte</span>{% endif %}<span class="fact-label">{{ f.label }}</span></a>
   {% if f.evidence and f.layer != 'author' %}<span class="evidence small">« {{ f.evidence|truncate(90) }} »</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
@@ -98,7 +105,7 @@
 <div class="stat">
   <h3>« {{ v.text }} » <span class="small muted">p{{ chosen.passage }}</span></h3>
   <p class="small">{% if v.entity and not v.entity.startswith('new:') %}rattachée à <b>{{ names[v.entity].name if v.entity in names else v.entity }}</b> <span class="mono">({{ v.entity }})</span>{% elif v.new or (v.entity or '').startswith('new:') %}entité <b>nouvelle</b>{% else %}<b>doute</b>{% endif %}
-  · type {{ v.type or "?" }} · règle {{ v.rule or "?" }}{% if v.check %} · <b>à vérifier</b> ({{ "forme courte d'un nom de personne" if v.check == "short" else "casse différente du nom connu" }}){% endif %} · {{ chosen.origin }} · {{ chosen.status }}{% if v.reason %} · {{ v.reason }}{% endif %}</p>
+  · type {{ v.type or "?" }} · {% if chosen.how %}<b>{{ chosen.how.label }}</b> {% endif %}<span class="muted">(règle {{ v.rule or "?" }})</span>{% if v.check %} · <b>à vérifier</b> ({{ "forme courte d'un nom de personne" if v.check == "short" else "casse différente du nom connu" }}){% endif %} · {{ chosen.origin }} · {{ chosen.status }}{% if v.reason %} · {{ v.reason }}{% endif %}</p>
   {% for t in view.attachments if chosen.id in t.ann_ids %}<p class="small">alias proposé : {% if t.retained %}<b>oui</b> (retenu pour le monde : « {{ t.text }} » deviendra un autre nom de {{ t.name }}){% else %}<b>non</b> (« {{ t.text }} » désigne {{ t.name }} dans cette source seulement ; « retenir pour le monde » pour en faire un alias){% endif %}</p>{% endfor %}
   {% if v.candidates %}<p class="small">candidats : {% for c in v.candidates %}<b>{{ names[c].name if c in names else c }}</b> <span class="mono">({{ c }})</span>{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
   <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
@@ -142,6 +149,16 @@
 </div>
 </div>
 <script>
+  // Étiquettes sous les mentions : affichées par défaut ; le choix est mémorisé dans ce navigateur.
+  (() => {
+    const box = document.getElementById("show-how"), grid = document.getElementById("atelier-grid");
+    if (!box || !grid) return;
+    try { if (localStorage.getItem("worldkit.atelier.how") === "off") box.checked = false; } catch (e) {}
+    const apply = () => grid.classList.toggle("with-how", box.checked);
+    apply();
+    box.addEventListener("change", () => { apply();
+      try { localStorage.setItem("worldkit.atelier.how", box.checked ? "on" : "off"); } catch (e) {} });
+  })();
   // Survol d'un fait : sa preuve surlignée dans le texte du passage (début et fin dans le texte du passage).
   document.querySelectorAll(".fact[data-start]").forEach(li => {
     if (li.dataset.start === "") return;

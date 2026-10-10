@@ -433,3 +433,27 @@ def test_short_forms_are_proposed_to_check_and_homonyms_are_not_choice_40():
     assert ("Ostrel", "new:bertrand ostrel", "short") in current
     assert ("Odon", "odon", "short") in current
     assert ("Bertrand Ostrel", "new:bertrand ostrel", None) in current
+
+
+def test_each_mention_says_why_it_is_linked_and_what_the_author_decided_I_ATL_05(tmp_path):
+    """« le bourgmestre » : titre, pas alias ; « Ysolde » : forme courte, à vérifier ; après un geste : sa portée."""
+    from worldkit.service import Session
+    from test_corpus_corbelle import CORBELLE, corbelle_world
+    world = corbelle_world()
+    text = (CORBELLE / "docs" / "c1" / "brouillon-corbelle.md").read_text(encoding="utf-8")
+    doc = store.import_source(world, text)
+    layers.run_mentions(world, "reference", doc.doc_id)
+    from worldkit.service.atelier import mention_how
+    from worldkit.ingest.batch import extraction_context
+    names = {e.id: e.names for e in extraction_context(world, world.state()).entities}
+    how = {(a.passage, a.value["text"]): mention_how(a, names) for a in layers.effective(world, "reference", doc)}
+    assert how[(2, "le bourgmestre")] == {"label": "titre", "check": False}
+    assert how[(4, "Ysolde")] == {"label": "forme courte ?", "check": True}
+    assert how[(1, "corbelle")]["label"] == "nom · casse ?"
+    assert how[(4, "les bateliers")]["label"].startswith("alias")
+    bourg = next(a for a in layers.effective(world, "reference", doc) if a.value["text"] == "le bourgmestre")
+    gestures.gesture(world, "reference", doc.doc_id, "keep", ann_id=bourg.ann_id)
+    ysolde = next(a for a in layers.effective(world, "reference", doc) if a.value["text"] == "Ysolde")
+    gestures.gesture(world, "reference", doc.doc_id, "keep", "world", ysolde.ann_id)
+    how = {(a.passage, a.value["text"]): mention_how(a, names)["label"] for a in layers.effective(world, "reference", doc)}
+    assert how[(2, "le bourgmestre")] == "gardée · ce texte" and how[(4, "Ysolde")] == "gardée · alias"

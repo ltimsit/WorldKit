@@ -64,9 +64,44 @@ def atelier_sources(ctx: Context, p: NoParams) -> Output:
     return Output(rows, [], {"sources": len(rows)})
 
 
-def _annotation(a: Any) -> dict[str, Any]:
-    return {"id": a.ann_id, "passage": a.passage, "start": a.start, "end": a.end, "kind": a.kind, "value": a.value,
-            "origin": a.origin, "confidence": a.confidence, "status": a.status, "by_author": a.by_author}
+def _annotation(a: Any, names: dict[str, tuple[str, ...]] | None = None) -> dict[str, Any]:
+    out = {"id": a.ann_id, "passage": a.passage, "start": a.start, "end": a.end, "kind": a.kind, "value": a.value,
+           "origin": a.origin, "confidence": a.confidence, "status": a.status, "by_author": a.by_author}
+    if a.kind == "mention":
+        out["how"] = mention_how(a, names or {})
+    return out
+
+
+RULE_LABELS = {"title": "titre", "short": "forme courte", "similar": "ressemblance", "designation": "désignation",
+               "new": "nouvelle", "doubt": "doute", "ambiguous": "doute"}
+
+
+def mention_how(a: Any, names: dict[str, tuple[str, ...]]) -> dict[str, Any] | None:
+    """L'étiquette d'une mention sous le texte (I-ATL-05) : **pourquoi** elle est liée (nom, alias, titre, forme
+    courte, ressemblance, désignation, nouvelle, doute), ou ce que l'auteur en a décidé et sa portée (« ce texte » ou
+    « alias », retenue pour le monde). `check` : à vérifier (forme courte, casse différente, ressemblance)."""
+    from worldkit.periphery.matching import fold
+    v = a.value
+    if a.status in ("removed", "ignored"):
+        return None
+    entity = v.get("entity") or ""
+    known = {fold(entity[len("new:"):])} if entity.startswith("new:") else {fold(n) for n in names.get(entity, ())}
+    if a.by_author:
+        decision = {"corrected": "corrigée"}.get(a.status, "ajoutée" if v.get("rule") == "author" else "gardée")
+        if not v.get("retained"):
+            return {"label": f"{decision} · ce texte", "check": False}
+        alias = (entity or v.get("new")) and fold(v.get("text", "")) not in known
+        return {"label": f"{decision} · alias" if alias else decision, "check": False}
+    rule = v.get("rule") or ""
+    if rule == "exact":
+        main = names.get(entity, ("",))[0] if names.get(entity) else ""
+        label = "nom" if fold(v.get("text", "")) == fold(main) else "alias"
+    else:
+        label = RULE_LABELS.get(rule, rule or "?")
+    if v.get("check") == "case":
+        label += " · casse"
+    check = bool(v.get("check")) or rule == "similar" or a.confidence == "doubt"
+    return {"label": label + (" ?" if check else ""), "check": check}
 
 
 @operation("atelier.view", "read", SourceParams, "atelier : une source, ses passages et ses annotations courantes",
@@ -78,8 +113,10 @@ def atelier_view(ctx: Context, p: SourceParams) -> Output:
     doc = store.source(ctx.world, p.doc_id)
     current = layers.effective(ctx.world, branch, doc)
     facts_view = _facts_view(ctx.world, branch, doc, current)
+    from worldkit.ingest.batch import extraction_context
+    names = {e.id: e.names for e in extraction_context(ctx.world, ctx.world.state(branch)).entities}
     passages = [{"index": x.index, "text": x.text,
-                 "annotations": [_annotation(a) for a in sorted(current, key=lambda a: a.start or 0)
+                 "annotations": [_annotation(a, names) for a in sorted(current, key=lambda a: a.start or 0)
                                  if a.passage == x.index and a.kind == "mention"],
                  "facts": [f for f in facts_view["facts"] if f["passage"] == x.index]} for x in doc.passages]
     to_review = sum(1 for a in current if not a.by_author and a.kind == "mention")
