@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v45** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v46** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -1253,6 +1253,16 @@ La voie **traçable** est retenue partout où elle ne retarde pas le premier éc
 
 **Décision.** R-NTE-01 à R-NTE-07 (*cadre-fondation.md* v1.23), T-ING-22 (*cadre-technique.md* v2.24), I-ATL-10 (*cadre-interface.md* v1.10). Choix faits sans validation explicite : l'énonciateur plafonne aussi la notoriété d'une note ; l'identifiant d'une note ingérée est tiré du document, du passage et du contenu ; une note identique à une note de l'état est un support ; la tâche de modèle `notes` prend par défaut le profil des faits ; les notes partent avec les faits, ou dans un lot `…-notes`.
 
+### 00.66 Les pistes d'auteur à l'écran (v46)
+
+> Décision du 12 octobre 2026, jalon I10 (fiche *i10-brief.md*, cinq questions à l'auteur).
+
+**Problème.** Une hésitation gardée en note devient une vérité du monde (X-018) ; la place de ce qui n'est pas décidé est la piste d'auteur (R-SCN-09), qui ne se créait que par fichier YAML et ne se voyait qu'entité par entité.
+
+**Voies comparées et décisions.** Dans l'atelier, un geste « En faire une piste » sur un fait ou une bribe ; l'annotation prend un état propre « en piste » (plutôt que « retirée » : on distingue « je n'en veux pas » de « je ne sais pas encore »). Une piste sur une entité pas encore créée est refusée (la proposer d'abord), plutôt que de dépendre d'une création en attente. Une piste porte toujours au moins un changement (pas de question pure). Une page `/pistes` liste, adopte, écarte et crée. Le même geste dans la revue est reporté.
+
+**Décision.** I-ATL-11, I-VUE-13 (*cadre-interface.md* v1.11). Choix faits sans validation explicite : l'identifiant d'une piste est tiré de son titre ; la source (document, passage, citation) est gardée dans la remarque de la piste ; une collision avec l'état n'empêche pas de créer une piste (c'est une hypothèse), seuls une entité absente, un changement hors schéma ou une valeur invalide l'empêchent.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1868,6 +1878,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 90. Comment trouver « Odon » seul ou « Ysolde » sans modèle, sans confondre deux homonymes ? — **Réponse (v43) :** ✅ Une règle : un mot du nom d'une seule personne connue, marqué à vérifier ; un prénom partagé n'est jamais une forme courte ; l'alias tranche (00.63).
 91. Comment l'auteur fait-il évoluer le schéma quand une relation manque, sans écrire d'édition à la main ? — **Réponse (v44) :** ✅ Depuis le fait (atelier) ou le changement hors schéma (revue), un formulaire prérempli : vérifier, puis confirmer l'écriture au journal ; le fait est rattaché ; un export reporte le schéma dans le fichier d'un monde d'auteur (00.64).
 92. Comment garder ce que les textes disent d'une entité sans que ce soit un fait (un portrait, une habitude) ? — **Réponse (v45) :** ✅ Des notes : citation et forme courte, rangées par facette, un ou plusieurs sujets sans ordre et des mentions, sans collision, notoriété plafonnée ; proposées par une couche de l'atelier, acceptées en revue (00.65).
+93. Où mettre ce qui n'est pas encore décidé (une hésitation, une idée d'intrigue) sans en faire une vérité du monde ? — **Réponse (v46) :** ✅ Une piste d'auteur, créée d'un geste depuis l'atelier ou sur l'écran Pistes ; adoptée ou écartée plus tard (00.66).
 
 ---
 

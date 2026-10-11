@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block title %}Pistes{% endblock %}
+{% block content %}
+{% set o = listing.output %}
+<h1>Pistes d'auteur <span class="muted small">R-SCN-09 · ce qui n'est pas encore décidé : une hésitation, une idée d'intrigue</span></h1>
+{{ m.result_head(listing) }}
+{% if error %}<p class="sev-error">{{ error }}</p>{% endif %}
+<p class="small">Afficher : <a href="/pistes?{{ qs(ctx) }}"{% if not show_all %} style="font-weight:600"{% endif %}>ouvertes</a> · <a href="/pistes?{{ qs(ctx, status='all') }}"{% if show_all %} style="font-weight:600"{% endif %}>toutes</a>
+ <span class="muted">— une piste ouverte se voit aussi sur la page de chaque entité qu'elle concerne (vue d'auteur).</span></p>
+{% if o and o.drafts %}<table>
+  <tr><th>piste</th><th>concerne</th><th>ce qu'elle ferait</th><th>état</th><th></th></tr>
+  {% for d in o.drafts %}
+  <tr id="{{ d.id }}"><td><b>{{ d.title }}</b><br><span class="mono small muted">{{ d.id }}</span>{% if d.note %}<br><span class="small muted">{{ d.note }}</span>{% endif %}</td>
+    <td class="small">{% for c in d.concerns %}<a href="/wiki/{{ c.id }}?{{ qs(ctx) }}">{{ c.name }}</a>{{ ", " if not loop.last }}{% endfor %}</td>
+    <td class="small">{% for c in d.changes %}<div>{{ c.in_french or c.text }}</div>{% endfor %}</td>
+    <td class="small">{{ {"pending": "ouverte", "applied": "adoptée", "abandoned": "écartée"}.get(d.status, d.status) }}{% if d.needs_recheck %}<br><b class="s-pending">à revérifier</b>{% endif %}</td>
+    <td>{% if d.status == "pending" %}<form method="post" action="/pistes/decide" hx-boost="false" style="display:inline"><input type="hidden" name="id" value="{{ d.id }}">
+      <button name="action" value="adopt" title="appliquer ses changements au monde">adopter</button> <button name="action" value="discard" title="l'abandonner (elle reste tracée)">écarter</button></form>{% endif %}</td></tr>
+  {% endfor %}
+</table>{% elif o %}<p class="muted">Aucune piste {{ "" if show_all else "ouverte" }}.</p>{% endif %}
+
+<div class="stat" style="margin-top:12px">
+  <h3>Nouvelle piste</h3>
+  <form method="post" action="/pistes/new" hx-boost="false">
+    <p><label>titre <input name="title" size="60" value="{{ form.title or '' }}" placeholder="Et si le passeur trahissait la guilde pendant la fête des lanternes ?"></label></p>
+    <p><label>concerne <input name="concerns" size="60" value="{{ form.concerns or '' }}" placeholder="jehan-leblond, bateliers" class="mono"></label> <span class="small muted">identifiants, séparés par des virgules</span></p>
+    <p>ce qu'elle ferait au monde si tu l'adoptes (changements, comme dans la Saisie) :<br>
+      <textarea name="changes_yaml" rows="4" style="width:100%" class="mono" placeholder="- {op: remove_relation, from: jehan-leblond, relation: member_of, to: bateliers}">{{ form.changes_yaml or '' }}</textarea></p>
+    <p><button name="action" value="check">Vérifier</button>
+      {% if checked and checked.status == "pending" %}<button name="action" value="confirm">Créer la piste {{ checked.output.id }}</button>{% endif %}</p>
+  </form>
+  {% if checked %}{{ m.issues(checked.issues) }}{% endif %}
+</div>
+{% endblock %}

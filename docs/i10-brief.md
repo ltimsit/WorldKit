@@ -1,6 +1,6 @@
 # Fiche de démarrage — Jalon I10 : les pistes d'auteur à l'écran
 
-**Statut :** préparé le 11 octobre 2026, pas commencé. Branche prévue : `i10-pistes`.
+**Statut :** fait, 12 octobre 2026 (branche `i10-pistes`).
 **Contexte :** une piste d'auteur (R-SCN-09) est une édition **en attente**, avec un titre et les entités qu'elle concerne (`concerns`), qu'on **adopte** (elle s'applique, origine `adopted_draft`) ou qu'on **écarte**. C'est la place de ce qui n'est pas encore décidé : une hésitation (« genre 2000 habitants jsp encore », axe AX-E3), une idée d'intrigue (« et si le passeur trahissait la guilde ? »). Aujourd'hui elle ne se crée que par un fichier YAML (`worldkit draft load`) et ne se voit qu'entité par entité (« Pistes ouvertes », vue d'auteur). La séance X-018 a montré le besoin : une hésitation gardée en note devient une vérité du monde.
 
 ## 1. Objectif

@@ -27,6 +27,7 @@
   .pill { display: inline-block; font-size: .8em; padding: 0 .45em; border-radius: 9px; background: #e5e7eb; margin-right: .3em; }
   .pill-soutenu, .pill-gardé, .pill-ajouté, .pill-corrigé { background: #dcfce7; } .pill-douteux { background: #fef3c7; }
   .pill-gardée, .pill-ajoutée, .pill-corrigée { background: #dcfce7; } .pill-retirée { background: #eee; }
+  .pill-en { background: #e0e7ff; }
   .notes .fact-label { font-weight: 600; }
   .pill-mis { background: #fee2e2; } .pill-rumeur, .pill-note { background: #ede9fe; } .pill-déjà { background: #dbeafe; }
   .evidence { color: #666; font-style: italic; }
@@ -114,6 +115,11 @@
       <br>forme courte <input name="short" size="40" value="{% for s in n.draft.short or [] %}{{ s.aspect }} : {{ s.value }}{{ " ; " if not loop.last }}{% endfor %}" placeholder="cheveux : roux ; âge : vieille">
       <button name="action" value="correct">Corriger</button></p>
   </form>
+  {% if n.draft_id %}<p class="small">En piste : <a href="/pistes#{{ n.draft_id }}">{{ n.draft_id }}</a></p>
+  {% else %}<form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false" class="small">
+    <input type="hidden" name="kind" value="note"><input type="hidden" name="ann_id" value="{{ n.id }}">
+    Pas sûr ? <input name="title" size="42" value="{{ "« " ~ n.draft.text|truncate(60) ~ " » ?" }}"> <button name="action" value="draft">En faire une piste</button>
+    <span class="muted">(en attente de ta décision ; ne part pas avec « Proposer »)</span></form>{% endif %}
 </div>
 {% endif %}
 {% if chosen_fact %}{% set f = chosen_fact %}
@@ -128,6 +134,11 @@
     {% set d = f.draft %}
     <p>Corriger : {{ fact_fields(view, d) }} <button name="action" value="correct">Corriger</button></p>
   </form>
+  {% if f.draft_id %}<p class="small">En piste : <a href="/pistes#{{ f.draft_id }}">{{ f.draft_id }}</a></p>
+  {% else %}<form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false" class="small">
+    <input type="hidden" name="kind" value="fact"><input type="hidden" name="ann_id" value="{{ f.id }}">
+    Pas sûr ? <input name="title" size="42" value="{{ f.label ~ " ?" }}"> <button name="action" value="draft">En faire une piste</button>
+    <span class="muted">(en attente de ta décision ; ne part pas avec « Proposer »)</span></form>{% endif %}
   {% if d.op == "add_relation" %}{% set known = view.relations|map(attribute="id")|list %}
   <p class="small">Aucune relation ne convient ? <a href="/schema/add?{{ {"relation": d.relation if d.relation not in known else "", "subject": d["from"], "object": d.to, "doc_id": view.doc_id, "ann_id": f.id, "back": "/atelier/" ~ view.doc_id ~ "?fact=" ~ f.id}|urlencode }}">Ajouter une relation au schéma…</a> <span class="muted">(le fait y sera rattaché)</span></p>{% endif %}
 </div>

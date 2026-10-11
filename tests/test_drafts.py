@@ -95,3 +95,51 @@ def test_a_draft_on_an_entity_not_yet_created_is_refused_I10_decision_2():
     fact = facts_of(w, doc)[0]
     with pytest.raises(ValueError, match="pas encore créées"):
         gestures.to_draft(w, "reference", doc.doc_id, "fact", fact.ann_id, "Odon membre ?")
+
+
+# --- Écrans (I-VUE-13, I-ATL-11) ---
+
+def test_the_pistes_page_lists_creates_adopts_and_discards(db):
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    from worldkit.web import create_app
+    client = TestClient(create_app(db))
+    data = {"title": "Et si Odon était le frère de Mervin ?", "concerns": "odon, mervin",
+            "changes_yaml": "- {op: add_relation, from: odon, relation: sibling_of, to: mervin}"}
+    checked = client.post("/pistes/new", data={**data, "action": "check"}).text
+    assert "Créer la piste piste-et-si-odon" in checked
+    done = client.post("/pistes/new", data={**data, "action": "confirm"}, follow_redirects=False)
+    assert done.status_code == 303
+    page = client.get("/pistes").text
+    assert "Et si Odon était le frère de Mervin ?" in page and "Odon de Brume — frère ou sœur de — Mervin" in page
+    assert "Et si Odon était le frère de Mervin ?" in client.get("/wiki/odon").text  # « Pistes ouvertes »
+    draft_id = done.headers["location"].split("#")[1]
+    assert client.post("/pistes/decide", data={"id": draft_id, "action": "discard"},
+                       follow_redirects=False).status_code == 303
+    assert "Aucune piste ouverte" in client.get("/pistes").text
+    assert "écartée" in client.get("/pistes?status=all").text
+
+
+def test_the_atelier_puts_a_note_in_a_draft_from_its_panel(tmp_path):
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    from test_notes import FakeAdapter, NoteFinder, Profile
+    from worldkit.core.world import World
+    from worldkit.web import create_app
+    db = make_world(tmp_path / "valmont.db")
+    w = World.open(db)
+    doc = store.import_source(w, NOTES)
+    layers.run_mentions(w, "reference", doc.doc_id)
+    found = [{"subjects": ["odon"], "mentions": [], "facet": "appearance", "text": "un homme massif", "short": []}]
+    layers.run_notes(w, "reference", doc.doc_id, NoteFinder(FakeAdapter(found), Profile()))
+    note = next(a for a in layers.effective(w, "reference", doc) if a.kind == "note")
+    w.close()
+    client = TestClient(create_app(db))
+    panel = client.get(f"/atelier/{doc.doc_id}?note={note.ann_id}").text
+    assert "En faire une piste" in panel
+    done = client.post(f"/atelier/{doc.doc_id}/annotate", data={"kind": "note", "ann_id": note.ann_id,
+                                                                "action": "draft", "title": "Odon est-il massif ?"},
+                       follow_redirects=False)
+    assert done.status_code == 303
+    assert "en piste" in client.get(f"/atelier/{doc.doc_id}").text
+    assert "Odon est-il massif ?" in client.get("/pistes").text

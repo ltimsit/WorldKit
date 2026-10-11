@@ -1,7 +1,7 @@
 # Glossaire complémentaire de l'outil
 
 **Objet :** définir ce que l'outil affiche et que les glossaires des cadres ne définissent pas : statuts, sortes d'opérations, codes de signalement, valeurs d'énumérations, marques du graphe, vocabulaire des exécutions, des bacs, des parcours et des mesures. Une ligne par terme ; un même nom technique n'est défini qu'une fois, ici ou dans un cadre.
-**Version :** 1.3 — 11 octobre 2026. Complète les glossaires de *cadre-fondation.md* (§3), *cadre-technique.md* (§10) et *cadre-interface.md* (§12), sans les répéter.
+**Version :** 1.4 — 12 octobre 2026. Complète les glossaires de *cadre-fondation.md* (§3), *cadre-technique.md* (§10) et *cadre-interface.md* (§12), sans les répéter.
 **Lecture :** ces tableaux alimentent l'aide de l'interface (`/aide`) et `worldkit explain` (I-AID-01). Corriger une définition ici la corrige partout. Un test vérifie que tout statut, code ou valeur affichable a sa ligne.
 
 ---
@@ -186,5 +186,6 @@ Un signalement (`Issue`) porte un code, une sévérité, un message et la règle
 | Gardé, corrigé, ajouté, retiré (fait) | — | Pastilles d'un fait décidé par l'auteur (statuts `kept`, `corrected`, `removed` des annotations). **Reprendre** : garder un fait mis de côté ou retenu. **Ajouter** : un fait manqué, choisi dans des listes (sujet, relation ou attribut, objet ou valeur), dont la preuve est le passage. |
 | Couche « descriptions » | `notes` | Couche de l'atelier (J9, I-ATL-10) : ce que le texte dit des entités sans être un fait (portrait, caractère, habitudes, ambiance), en **bribes** rangées par facette, avec citation et forme courte ; après les faits, entre les entités confirmées ; un appel au modèle, estimé puis confirmé. |
 | Bribe (état) | `note_state` | Une note proposée dans l'atelier ; pastilles : **proposée** (par la couche), **gardée**, **corrigée**, **ajoutée**, **retirée** (par l'auteur ; une bribe retirée ne part pas). |
+| En piste | `drafted` | État d'un fait ou d'une bribe de l'atelier mis en piste d'auteur (I-ATL-11) : il ne part pas avec « Proposer », une relance ne le repropose pas ; son panneau mène à la piste. |
 | Lot de notes | `atelier-<source>-<version>-notes` | Troisième lot d'une version de source (J9) : les notes venues après le lot des faits ; une note déjà envoyée par la version ne repart pas. |
 | Lot de faits | `atelier-<source>-<version>-faits` | Second lot d'une version de source (I9, Q2) : quand ses entités sont déjà proposées, « Proposer les faits » envoie les faits seuls ; une entité nouvelle y est désignée par son identifiant si elle est acceptée, par `pending:<étiquette>` si elle attend en revue (T-ING-07). |
