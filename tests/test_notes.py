@@ -375,3 +375,17 @@ def test_a_relaunch_does_not_repropose_a_citation_the_author_decided_even_reword
     report = layers.run_notes(w, "reference", doc.doc_id, NoteFinder(FakeAdapter(reworded), Profile()))
     assert report.skipped_by_author == 2 and report.proposed == 0
     assert sorted(a.status for a in notes_of(w, doc)) == ["kept", "removed"]
+
+
+def test_deciding_every_proposal_of_the_last_run_does_not_bring_back_an_older_run_I_ATL_02():
+    """Cas réel (X-018) : après une relance, l'auteur garde toutes les bribes de la passe 2 ; celles de la passe 1
+    réapparaissaient (la dernière passe était lue dans les seules annotations courantes)."""
+    w, doc = atelier_source()
+    layers.run_notes(w, "reference", doc.doc_id, NoteFinder(FakeAdapter(FOUND), Profile()))
+    second = [{**FOUND[0], "text": "un homme massif"}]
+    report = layers.run_notes(w, "reference", doc.doc_id, NoteFinder(FakeAdapter(second), Profile()))
+    assert report.run == 2
+    [only] = notes_of(w, doc)
+    gestures.note_gesture(w, "reference", doc.doc_id, "keep", only.ann_id)
+    assert [a.value["draft"]["text"] for a in notes_of(w, doc)] == ["un homme massif"]  # la passe 1 ne revient pas
+    assert layers.run_notes(w, "reference", doc.doc_id, NoteFinder(FakeAdapter([]), Profile())).run == 3

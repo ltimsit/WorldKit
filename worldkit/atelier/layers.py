@@ -37,10 +37,18 @@ def runs_of(annotations: list[store.Annotation], layer: str = LAYER) -> int:
     return max(nums, default=0)
 
 
+def last_run(world: Any, branch: str, doc: Any, layer: str = LAYER) -> int:
+    """Numéro du dernier lancement d'une couche, lu dans **tout** l'historique de la source (annotations remplacées
+    comprises) : quand l'auteur a décidé toutes les propositions du dernier lancement, celles d'un lancement plus
+    ancien ne redeviennent pas courantes, et un numéro de lancement n'est jamais réutilisé."""
+    return runs_of(store.history(world, branch, doc), layer)
+
+
 def effective(world: Any, branch: str, doc: Any) -> list[store.Annotation]:
     """Les annotations qui comptent : celles de l'auteur, et celles du dernier lancement de chaque couche."""
     now = store.current(world, branch, doc)
-    last = {layer: runs_of(now, layer) for layer in (LAYER, FACTS, NOTES)}
+    history = store.history(world, branch, doc)
+    last = {layer: runs_of(history, layer) for layer in (LAYER, FACTS, NOTES)}
 
     def latest(a: store.Annotation) -> bool:
         return any(a.origin == _layer_origin(n, layer) for layer, n in last.items())
@@ -127,7 +135,7 @@ def run_mentions(world: Any, branch: str, doc_id: str, finder: Any = None, with_
     author = [a for a in store.current(world, branch, doc)
               if a.by_author and a.kind == "mention" and a.passage is not None]
     rules = store.rules(world, branch)
-    report = RunReport(runs_of(store.current(world, branch, doc)) + 1)
+    report = RunReport(last_run(world, branch, doc) + 1)
     origin = _layer_origin(report.run)
     for m in mentions:
         if m.passage is None or m.start < 0:
@@ -231,7 +239,7 @@ def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = No
     context = extraction_context(world, state)
     entities, forms = confirmed_entities(world, branch, doc)
     now = store.current(world, branch, doc)
-    report = FactsReport(runs_of(now, FACTS) + 1, len(entities))
+    report = FactsReport(last_run(world, branch, doc, FACTS) + 1, len(entities))
     meter = getattr(finder, "meter", None)
     first = len(meter.calls) if meter is not None else 0
     window = window_of(doc)
@@ -347,7 +355,7 @@ def run_notes(world: Any, branch: str, doc_id: str, finder: Any) -> NotesReport:
     doc = store.source(world, doc_id)
     entities, _ = confirmed_entities(world, branch, doc)
     now = store.current(world, branch, doc)
-    report = NotesReport(runs_of(now, NOTES) + 1, len(entities))
+    report = NotesReport(last_run(world, branch, doc, NOTES) + 1, len(entities))
     meter = getattr(finder, "meter", None)
     first = len(meter.calls) if meter is not None else 0
     window = window_of(doc)
