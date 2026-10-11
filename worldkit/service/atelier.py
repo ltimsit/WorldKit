@@ -131,7 +131,7 @@ def atelier_view(ctx: Context, p: SourceParams) -> Output:
             for e in sorted(new_entities(ctx.world, branch, doc).values(), key=lambda e: e["name"].casefold())]
     return Output({"doc_id": doc.doc_id, "version": doc.fingerprint, "title": doc.title, "branch": branch,
                    "passages": passages, "rules": [r.__dict__ for r in store.rules(ctx.world, branch)],
-                   "run": layers.runs_of(current), "entities": entities, "new_entities": news,
+                   "run": layers.last_run(ctx.world, branch, doc), "entities": entities, "new_entities": news,
                    "attachments": attachments(ctx.world, branch, doc), "proposed": proposed(ctx.world, doc),
                    "facts_proposed": facts_proposed(ctx.world, doc), "notes_proposed": notes_proposed(ctx.world, doc),
                    "types": sorted(state.world.types),
@@ -167,7 +167,7 @@ def _notes_view(world: Any, branch: str, doc: Any, current: list[Any]) -> dict[s
                       "state": state, "excluded": layers.note_excluded(a), "by_author": a.by_author})
     return {"notes": notes, "notes_to_send": sum(1 for n in notes if not n["excluded"]),
             "note_facets": [{"id": f, "label": lbl} for f, lbl in facet_labels.items()],
-            "notes_run": layers.runs_of(current, layers.NOTES)}
+            "notes_run": layers.last_run(world, branch, doc, layers.NOTES)}
 
 
 def _fact_state(a: Any) -> str:
@@ -224,7 +224,7 @@ def _facts_view(world: Any, branch: str, doc: Any, current: list[Any]) -> dict[s
     return {"facts": facts, "to_send": sum(1 for f in facts if not f["excluded"]),
             "fact_entities": [{"id": e.id, "name": e.name, "type": e.type} for e in entities],
             "relations": relations, "attributes": [{"id": a, "label": lbl} for a, lbl in attributes],
-            "facts_run": layers.runs_of(current, layers.FACTS)}
+            "facts_run": layers.last_run(world, branch, doc, layers.FACTS)}
 
 
 class RunParams(SourceParams):

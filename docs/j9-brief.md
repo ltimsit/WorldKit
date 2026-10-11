@@ -1,6 +1,6 @@
 # Fiche de démarrage — Jalon J9 : les notes (descriptions)
 
-**Statut :** préparé le 11 octobre 2026, pas commencé. Branche prévue : `j9-notes`.
+**Statut :** fait, 11 octobre 2026 (branche `j9-notes`, fusionnée). Mesure : séance réelle de l'auteur, [X-018](recherche-ingestion/X-018-seance-notes.md).
 **Contexte :** le niveau 1 de « ingérer plus que les faits » (chantier §10.6) montre les passages qui nomment une entité (R-VUE-05) ; tout ce qui n'est pas un fait à clé — un portrait, un jugement, une habitude — reste « non capté ». Le brainstorm du 11 octobre a fixé la conception des **notes** (chantier, choix 43 à 48). Ce jalon les construit, du noyau à l'écran.
 
 ## 1. Objectif

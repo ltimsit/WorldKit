@@ -59,6 +59,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [X-015](X-015-critique-v3.md) | Critique v3 : fait plus faible impliqué, nom commun pluriel pour une faction | conclue, non adoptée (deux faux rejets sur données non vues) |
 | [X-016](X-016-schema-de-genre-pivot.md) | Schéma de genre « fantasy jdr » comme ontologie pivot de l'extraction (correspondance sans modèle, cache) | conclue, non adoptée (plus de faits faux) ; cache confirmé |
 | [X-017](X-017-premiere-session-atelier.md) | Première session réelle de l'atelier : l'auteur sur ses notes de Corbelle (gestes réels contre simulés) | conclue : le schéma est le premier coût |
+| [X-018](X-018-seance-notes.md) | Séance réelle de la couche « descriptions » (J9) sur les notes de Corbelle | conclue : 5 bribes sur 5 gardées, une facette forcée ; deux défauts de l'atelier corrigés |
 
 Statuts : **ouverte** (observée, non traitée), **en cours** (remède essayé), **résolue** (remède mesuré, sans régression), **acceptée** (on vit avec, avec la raison), **transformée** (devenue une expérience ou une question du chantier).
 
