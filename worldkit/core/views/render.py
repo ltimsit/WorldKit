@@ -11,7 +11,8 @@ from typing import Any
 
 from worldkit.core.projection.state import State
 
-from .model import AttributeLine, EntityPage, Filter, PassageLine, PassageStatus, View, entity_visible, fact_visible
+from .model import (AttributeLine, EntityPage, Filter, NoteLine, PassageLine, PassageStatus, View, entity_visible,
+                    fact_visible, note_visible)
 
 NON_PUBLIC = "(entité non publique)"
 
@@ -79,6 +80,18 @@ def render_page(page: EntityPage, view: View) -> str:
                          if c.qualification else c.visibility, c.provenance)
             out.append(f"- « {c.text} »{verdict}{meta}")
 
+    if page.notes:
+        out += ["", "## Notes"]
+        current = None
+        for n in page.notes:
+            if n.facet != current:
+                out += ["", f"### {term(n.facet_label, n.facet)}"]
+                current = n.facet
+            out.append(note_line(n, page.id, view))
+    if page.mentioned_in:
+        out += ["", "## Mentions dans les notes"]
+        out += [note_line(n, page.id, view) for n in page.mentioned_in]
+
     out += ["", "## Fiches"]
     for sh in page.sheets:
         values = ", ".join(f"{term(a.label, a.name)} {a.value}" for a in sh.attributes) or "vide"
@@ -97,6 +110,20 @@ def render_page(page: EntityPage, view: View) -> str:
             out.append("- (aucun passage)")
     out.append("")
     return "\n".join(out)
+
+
+def note_line(n: NoteLine, page: str, view: View) -> str:
+    """« une vieille rousse sèche » — âge : vieille · cheveux : roux · avec Jehan · selon la Chronique (R-NTE-01)."""
+    text = f"- « {n.text} »"
+    if n.short:
+        text += " — " + " · ".join(f"{a} : {v}" for a, v in n.short)
+    others = [view.title(e) for e in n.subjects if e != page]
+    if others:
+        text += (" · avec " if page in n.subjects else " · sur ") + ", ".join(others)
+    if n.speaker:
+        text += f" · selon {view.title(n.speaker)}"
+    source = f"{n.document} · " if n.document else ""
+    return text + _meta(view.filter, n.visibility, source + n.provenance)
 
 
 STATUS_FR = {PassageStatus.CAPTURED: "capté", PassageStatus.UNCAPTURED: "non capté",
@@ -178,9 +205,14 @@ def export_graph(state: State, flt: Filter) -> dict[str, Any]:
     for eid in view.entity_ids():
         for c in view.claims_of({eid}):
             claims.append({"speaker": eid, "text": c.text, "qualification": c.qualification})
+    notes = [{"subjects": [view.display(e) for e in n["subjects"]], "facet": n["facet"], "text": n["text"],
+              "short": [{"aspect": a, "value": v} for a, v in n["short"]],
+              **({"mentions": [view.display(e) for e in n["mentions"]]} if n["mentions"] else {}),
+              **({"speaker": n["speaker"]} if n.get("speaker") else {})}
+             for _, n in sorted(state.notes.items()) if note_visible(n, state, flt)]  # R-NTE-03
     return {"branch": state.branch, "seq": state.seq, "filter": str(flt),
             "entities": entities, "relations": relations, "sheets": sheets, "identities": identities,
-            "claims": claims}
+            "claims": claims, "notes": notes}
 
 
 def export_json(state: State, flt: Filter) -> str:

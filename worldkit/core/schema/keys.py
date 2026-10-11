@@ -32,8 +32,8 @@ from __future__ import annotations
 from typing import Any
 
 from .changes import (
-    AddClaim, AddRelation, AddValue, Change, CloseEntity, CreateEntity, DeleteEntity,
-    FactTarget, QualifyClaim, RemoveRelation, RemoveValue, SchemaRemoveRelation,
+    AddClaim, AddNote, AddRelation, AddValue, Change, CloseEntity, CreateEntity, DeleteEntity,
+    FactTarget, QualifyClaim, RemoveNote, RemoveRelation, RemoveValue, SchemaRemoveRelation,
     SchemaRemoveType, SchemaSetRelation, SchemaSetType, SetAttribute, SetDocumentObsolete,
     SetVisibility, UnsetAttribute,
 )
@@ -104,6 +104,8 @@ def fact_keys(change: Change, ctx: SchemaContext) -> list[FactKey]:
             return [("qualification", change.claim)]
         case SetDocumentObsolete():
             return [("document_status", change.document)]
+        case AddNote() | RemoveNote():
+            return [("note", change.note)]  # clé propre : jamais une clé de fait (R-NTE-02)
         case SchemaSetType() | SchemaRemoveType():
             key: FactKey = ("schema", s, "type", change.type)
             attribute = getattr(change, "attribute", None)
@@ -115,6 +117,8 @@ def fact_keys(change: Change, ctx: SchemaContext) -> list[FactKey]:
 
 def target_keys(target: FactTarget, scope: str, ctx: SchemaContext) -> list[FactKey]:
     """Clés du fait désigné (pour les sous-clés de notoriété)."""
+    if target.note is not None:
+        return [("note", target.note)]
     if target.relation is not None:
         return _relation_keys(target.from_ or "", target.relation, target.to or "", scope, ctx)
     entity = qualify(target.entity or "", scope)

@@ -20,7 +20,8 @@ from dataclasses import dataclass, field
 from worldkit.core.projection.state import State, apply_change, fact_id_of, target_fact_id
 from worldkit.core.schema import Change, FactKey, Issue, IssueCode, check_edit, fact_keys, qualify
 from worldkit.core.schema.changes import (
-    AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, QualifyClaim, RemoveRelation, RemoveValue,
+    AddNote, AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, QualifyClaim, RemoveNote, RemoveRelation,
+    RemoveValue,
     SCHEMA_OPS, SetAttribute, SetVisibility, UnsetAttribute, parse_change,
 )
 from worldkit.core.schema.issues import Severity
@@ -70,6 +71,8 @@ def _cited_entities(change: Change) -> list[str]:
             t = change.target
             ends = [t.from_, t.to] if t.relation else [t.entity]
             return [qualify(e, sc) for e in ends if e]
+        case AddNote():
+            return [qualify(e, sc) for e in [*change.subjects, *change.mentions, change.speaker] if e]
     entity = getattr(change, "entity", None)
     return [qualify(entity, sc)] if entity else []
 
@@ -143,6 +146,21 @@ def _check_one(change: Change, sim: State, t: _Tracker, path: str) -> None:
             t.writes.update(keys)
             for k in keys:
                 t.written.pop(k, None)
+        case AddNote():
+            if change.note in sim.notes:
+                _err(t, IssueCode.KEY_COLLISION, f"la note « {change.note} » existe déjà ; la retirer dans la même "
+                     "édition pour la remplacer", "R-NTE-07", path)
+            t.writes.update(keys)
+        case RemoveNote():
+            if change.note not in sim.notes:
+                _err(t, IssueCode.MISSING_FACT, f"note absente de l'état visé : {change.note}", "R-NTE-07", path)
+            t.reads.update(keys)
+            t.writes.update(keys)
+        case SetVisibility() if change.target.note is not None:
+            if change.target.note not in sim.notes:
+                _err(t, IssueCode.MISSING_FACT, f"note absente de l'état visé : {change.target.note}", "R-NTE-03", path)
+            t.reads.update(target_keys(change.target, change.scope, ctx))
+            t.writes.update(keys)
         case SetVisibility():
             fid = target_fact_id(change.target, change.scope, ctx)
             target = target_keys(change.target, change.scope, ctx)

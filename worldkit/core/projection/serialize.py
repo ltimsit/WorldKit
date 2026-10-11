@@ -15,7 +15,7 @@ from .state import EntityRecord, Fact, State
 
 # À incrémenter à chaque changement de forme : une tête en cache d'un autre format est ignorée
 # et l'état est rejoué depuis le journal, qui seul fait foi (T-STO-01).
-STATE_FORMAT = 4
+STATE_FORMAT = 5  # 5 : notes (J9)
 
 
 class StaleFormat(ValueError):
@@ -49,6 +49,7 @@ def state_to_dict(state: State) -> dict[str, Any]:
         "claims": dict(sorted(state.claims.items())),
         "qualifications": dict(sorted(state.qualifications.items())),
         "obsolete_documents": dict(sorted(state.obsolete_documents.items())),
+        "notes": {k: {**v, "visibility": str(v["visibility"])} for k, v in sorted(state.notes.items())},
     }
 
 
@@ -77,4 +78,5 @@ def state_from_json(text: str) -> State:
         entities=entities, facts=facts,
         occupancy={_tuplify(k): _tuplify(v) for k, v in d["occupancy"]},
         claims=d["claims"], qualifications=d["qualifications"], obsolete_documents=d["obsolete_documents"],
+        notes={k: {**v, "visibility": Visibility(v["visibility"])} for k, v in d["notes"].items()},
     )

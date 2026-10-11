@@ -43,6 +43,27 @@ def effective_visibility(fact: Fact, state: State) -> Visibility:
     return min(levels, key=_RANK.__getitem__)
 
 
+def note_effective_visibility(note: dict, state: State) -> Visibility:
+    """Notoriété d'une note plafonnée par ses sujets, ses mentions et son énonciateur (R-NTE-03, R-NOT-04)."""
+    cited = [*note["subjects"], *note["mentions"], *([note["speaker"]] if note.get("speaker") else [])]
+    levels = [note["visibility"]] + [entity_visibility(state, e) for e in cited]
+    return min(levels, key=_RANK.__getitem__)
+
+
+def note_visible(note: dict, state: State, flt: Filter) -> bool:
+    return flt is Filter.AUTHOR or note_effective_visibility(note, state) is Visibility.PUBLIC
+
+
+def facet_label(state: State, note: dict) -> str:
+    """Libellé de la facette d'une note, lu dans le type de son premier sujet (R-NTE-04, R-SCH-09)."""
+    rec = state.entities.get(note["subjects"][0]) if note["subjects"] else None
+    if rec is not None and rec.type in state.world.types:
+        f = state.world.facets_of(rec.type).get(note["facet"])
+        if f is not None:
+            return (f.labels or {}).get("fr", note["facet"])
+    return note["facet"]
+
+
 def _schema_of(state: State, scope: str) -> object | None:
     return state.world if scope == WORLD_SCOPE else state.systems.get(scope)
 
@@ -230,6 +251,23 @@ class PassageLine:
 
 
 @dataclass(frozen=True)
+class NoteLine:
+    """Une note sur une page (R-NTE-01, R-VUE-02) : citation, facette, forme courte, autres sujets, voix, source."""
+
+    note: str
+    facet: str
+    facet_label: str
+    text: str
+    short: tuple[tuple[str, str], ...]
+    subjects: tuple[str, ...]
+    mentions: tuple[str, ...]
+    speaker: str | None
+    document: str | None
+    visibility: Visibility  # déclarée (vue d'auteur) ; effective en vue joueur
+    provenance: str
+
+
+@dataclass(frozen=True)
 class EntityPage:
     id: str
     members: list[str]      # entités consolidées sur la page (doublons, révélations visibles)
@@ -246,6 +284,8 @@ class EntityPage:
     documents: list[str] = field(default_factory=list)  # documents sources (R-VUE-02)
     passages: list[PassageLine] = field(default_factory=list)  # ce que disent les documents (R-VUE-05)
     type_label: str = ""    # libellé du type (R-SCH-09)
+    notes: list[NoteLine] = field(default_factory=list)         # ses notes, par facette (R-VUE-02)
+    mentioned_in: list[NoteLine] = field(default_factory=list)  # notes qui la mentionnent sans la décrire
 
 
 @dataclass(frozen=True)
@@ -345,7 +385,24 @@ class View:
         passages = self._passages(members) if flt is Filter.AUTHOR else []
         return EntityPage(entity, sorted(members), rec.type, self.title(entity), rec.closed,
                           rec.visibility, attributes, relations, identities, sheets, self.claims_of(members),
-                          drafts=drafts, documents=documents, passages=passages, type_label=type_label(s, entity))
+                          drafts=drafts, documents=documents, passages=passages, type_label=type_label(s, entity),
+                          notes=self._notes(members, "subjects"), mentioned_in=self._notes(members, "mentions"))
+
+    def _notes(self, members: set[str], role: str) -> list[NoteLine]:
+        """Notes dont un membre de la page est sujet (`subjects`), ou seulement mentionné (`mentions`) ; visibles
+        dans la vue (R-NTE-03) ; rangées par facette puis par identifiant."""
+        s, flt = self.state, self.filter
+        out = []
+        for nid, n in sorted(s.notes.items()):
+            if not members & set(n[role]) or (role == "mentions" and members & set(n["subjects"])):
+                continue
+            if not note_visible(n, s, flt):
+                continue
+            vis = note_effective_visibility(n, s) if flt is Filter.PLAYER else n["visibility"]
+            out.append(NoteLine(nid, n["facet"], facet_label(s, n), n["text"], tuple(tuple(x) for x in n["short"]),
+                                tuple(n["subjects"]), tuple(n["mentions"]), n.get("speaker"), n.get("document"),
+                                vis, n["established_by"]))
+        return sorted(out, key=lambda x: (x.facet == "other", x.facet_label, x.note))
 
     def _passages(self, members: set[str]) -> list[PassageLine]:
         """Passages qui nomment un membre de la page (R-VUE-05) ; un passage qui en nomme deux paraît une fois :
