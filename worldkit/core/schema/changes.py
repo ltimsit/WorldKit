@@ -130,6 +130,7 @@ class FactTarget(BaseModel):
     from_: str | None = Field(default=None, alias="from")
     relation: str | None = None
     to: str | None = None
+    note: str | None = None  # une note (R-NTE-03) : sa notoriété se change comme celle d'un fait
 
     @classmethod
     def parse(cls, target: Any) -> FactTarget:
@@ -186,6 +187,41 @@ class SetDocumentObsolete(_Change):
     value: bool
 
 
+# --- Notes (R-NTE-01 à R-NTE-07) ---
+
+class ShortForm(BaseModel):
+    """Forme courte d'une note : « aspect : valeur » (cheveux : roux) ; aspects libres (R-NTE-01)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    aspect: str
+    value: str
+
+
+class AddNote(_Change):
+    """Une note (R-NTE-01) : citation, facette, sujets sans ordre, mentions, forme courte, voix, source. N'écrit
+    aucune clé de fait (R-NTE-02). Sujets et mentions sont rangés : l'ordre du texte ne change pas la note."""
+
+    op: Literal["add_note"]
+    note: str
+    subjects: list[str] = Field(min_length=1)
+    mentions: list[str] = Field(default_factory=list)
+    facet: str = "other"
+    text: str
+    short: list[ShortForm] = Field(default_factory=list)
+    speaker: str | None = None   # énonciateur d'un document en jeu (« selon la Chronique de la Chute »)
+    document: str | None = None  # source ; absente pour une note saisie par l'auteur
+
+    @field_validator("subjects", "mentions")
+    @classmethod
+    def _sorted(cls, v: list[str]) -> list[str]:
+        return sorted(set(v))
+
+
+class RemoveNote(_Change):
+    op: Literal["remove_note"]
+    note: str
+
+
 # --- Schémas (R-SCH-03 ; `scope` désigne le monde ou un système, R-SCH-02) ---
 
 class ConstraintPatch(BaseModel):
@@ -237,7 +273,7 @@ Change = Annotated[
         CreateEntity, CloseEntity, DeleteEntity,
         SetAttribute, UnsetAttribute, AddValue, RemoveValue,
         AddRelation, RemoveRelation, SetVisibility,
-        AddClaim, QualifyClaim, SetDocumentObsolete,
+        AddClaim, QualifyClaim, SetDocumentObsolete, AddNote, RemoveNote,
         SchemaSetType, SchemaRemoveType, SchemaSetRelation, SchemaRemoveRelation,
     ],
     Field(discriminator="op"),

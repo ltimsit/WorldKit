@@ -34,7 +34,7 @@ from typing import Any
 from worldkit.core.projection.state import State, relation_fact_id, target_fact_id
 from worldkit.core.schema import Change, EntityInfo, FactKey, IssueCode, SchemaContext, fact_keys, qualify
 from worldkit.core.schema.changes import (
-    AddClaim, AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, RemoveRelation, RemoveValue,
+    AddClaim, AddNote, AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, RemoveRelation, RemoveValue,
     SchemaRemoveRelation, SchemaRemoveType, SchemaSetRelation, SchemaSetType, SetAttribute, SetVisibility,
     UnsetAttribute, parse_change,
 )
@@ -132,6 +132,8 @@ def resolve(draft: dict[str, Any], new: dict[str, NewEntity]) -> dict[str, Any]:
                     return new[v[len(prefix):]].id
             if " " in v:  # désignation textuelle « a relation b » de set_visibility
                 return " ".join(sub(t) for t in v.split(" "))
+        if isinstance(v, list):  # sujets et mentions d'une note (R-NTE-01)
+            return [sub(x) for x in v]
         return v
     return {k: sub(v) for k, v in draft.items()}
 
@@ -155,6 +157,10 @@ def change_fingerprint(q: Qualified, new_by_id: dict[str, NewEntity]) -> str:
             return ["new", e.type, name_key(e.name or e.label)]
         return x
     c = q.item.change
+    if isinstance(c, AddNote):  # une note : son contenu, pas son identifiant (R-NTE-02)
+        payload = [c.op, canon(tuple(c.subjects)), c.facet, _norm_value(c.text)]
+        return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+                              .encode()).hexdigest()[:16]
     keys = q.keys or [(c.op, getattr(c, "entity", None), getattr(c, "from_", None), getattr(c, "relation", None),
                        getattr(c, "to", None), getattr(c, "attribute", None))]
     payload = [c.op, canon(tuple(keys)), canon(_norm_value(getattr(c, "value", None)))]
@@ -278,6 +284,14 @@ def qualify_item(item: Item, base: State, ctx: SchemaContext) -> Qualified:
 
     sc = c.scope
     match c:
+        case AddNote():
+            q.value = c.note
+            same = same_note(c, base)
+            if same is not None:  # la même note est déjà là : un support (R-NTE-06), pas une proposition
+                q.keys = [("note", same)]
+                q.tags.add("support")
+            else:
+                q.tags.add("enrichment")
         case AddClaim():
             q.tags.add("claim")
             q.value = c.claim
@@ -353,9 +367,19 @@ def _cross_checks(qualified: list[Qualified]) -> None:
 # Assemblage
 # ---------------------------------------------------------------------------
 
+def same_note(c: AddNote, state: State) -> str | None:
+    """Une note de l'état aux mêmes sujets, à la même facette et au même texte (normalisé)."""
+    subjects = sorted(qualify(e, c.scope) for e in c.subjects)
+    text = _norm_value(c.text)
+    return next((nid for nid, n in sorted(state.notes.items()) if n["subjects"] == subjects
+                 and n["facet"] == c.facet and _norm_value(n["text"]) == text), None)
+
+
 def _subject(c: Change, sc: str) -> str:
     if isinstance(c, AddClaim):
         return c.claim  # une affirmation = une proposition
+    if isinstance(c, AddNote):
+        return qualify(c.subjects[0], sc)
     if isinstance(c, (AddRelation, RemoveRelation)):
         return qualify(c.from_, sc)
     if isinstance(c, SetVisibility):
@@ -374,6 +398,8 @@ def _cited(c: Change, sc: str) -> list[str]:
         return []
     if isinstance(c, AddClaim):
         return [c.speaker] if c.speaker else []
+    if isinstance(c, AddNote):
+        return [qualify(e, sc) for e in [*c.subjects, *c.mentions, c.speaker] if e]
     return [qualify(getattr(c, "entity", ""), sc)]
 
 

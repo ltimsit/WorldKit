@@ -84,13 +84,16 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
         selected = request.query_params.get("ann")
         annotations = {a["id"]: a for p in view.output["passages"] for a in p["annotations"]}
         chosen = annotations.get(int(selected)) if selected and selected.isdigit() else None
+        noted = request.query_params.get("note")
+        notes = {n["id"]: n for p in view.output["passages"] for n in p.get("notes", [])}
+        chosen_note = notes.get(int(noted)) if noted and noted.isdigit() else None
         picked = request.query_params.get("fact")
         facts = {f["id"]: f for p in view.output["passages"] for f in p["facts"]}
         chosen_fact = facts.get(int(picked)) if picked and picked.isdigit() else None
         names = {e["id"]: e for e in view.output["entities"]}
         job = job_view(request.query_params.get("job"))
         return render(request, "atelier.html", page, view=view.output, indicators=view.indicators, chosen=chosen,
-                      chosen_fact=chosen_fact, names=names, job=job,
+                      chosen_fact=chosen_fact, chosen_note=chosen_note, names=names, job=job,
                       **{"estimate": None, "message": None, "error": None, **extra})
 
     def job_view(raw: str | None) -> dict[str, Any] | None:
@@ -141,6 +144,17 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
         for key in ("ann_id", "passage", "start", "end"):
             if form.get(key) not in (None, ""):
                 params[key] = int(str(form.get(key)))
+        if params["kind"] == "note":  # J9 : une bribe de description
+            subjects = [str(x) for x in form.getlist("subjects")]
+            if subjects:
+                params["subjects"] = subjects
+            for key in ("facet", "text", "short"):
+                if form.get(key) is not None:
+                    params[key] = str(form.get(key))
+            result = page.call("atelier.annotate", params)
+            if not result.ok:
+                return source_page(request, page, doc_id, error="; ".join(i.message for i in result.issues))
+            return RedirectResponse(f"/atelier/{quote(doc_id)}", status_code=303)
         if params["kind"] == "fact":
             predicate = str(form.get("predicate") or "")  # « rel:<relation> » ou « attr:<attribut> »
             if predicate.startswith("rel:"):

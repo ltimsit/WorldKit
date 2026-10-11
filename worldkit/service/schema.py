@@ -74,7 +74,9 @@ def describe_schema(schema: Any, scope: str, prov: dict[tuple[str, ...], str], s
         inherited = [_attribute(a, d, owner, prov.get((scope, "type", owner, a)))
                      for owner in schema.ancestors(name)[1:] for a, d in sorted(schema.types[owner].attributes.items())
                      if a not in t.attributes]
-        types.append({"name": name, "label": _fr(t.labels, name), "extends": t.extends,
+        facets = [{"name": f, "label": _fr(d.labels, f), "own": f in t.facets}
+                  for f, d in schema.facets_of(name).items()]  # R-NTE-04 : propres, héritées, et `other`
+        types.append({"name": name, "label": _fr(t.labels, name), "extends": t.extends, "facets": facets,
                       "ancestors": schema.ancestors(name)[1:],
                       "subtypes": sorted(n for n, d in schema.types.items() if d.extends == name),
                       "attributes": own, "inherited": inherited, "entities": entities.get(name, 0),
@@ -267,7 +269,7 @@ def schema_yaml(schema: Any, header: list[str]) -> str:
     out.append("types:" if data.get("types") else "types: {}")
     for name, t in data.get("types", {}).items():
         out.append(f"  {name}:")
-        for key in ("extends", "labels"):
+        for key in ("extends", "labels", "facets"):
             if key in t:
                 out.append(f"    {key}: {flow(t[key])}")
         attributes = t.get("attributes", {})

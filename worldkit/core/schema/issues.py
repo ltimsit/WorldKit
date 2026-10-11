@@ -36,6 +36,7 @@ class IssueCode(StrEnum):
     MISSING_SHEET = "missing_sheet"
     MASKED_PUBLIC_FACT = "masked_public_fact"
     ORPHAN_FACT = "orphan_fact"
+    ORPHAN_NOTE = "orphan_note"  # R-NTE-06
     # Application d'une édition (M2, M4)
     EDIT_RULE = "edit_rule"
     KEY_COLLISION = "key_collision"

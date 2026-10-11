@@ -124,3 +124,24 @@ def test_prepared_labels_accepted_R_SCH_08():
 
 def test_non_mapping_document():
     assert validate_schema(["not", "a", "schema"])[0].code == IssueCode.MALFORMED_SCHEMA
+
+
+def test_facets_are_declared_per_type_inherited_and_other_always_exists_R_NTE_04():
+    from worldkit.core.schema import load_schema
+    from worldkit.core.schema.metaschema import OTHER_FACET, Schema
+    from worldkit.core.schema.validate import check_schema
+    valmont = load_schema("corpus/valmont-v1/valmont/schema.yaml")
+    assert list(valmont.facets_of("Character")) == ["appearance", "character", "history", "habits", OTHER_FACET]
+    assert valmont.facets_of("Place")["atmosphere"].labels == {"fr": "ambiance"}
+    assert set(valmont.facets_of("MonasticOrder")) == set(valmont.facets_of("Faction"))  # héritées
+    bare = Schema.model_validate({"schema": "t", "types": {"Thing": {}}})
+    assert list(bare.facets_of("Thing")) == [OTHER_FACET]
+    bad = Schema.model_validate({"schema": "t", "types": {"Thing": {"facets": {"Aspect": {"fr": "x"}}}}})
+    assert [i.rule for i in check_schema(bad)] == ["R-SCH-07"]
+
+
+def test_note_is_a_core_type_R_NOY_01():
+    from worldkit.core.schema.metaschema import Schema
+    from worldkit.core.schema.validate import check_schema
+    s = Schema.model_validate({"schema": "t", "types": {"Note": {}}})
+    assert any(i.rule == "R-NOY-01" for i in check_schema(s))

@@ -25,6 +25,7 @@ from . import store
 
 LAYER = "c1-c2"
 FACTS = "facts"
+NOTES = "notes"  # couche « descriptions » (J9)
 
 
 def _layer_origin(run: int, layer: str = LAYER) -> str:
@@ -39,7 +40,7 @@ def runs_of(annotations: list[store.Annotation], layer: str = LAYER) -> int:
 def effective(world: Any, branch: str, doc: Any) -> list[store.Annotation]:
     """Les annotations qui comptent : celles de l'auteur, et celles du dernier lancement de chaque couche."""
     now = store.current(world, branch, doc)
-    last = {layer: runs_of(now, layer) for layer in (LAYER, FACTS)}
+    last = {layer: runs_of(now, layer) for layer in (LAYER, FACTS, NOTES)}
 
     def latest(a: store.Annotation) -> bool:
         return any(a.origin == _layer_origin(n, layer) for layer, n in last.items())
@@ -56,6 +57,42 @@ class RunReport:
     new: int = 0
     known: int = 0
     calls: list[Any] = field(default_factory=list)
+
+
+def decision_keys(kind: str, draft: dict[str, Any], passage: int | None, schema: Any = None) -> set[tuple[Any, ...]]:
+    """Clé(s) de décision d'une proposition de couche (règle de relance, I-ATL-02) : une proposition dont une clé a
+    déjà été décidée par l'auteur (gardée, corrigée, retirée) n'est plus proposée, même reformulée.
+
+    - note : passage et citation pliée (facette et forme courte peuvent varier d'une passe à l'autre) ;
+    - attribut simple : passage, entité, attribut — la valeur peut varier (« régent de Brume », « régent ») ;
+    - valeur d'une liste : passage, entité, attribut, valeur pliée (une liste en reçoit légitimement plusieurs) ;
+    - relation : passage, entités, relation ; dans les deux sens si la relation est symétrique."""
+    from worldkit.periphery.matching import fold
+    if kind == "note":
+        return {("note", passage, fold(str(draft.get("text", ""))))}
+    op = draft.get("op")
+    if op == "set_attribute":
+        return {("attr", passage, draft.get("entity"), draft.get("attribute"))}
+    if op == "add_value":
+        return {("value", passage, draft.get("entity"), draft.get("attribute"), fold(str(draft.get("value", ""))))}
+    if op == "add_relation":
+        keys = {("rel", passage, draft.get("from"), draft.get("relation"), draft.get("to"))}
+        r = schema.relations.get(draft.get("relation")) if schema is not None else None
+        if r is not None and r.symmetric:
+            keys.add(("rel", passage, draft.get("to"), draft.get("relation"), draft.get("from")))
+        return keys
+    return {(op, passage, str(sorted(draft.items())))}
+
+
+def decided_keys(annotations: list[store.Annotation], kind: str, schema: Any = None) -> set[tuple[Any, ...]]:
+    """Les clés de décision de l'auteur pour une sorte d'annotation (brouillon d'origine et brouillon corrigé)."""
+    out: set[tuple[Any, ...]] = set()
+    for a in annotations:
+        if a.kind == kind and a.by_author:
+            for d in (a.value.get("origin_draft"), a.value.get("draft")):
+                if d:
+                    out |= decision_keys(kind, d, a.passage, schema)
+    return out
 
 
 def _overlaps(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
@@ -210,8 +247,7 @@ def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = No
                 verdicts[id(f)] = critic.judge(f, texts[f.passage], entities, context.schema,
                                                {e.id: e.names for e in context.entities})
     voices = {id(f): voice for f, voice in result.withheld}
-    decided = {json.dumps(a.value.get("origin_draft") or a.value.get("draft"), sort_keys=True) for a in now
-               if a.kind == "fact" and a.by_author}
+    decided = decided_keys(now, "fact", context.schema)  # règle de relance, normalisée (I-ATL-02)
     origin = _layer_origin(report.run, FACTS)
     seen: set[tuple[str, int | None]] = set()
     for f in result.kept + [f for f, _ in result.judged if f not in result.kept] + [f for f, _ in result.withheld]:
@@ -222,7 +258,7 @@ def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = No
         if f.passage is None:
             report.unplaced += 1
             continue
-        if signature in decided:
+        if decision_keys("fact", f.draft, f.passage, context.schema) & decided:
             report.skipped_by_author += 1
             continue
         verdict = verdicts.get(id(f)) or {}
@@ -250,3 +286,90 @@ def fact_excluded(a: store.Annotation) -> bool:
     if a.by_author:
         return False
     return a.value.get("verdict") == "not_supported" or a.value.get("voice") is not None
+
+
+# ---------------------------------------------------------------------------
+# Couche « descriptions » (J9 ; R-NTE-01 à R-NTE-05)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class NotesReport:
+    run: int
+    entities: int = 0
+    proposed: int = 0
+    rejected: int = 0
+    skipped_by_author: int = 0
+    calls: list[Any] = field(default_factory=list)
+
+
+def kept_facts(world: Any, branch: str, doc: Any) -> tuple[list[str], dict[str, set[str]], list[tuple[int, str, set[str]]]]:
+    """Les faits de la source qui partiront (R-NTE-05) : dits **en clair** pour la couche « descriptions » (noms et
+    libellés : « Ysolde Marcastel — déteste — la Guilde des Bateliers »), les valeurs d'attribut pliées par entité, et
+    les preuves extraites (passage, preuve, entités) pour le garde-fou sans modèle. Un fait ajouté à la main n'a pour
+    preuve que son passage entier : il ne sert pas au garde-fou."""
+    from worldkit.periphery.matching import fold
+    schema = world.state(branch).world
+    entities, _ = confirmed_entities(world, branch, doc)
+    names = {e.id: e.name for e in entities}
+    types = {e.id: e.type for e in entities}
+
+    def name(eid: str) -> str:
+        return names.get(eid, eid)
+    known: list[str] = []
+    values: dict[str, set[str]] = {}
+    evidence: list[tuple[int, str, set[str]]] = []
+    for a in effective(world, branch, doc):
+        if a.kind != "fact" or fact_excluded(a):
+            continue
+        d = a.value["draft"]
+        if d.get("op") == "add_relation":
+            r = schema.relations.get(d["relation"])
+            label = (r.labels or {}).get("fr", d["relation"]) if r is not None else d["relation"]
+            known.append(f"{name(d['from'])} — {label} — {name(d['to'])}")
+            cited = {d["from"], d["to"]}
+        else:
+            t = types.get(d["entity"])
+            definition = schema.attributes_of(t).get(d["attribute"]) if t in schema.types else None
+            label = (definition.labels or {}).get("fr", d["attribute"]) if definition is not None else d["attribute"]
+            known.append(f"{name(d['entity'])} — {label} : {d['value']}")
+            values.setdefault(d["entity"], set()).add(fold(str(d["value"])))
+            cited = {d["entity"]}
+        if a.passage is not None and a.value.get("layer") != "author" and a.value.get("evidence"):
+            evidence.append((a.passage, str(a.value["evidence"]), cited))
+    return sorted(set(known)), values, evidence
+
+
+def run_notes(world: Any, branch: str, doc_id: str, finder: Any) -> NotesReport:
+    """Lance la couche « descriptions » après les faits, entre les entités confirmées ; écrit une annotation par bribe
+    (`kind: note`). Relancée, elle ne repropose pas une citation que l'auteur a décidée."""
+
+    from worldkit.periphery.mentions import window_of
+    doc = store.source(world, doc_id)
+    entities, _ = confirmed_entities(world, branch, doc)
+    now = store.current(world, branch, doc)
+    report = NotesReport(runs_of(now, NOTES) + 1, len(entities))
+    meter = getattr(finder, "meter", None)
+    first = len(meter.calls) if meter is not None else 0
+    window = window_of(doc)
+    known, values, evidence = kept_facts(world, branch, doc)
+    before = len(finder.rejected)
+    found = finder.find(window, entities, world.state(branch).world, known, values, evidence)
+    report.rejected = len(finder.rejected) - before
+    decided = decided_keys(now, "note")  # règle de relance, normalisée (I-ATL-02)
+    origin = _layer_origin(report.run, NOTES)
+    for n in found:
+        if decision_keys("note", n.draft, n.passage) & decided:
+            report.skipped_by_author += 1
+            continue
+        start, end = _span(window.passage_texts.get(n.passage, ""), n.draft["text"])
+        store.add_annotation(world, branch, doc, "note", {"draft": n.draft, "layer": NOTES}, origin, n.passage,
+                             start, end, "sure")
+        report.proposed += 1
+    if meter is not None:
+        report.calls = meter.calls[first:]
+    return report
+
+
+def note_excluded(a: store.Annotation) -> bool:
+    """Une bribe qui ne partira pas avec « Proposer » : retirée par l'auteur."""
+    return a.status == "removed"

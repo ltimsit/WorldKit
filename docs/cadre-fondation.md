@@ -1,7 +1,7 @@
 # Cadre conceptuel de la fondation
 
 **Objet :** base de vérité du modèle conceptuel de la fondation. Sert d'entrée à la conception technique.
-**Version :** 1.22 — 10 octobre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v25, section 00).
+**Version :** 1.23 — 11 octobre 2026. Dérivé de *analyse-structuration-narrative-jdr.md* (v25, section 00).
 **Statut :** de référence. En cas de divergence avec l'analyse ou avec le cadre technique, ce document prévaut.
 
 **Conventions**
@@ -45,6 +45,7 @@ Des **univers petits ou persistants, construits progressivement** : ingestions p
 | Identité (`same_as`) | Export de scénarios | Outillage dédié aux éléments pour joueurs |
 | Notoriété secret / public | Combinaison libre de scénarios | Fusion réelle, scission d'entités |
 | Vues du wiki | — | Réécriture destructive de l'historique |
+| Notes descriptives (facettes) | — | — |
 | — | — | Temps diégétique comme axe de navigation |
 
 ---
@@ -106,6 +107,11 @@ flowchart TB
 | Document | `Document` | Source ingérée. Un document in-world est aussi une entité de l'univers. |
 | Lot | `Batch` | Ensemble de documents ingérés ensemble. |
 | Affirmation | `Claim` | Contenu attribué à une voix du monde ; n'est pas un fait. |
+| Note | `Note` | Bribe de description d'une ou plusieurs entités (un portrait, un jugement, une habitude) : une citation, rangée dans une facette ; n'est pas un fait et n'entre jamais en collision (R-NTE-01, R-NTE-02). |
+| Facette | `facet` | Rubrique d'une note, déclarée par type dans le schéma (« apparence », « ambiance ») ; `other` (« autre ») existe toujours (R-NTE-04). |
+| Sujets d'une note | `subjects` | Les entités que la note décrit : une ou plusieurs, sans ordre (« Ysolde et Jehan se disputent » : deux sujets à égalité). |
+| Mentions d'une note | `mentions` | Les entités qu'une note nomme sans les décrire (« Ysolde, la sœur du bourgmestre » : mention de Jehan). |
+| Forme courte | `short_form` | Caractéristique tirée d'une note, « aspect : valeur » (cheveux : roux), facultative ; aspects libres, comparés sans casse ni accents. |
 | Changement | `Change` | Opération élémentaire du catalogue (§6.1). |
 | Édition | `Edit` | Ensemble cohérent de changements, en attente ou appliqué. |
 | Édition dérivée | `derived_from` | Lien d'une édition appliquée vers l'édition en attente qu'elle confirme partiellement ou adapte (R-EDI-08). |
@@ -138,6 +144,7 @@ flowchart TB
 | Provenance | `provenance` | Origine d'un fait : l'édition qui l'a établi (issue d'un document et d'un lot, d'une édition structurée ou d'un déroulé), et ses supports documentaires. |
 | Support documentaire | `Support` | Passage d'un document qui affirme une valeur pour une clé de fait ; n'est pas une édition (R-FAI-01). |
 | Fait orphelin | `orphan_fact` | Fait d'origine documentaire qui n'a plus aucun support (R-FAI-06). |
+| Note orpheline | `orphan_note` | Note issue d'un document dont aucun passage ne la porte plus ; signalée, conservée (R-NTE-06). |
 
 ## 4. Modèle structurel
 
@@ -227,7 +234,7 @@ Fournis par la plateforme, **non configurables**, car la mécanique en dépend.
 
 | Types noyau | Relations noyau |
 |---|---|
-| `Document`, `Batch`, `Claim`, `Edit`, `Draft`, `Proposal`, `Scenario`, `ScenarioVersion`, `Playthrough`, `Sheet` | `concerns` (édition/piste → entité), `asserts` (document → affirmation), `has_sheet` (entité → fiche) et `conforms_to` (fiche → catégorie de système), **calculées** à partir du rattachement de la fiche (R-MET-02), `same_as` (entité ↔ entité), `counterpart_of` (élément du monde → élément d'un système, R-MET-04) |
+| `Document`, `Batch`, `Claim`, `Note`, `Edit`, `Draft`, `Proposal`, `Scenario`, `ScenarioVersion`, `Playthrough`, `Sheet` | `concerns` (édition/piste → entité), `asserts` (document → affirmation), `has_sheet` (entité → fiche) et `conforms_to` (fiche → catégorie de système), **calculées** à partir du rattachement de la fiche (R-MET-02), `same_as` (entité ↔ entité), `counterpart_of` (élément du monde → élément d'un système, R-MET-04) |
 
 | ID | Règle |
 |---|---|
@@ -253,7 +260,7 @@ flowchart LR
 | ID | Règle |
 |---|---|
 | R-FAI-01 | Tout fait **doit** porter sa **provenance**, en deux parties : l'**édition qui l'a établi** (issue d'un document et d'un lot, d'une édition structurée ou d'un déroulé), et ses **supports documentaires** (`Support`). Un support indique qu'un passage affirme une valeur pour une clé de fait. Il n'est **pas une édition** : il ne change pas l'état, n'est pas soumis à validation et ne dépend pas de la branche ; qu'il confirme ou non le fait se calcule sur la vue consultée. |
-| R-FAI-02 | Tout fait **doit** porter une **notoriété** (4.9). |
+| R-FAI-02 | Tout fait **doit** porter une **notoriété** (4.10). |
 | R-FAI-03 | Tout fait **peut** porter une **fenêtre de validité diégétique** (`diegetic_window`) ; champ préparé, non exploité par la fondation. |
 | R-FAI-04 | Un fait n'existe que dans un **état** : il est créé, modifié ou retiré par des changements (§6.1). |
 | R-FAI-05 | Tout fait **doit** avoir une **clé de fait** (`fact_key`), déduite du schéma ; deux faits de même clé ne peuvent coexister dans un état. Attribut : `(entity, attribute)` ; attribut à valeurs multiples (`list[...]`) : `(entity, attribute, value)`, une clé par valeur. Relation, selon sa cardinalité (R-SCH-01) : `many_to_many` → `(from, relation, to)` ; `one_to_many` → `(relation, to)` ; `many_to_one` → `(from, relation)` ; `one_to_one` → les deux clés précédentes. Relation symétrique : extrémités rangées dans un ordre canonique ; en `one_to_one`, les rôles `from` et `to` étant interchangeables, une clé `(extrémité, relation)` par extrémité (`spouse_of(mervin, isabeau)` occupe `(mervin, spouse_of)` et `(isabeau, spouse_of)`). L'existence d'une entité a pour clé `(entity)` ; la fiche d'une entité dans un système, `(sheet, entity, system)` (R-MET-02) ; une contrepartie, `(counterpart, element, system)` (R-MET-04) ; un élément de schéma, `(scope, type|relation, name[, attribute])`, écrite par les seules modifications de schéma. La clé fonde la détection des contradictions et des dépendances (R-EDI-03, §6.3). Un ajout sur une clé occupée par un autre fait n'est applicable que si la même édition retire ce fait (« le conseil gouverne Brume » exige de retirer « Odon gouverne Brume ») ; seule `set_attribute` remplace une valeur, puisque l'opération signifie « modifier ». |
@@ -308,7 +315,21 @@ flowchart LR
   A -. qualifiée fausse .-> T["Aldren a été empoisonné<br/>fait, secret"]
 ```
 
-### 4.8 Identité
+### 4.8 Notes
+
+Ce que les textes disent d'une entité sans que ce soit un fait à clé — un portrait, un jugement, une habitude — est gardé en **notes** : une citation rangée par facette. Exemple : « Ysolde, une vieille rousse sèche, toujours une fiole à la ceinture » donne une note d'apparence (« une vieille rousse sèche » ; âge : vieille · cheveux : roux · corpulence : sèche) et une note d'habitudes (« toujours une fiole à la ceinture »).
+
+| ID | Règle |
+|---|---|
+| R-NTE-01 | Une **note** est un élément du monde : une citation (texte), **une facette**, **un ou plusieurs sujets sans ordre**, des **mentions**, une **forme courte** facultative (« aspect : valeur », aspects libres), une **voix** (l'auteur, ou l'énonciateur d'un document en jeu : « selon la Chronique de la Chute », R-DOC-06) et une **source** (document et passage), absente pour une note saisie par l'auteur. |
+| R-NTE-02 | Une note **n'a pas de clé de fait** : elle n'entre jamais en collision. Deux notes peuvent diverger (« rousse », « brune ») sans contradiction au sens de §7, comme un fait et une affirmation (R-DOC-08). |
+| R-NTE-03 | La **notoriété** d'une note se déclare comme celle d'un fait (R-NOT-01 ; défaut à l'ingestion : celle du document) et change par édition ; sa notoriété effective est **plafonnée** par ses sujets et ses mentions (R-NOT-04). |
+| R-NTE-04 | Les **facettes** sont déclarées par type dans le schéma, avec libellés, et héritées par les sous-types ; `other` existe toujours. Une note dont les sujets n'ont pas de facette commune va dans `other`. |
+| R-NTE-05 | À l'ingestion, une note ne décrit pas ce qu'un fait confirmé du même passage dit déjà : **notes et faits sont complémentaires**. |
+| R-NTE-06 | Une note issue d'un document reste attachée à sa source (R-DOC-04) ; si son passage disparaît à la ré-ingestion, elle est **signalée orpheline**, jamais retirée d'office (comme R-FAI-06). |
+| R-NTE-07 | Une note se pose par `add_note` et se retire par `remove_note` ; la **corriger**, c'est la retirer et en poser une autre dans la même édition. L'historique garde tout (R-HIS-01) : une vue antérieure la montre encore. |
+
+### 4.9 Identité
 
 | ID | Règle |
 |---|---|
@@ -318,14 +339,14 @@ flowchart LR
 | R-IDT-04 | Un doublon est affiché comme une seule entité dans toutes les vues. |
 | R-IDT-05 | Les vues **doivent** proposer une page consolidée, avec provenance ; les contradictions entre entités reliées sont signalées. |
 
-### 4.9 Notoriété
+### 4.10 Notoriété
 
 Sens : **notoriété dans le monde** (ce qu'un habitant pourrait savoir), pas ce que la table a appris.
 
 | ID | Règle |
 |---|---|
 | R-NOT-01 | Valeurs de `visibility` : `secret`, `public`, `unqualified` (défaut). |
-| R-NOT-02 | Granularité : entités, attributs, relations, affirmations, qualifications d'affirmations, documents. La clôture et la suppression d'une entité n'ont pas de notoriété propre : elles suivent celle de l'entité (Aldren, public, est vu clos en vue publique). |
+| R-NOT-02 | Granularité : entités, attributs, relations, affirmations, qualifications d'affirmations, documents, notes (R-NTE-03). La clôture et la suppression d'une entité n'ont pas de notoriété propre : elles suivent celle de l'entité (Aldren, public, est vu clos en vue publique). |
 | R-NOT-03 | Tout filtre public **doit** traiter le *non qualifié* comme *secret*. |
 | R-NOT-04 | La **notoriété effective** (`effective_visibility`) d'un fait est **plafonnée** par celle des entités qu'il mentionne : un fait qui mentionne une entité secrète ou non qualifiée n'est pas public, quelle que soit sa notoriété déclarée. La propagation est **levable au cas par cas**, par un indicateur explicite (`propagation_lifted`) porté par `set_visibility` : le fait s'affiche alors en vue publique **sans révéler l'entité**, présentée comme non publique. |
 | R-NOT-05 | Les affirmations héritent de la notoriété de leur document. |
@@ -464,6 +485,8 @@ Les opérations sur les faits valent pour le lore comme pour les fiches (la cibl
 | Affirmations et documents | Créer une affirmation | `add_claim` | La Chronique affirme qu'Aldren est mort au combat |
 | | Qualifier une affirmation | `qualify_claim` | La Chronique est fausse sur ce point |
 | | Déclarer un document obsolète, ou lever ce statut | `set_document_obsolete` | Les vieilles notes sur le baron sont obsolètes |
+| Notes | Poser une note | `add_note` | « Ysolde, une vieille rousse sèche » (apparence) |
+| | Retirer une note | `remove_note` | Ysolde ne porte plus sa fiole |
 | Schémas | Déclarer ou modifier un type | `schema_set_type` | Ajouter le type `MonasticOrder` |
 | | Retirer un type | `schema_remove_type` | Retirer le type `Guild` |
 | | Déclarer ou modifier une relation | `schema_set_relation` | Passer `rules` en `one_to_many` |
@@ -659,7 +682,7 @@ flowchart LR
 | ID | Règle |
 |---|---|
 | R-VUE-01 | Toute variante de wiki **est une vue** ; aucune n'est stockée séparément. |
-| R-VUE-02 | Une page d'entité **doit** montrer ses faits, ses fiches, ses pistes ouvertes, ses documents sources et, le cas échéant, sa consolidation `same_as`. |
+| R-VUE-02 | Une page d'entité **doit** montrer ses faits, ses notes rangées par facette (et les notes qui la mentionnent), ses fiches, ses pistes ouvertes, ses documents sources et, le cas échéant, sa consolidation `same_as`. |
 | R-VUE-03 | Une vue antérieure **doit** signaler les informations redéfinies plus tard. |
 | R-VUE-04 | Les éléments pour les joueurs sont prélevés par le MJ dans une vue publique ; pas d'outillage dédié. |
 | R-VUE-05 | En vue d'auteur, une page d'entité **doit** montrer **ce que disent les documents** : les passages des documents ingérés qui la nomment, chacun repéré *capté* (il soutient un fait de l'entité), *non capté* (il la nomme sans qu'aucun fait n'en vienne) ou *affirmation* (document en jeu, R-DOC-06). Ce n'est ni un fait ni une affirmation : rien n'entre dans l'état. Une vue joueur ne montre **aucun** passage : le texte brut ne se plafonne pas fait par fait (R-NOT-04) ; ce qui va aux joueurs est prélevé par le MJ (R-VUE-04). Exemple : la page d'Odon montre « « Le baron est un traître », murmure-t-on sur les quais. » (non capté) ; la page joueur ne le montre jamais. |

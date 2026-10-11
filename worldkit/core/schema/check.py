@@ -16,7 +16,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 
 from .changes import (
-    WORLD_SCOPE, AddRelation, AddValue, Change, CloseEntity, CreateEntity, DeleteEntity,
+    WORLD_SCOPE, AddNote, AddRelation, AddValue, Change, CloseEntity, CreateEntity, DeleteEntity,
     RemoveRelation, RemoveValue, SCHEMA_OPS, Scalar, SchemaRemoveRelation, SchemaRemoveType,
     SchemaSetRelation, SchemaSetType, SetAttribute, SetVisibility, UnsetAttribute,
 )
@@ -140,8 +140,12 @@ def _check_fact_change(change: Change, ctx: SchemaContext) -> list[Issue]:
             kind = change.kind if isinstance(change, AddRelation) else None
             return _check_relation(change.from_, change.relation, change.to, scope, ctx,
                                    kind=kind, adding=isinstance(change, AddRelation))
+        case AddNote():
+            return _check_note(change, ctx)
         case SetVisibility():
             t = change.target
+            if t.note is not None:
+                return []  # existence vérifiée contre l'état (application)
             if t.relation is not None:
                 return _check_relation(t.from_ or "", t.relation, t.to or "", scope, ctx,
                                        kind=None, adding=False)
@@ -155,6 +159,23 @@ def _check_fact_change(change: Change, ctx: SchemaContext) -> list[Issue]:
                     return [_out(f"attribut « {t.attribute} » non déclaré pour « {entity} »")]
             return []
     # Affirmations et documents : types noyau, rien à vérifier contre un schéma en J1.
+    return []
+
+
+def _check_note(change: AddNote, ctx: SchemaContext) -> list[Issue]:
+    """Une note (R-NTE-01, R-NTE-04) : sujets, mentions et énonciateur existent ; la facette est commune aux types
+    de tous les sujets, ou `other`."""
+    issues = [_unknown(e) for e in [*change.subjects, *change.mentions, *([change.speaker] if change.speaker else [])]
+              if qualify(e, change.scope) not in ctx.entities]
+    if issues:
+        return issues
+    schema = ctx.schema_for(change.scope)
+    for subject in change.subjects:
+        info = ctx.entities[qualify(subject, change.scope)]
+        allowed = schema.facets_of(info.type) if schema is not None and info.type in schema.types else {"other": None}
+        if change.facet not in allowed:
+            return [_invalid(f"facette « {change.facet} » non déclarée pour « {subject} » ({info.type}) ; possibles : "
+                             f"{', '.join(allowed)}", "R-NTE-04")]
     return []
 
 

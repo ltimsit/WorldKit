@@ -11,12 +11,13 @@
 
 <h2>Types</h2>
 <table>
-  <tr><th>type</th><th>hérite de</th><th>attributs</th><th>sous-types</th><th>entités</th><th>posé par</th></tr>
+  <tr><th>type</th><th>hérite de</th><th>attributs</th><th>facettes <span class="muted small">(notes)</span></th><th>sous-types</th><th>entités</th><th>posé par</th></tr>
   {% for t in o.schema.types %}
   <tr id="type-{{ t.name }}"><td><b>{{ t.label }}</b>{% if t.label != t.name %} <span class="mono small muted">{{ t.name }}</span>{% endif %}</td>
     <td class="mono small">{{ t.ancestors|join(" → ") or "—" }}</td>
     <td class="small">{% for a in t.attributes %}<div><b>{{ a.label }}</b>{% if a.label != a.name %} <span class="mono muted">{{ a.name }}</span>{% endif %} : <span class="mono">{{ a.type }}</span>{% if a.required %} · <span title="obligatoire">requis</span>{% endif %}{% if a.min is not none or a.max is not none %} · bornes {{ a.min if a.min is not none else "…" }}–{{ a.max if a.max is not none else "…" }}{% endif %}{% if a.provenance and a.provenance != t.provenance %} <a class="mono muted" href="/edit/{{ a.provenance }}?{{ qs(ctx) }}">{{ a.provenance }}</a>{% endif %}</div>{% endfor %}
       {% for a in t.inherited %}<div class="muted">{{ a.label }} <span class="mono">({{ a.type }}, de {{ a.owner }})</span></div>{% endfor %}</td>
+    <td class="small">{% for f in t.facets %}<span{% if not f.own %} class="muted"{% endif %} title="{{ f.name }}">{{ f.label }}</span>{{ ", " if not loop.last }}{% endfor %}</td>
     <td class="mono small">{{ t.subtypes|join(", ") or "—" }}</td>
     <td>{{ t.entities }}</td>
     <td class="mono small">{% if t.provenance %}<a href="/edit/{{ t.provenance }}?{{ qs(ctx) }}">{{ t.provenance }}</a>{% endif %}</td></tr>

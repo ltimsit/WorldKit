@@ -353,6 +353,11 @@ Usages, dans l'ordre où ils viendront : **relire et retrouver** (suivre la cons
 
 Restent ouverts : l'approche des incohérences (comparer les formes courtes d'une même facette et d'un même aspect, signalées sans décider, ou une lecture par un modèle) ; la description consolidée (niveau 4) ; le grain de la couche (fenêtre ou passage) et son coût.
 
+**Piste : plusieurs sources, une même caractéristique (11 octobre 2026, question de l'auteur).** Exemple réel : « Ostrel est pas fiable, il magouille » (fiabilité : pas fiable · comportement : magouille) ; une lettre écrite plus tard dirait « cupide comme un rat » (comportement : cupide). Aujourd'hui les notes s'additionnent (pas de clé, R-NTE-02) : deux notes dans la même facette, chacune avec sa source ; un même texte d'une autre source est un support ; une paraphrase fait une seconde note presque identique (limite connue). Ce qui manque, par ordre de coût :
+1. **Synthèse des formes courtes sur la page**, sans modèle : chaque aspect une fois, avec toutes ses valeurs et leurs sources (« comportement : magouille (brouillon), cupide (lettre) ») ; utile à la relecture, base des incohérences.
+2. **Aspects cumulatifs ou exclusifs** : un comportement, un trait, une habitude s'additionnent ; une couleur de cheveux, un âge, une taille s'excluent. Les aspects exclusifs se déclareraient par facette dans le schéma, comme la cardinalité d'une relation ; seuls ceux-là seraient signalés quand deux valeurs divergent (« rousse » contre « brune »), sans décider ; le reste resterait cumulatif.
+3. **Incubateur du schéma** : un aspect qui revient chez plusieurs entités (« fiabilité ») devient un attribut proposé ; il passe alors en fait à clé, avec sa cardinalité et le contrôle des collisions.
+
 **Traduire une fois, lire plusieurs fois** : la résolution des références est faite une seule fois et gardée sous forme d'annotations sur le texte original, pas de réécriture. Raisons : la notoriété d'une note redevient calculable par le noyau (plafonnement par les entités citées, R-NOT-04) ; l'identité peut évoluer (`same_as`, R-IDT-04, redéfinition) ; la provenance reste exacte (R-HIS-01).
 
 ### 10.7 Écartés, reportés ou à reconsidérer
@@ -582,12 +587,7 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 40. *Formes courtes : règle B à vérifier (X-003)* : acté au cadre technique (T-ING-21) ; les homonymes de prénom ne sont jamais des formes courtes, l'alias tranche.
 41. *« Ajouter au schéma » (§6.6, premier incrément)* : acté au cadre d'interface (I-ATL-09) ; écriture au journal du monde après confirmation ; « relation existante » avec mémoire de la tournure et « ignorer » avec mémoire restent à faire ; report dans un monde d'auteur par `worldkit schema export`.
 42. **Forme des valeurs, par étapes** (E-005) : d'abord une règle sans modèle après C5 (« X de <entité reliée au sujet> » → « X », forme d'origine gardée en précision) ; le vocabulaire déclaré par attribut (§10.5) plus tard, si un écart de synonyme (E-001) réapparaît sur un vrai texte.
-43. **Notes descriptives : citation exacte + forme courte facultative** « aspect : valeur » (§10.6).
-44. **Notes : atelier puis journal** ; nouvelle sorte d'élément du monde, sans collision, acceptable en lot (§10.6).
-45. **Facettes déclarées par le schéma, par type**, avec défauts et « autre » (§10.6).
-46. **Notoriété d'une note comme celle d'un fait**, plafonnée par les entités nommées (R-NOT-04) (§10.6).
-47. **Notes et faits complémentaires** : la couche « descriptions » passe après les faits et ne décrit que ce qu'aucun fait ne dit (§10.6).
-48. **Une note a un ou plusieurs sujets, sans ordre, et des mentions** : pas de « source » arbitraire quand deux entités s'équivalent (§10.6).
+43. *Notes descriptives (choix 43 à 48 du brainstorm)* : actées au cadre de la fondation (R-NTE-01 à R-NTE-07), au cadre technique (T-ING-22) et au cadre d'interface (I-ATL-10), jalon J9 ; restent ouverts : incohérences, description consolidée, mesure de la couche.
 
 ## 14. Questions ouvertes
 

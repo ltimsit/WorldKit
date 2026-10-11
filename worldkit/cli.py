@@ -1115,6 +1115,7 @@ def _schema_show(args: argparse.Namespace) -> int:
         print(f"- {named(t['label'], t['name'])}{parent} · {t['entities']} entité(s) · {t['provenance'] or '?'}")
         if attrs:
             print(f"    attributs : {attrs}")
+        print(f"    facettes : {', '.join(named(f['label'], f['name']) for f in t['facets'])}")
     print(f"Relations ({len(sch['relations'])})")
     for rel in sch["relations"]:
         arrow = "↔" if rel["symmetric"] else "→"

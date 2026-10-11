@@ -40,6 +40,16 @@
     <td class="mono small"><a href="/edit/{{ r.provenance }}?{{ ctx_q }}">{{ r.provenance }}</a></td></tr>
   {% endfor %}
 </table>
+{% if p.notes or p.mentioned_in %}<h3>Notes <span class="muted small">R-NTE-01</span></h3>
+  {% for facet in p.notes|groupby("facet_label") %}<h4 class="small" style="margin:6px 0 2px">{{ facet.grouper }}</h4><table>
+    {% for n in facet.list %}<tr><td>« {{ n.text }} »{% if n.short %}<br><span class="small muted">{% for a in n.short %}{{ a[0] }} : {{ a[1] }}{{ " · " if not loop.last }}{% endfor %}</span>{% endif %}</td>
+      <td class="small">{% for e in n.subjects if e != p.id %}{{ "avec " if loop.first }}<a href="/wiki/{{ e }}?{{ ctx_q }}">{{ e }}</a>{{ ", " if not loop.last }}{% endfor %}{% if n.speaker %}<br>selon <a href="/wiki/{{ n.speaker }}?{{ ctx_q }}">{{ n.speaker }}</a>{% endif %}</td>
+      <td>{{ vis(n.visibility) }}</td><td class="mono small">{% if n.document %}{{ n.document }} · {% endif %}<a href="/edit/{{ n.provenance }}?{{ ctx_q }}">{{ n.provenance }}</a></td></tr>{% endfor %}
+  </table>{% endfor %}
+  {% if p.mentioned_in %}<h4 class="small" style="margin:6px 0 2px">mentions dans les notes</h4><table>
+    {% for n in p.mentioned_in %}<tr><td>« {{ n.text }} »</td><td class="small">sur {% for e in n.subjects %}<a href="/wiki/{{ e }}?{{ ctx_q }}">{{ e }}</a>{{ ", " if not loop.last }}{% endfor %}</td><td>{{ vis(n.visibility) }}</td><td class="mono small">{{ n.provenance }}</td></tr>{% endfor %}
+  </table>{% endif %}
+{% endif %}
 {% if p.sheets %}<h3>Fiches</h3>
   {% for s in p.sheets %}{% set sb = status.get(("sheet_bindings", s.sheet), "") %}
   <table><tr class="{{ sb }}"><th colspan="4">{{ s.system }} ({{ s.category }}) <code>{{ s.sheet }}</code></th></tr>

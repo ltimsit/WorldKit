@@ -8,7 +8,7 @@ from __future__ import annotations
 from .metaschema import Cardinality
 
 CORE_TYPES: frozenset[str] = frozenset({
-    "Document", "Batch", "Claim", "Edit", "Draft", "Proposal",
+    "Document", "Batch", "Claim", "Note", "Edit", "Draft", "Proposal",
     "Scenario", "ScenarioVersion", "Playthrough", "Sheet",
 })
 

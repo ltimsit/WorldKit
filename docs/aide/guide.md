@@ -1,7 +1,7 @@
 # Guide pas à pas
 
 **Objet :** apprendre à se servir de worldkit par l'exemple : construire le monde de démonstration Valmont, lire un résultat, écrire un changement, essayer dans un bac à sable, ingérer un lot étape par étape, faire un retcon, tester un mécanisme seul, mesurer un extracteur, vérifier après un changement de code. Chaque section donne les gestes dans l'interface, la commande équivalente et ce que vous devez voir.
-**Version :** 1.1 — 10 octobre 2026.
+**Version :** 1.2 — 11 octobre 2026.
 **Lecture :** les sections s'enchaînent sur un même monde ; suivez-les dans l'ordre la première fois. Les commandes se tapent sous PowerShell, **depuis la racine du projet**, environnement activé (`.venv\Scripts\activate`). Tout identifiant souligné dans l'interface (règle, étape, opération, statut) mène à sa définition ; en ligne de commande : `worldkit explain <code>`. La carte des écrans est dans *outils.md*, les définitions dans *glossaire.md*.
 **Ce guide est testé :** `tests/test_guide.py` exécute chaque bloc de commandes et vérifie chaque bloc « sortie » et chaque écran annoncé. S'il ment, la suite de tests échoue.
 
@@ -561,6 +561,35 @@ worldkit --db valmont.db wiki page brume
 <!-- écran /wiki/brume : "Ce que disent les documents" ; "échoppe de cordes" -->
 
 Une forme dont la casse diffère du nom connu (« une brume épaisse », ou « corbelle » dans des notes prises vite) est montrée **à vérifier** : homographe possible, à trancher d'un geste dans l'atelier. Une forme courte d'un nom de personne (« Odon » seul, pour Odon de Brume) est trouvée, elle aussi à vérifier ; un prénom porté par deux personnes ne l'est pas. Pour la rendre sûre, ou pour trancher un homonyme, ajoutez-la comme alias de la bonne personne : tous les passages qui la citent apparaissent. La vue joueur ne montre aucun passage : le texte brut peut révéler plus que les faits publics. À l'écran : **Wiki**, page `brume`, section « Ce que disent les documents ». Bertille n'a pas encore de page : son entité attend en revue ; acceptée, elle aura la sienne, avec ses deux passages.
+
+### Les notes : ce que les textes disent sans que ce soit un fait
+
+Un portrait, un caractère, une habitude ne sont pas des faits à clé : ils deviennent des **notes**, rangées par **facette** (apparence, caractère, histoire, habitudes pour un personnage ; aspect, ambiance, histoire pour un lieu ; « autre » toujours). Une note garde sa **citation** exacte, parfois une **forme courte** (« cheveux : roux »), ses sujets (une ou plusieurs entités, à égalité) et ses mentions. Elle n'entre jamais en collision : deux notes peuvent diverger. Sa notoriété se règle comme celle d'un fait, et la vue joueur n'en montre une que si ses sujets et ses mentions sont publics.
+
+Dans l'atelier, après les faits, **Couche « descriptions »** propose les bribes de la source (un appel au modèle, estimé puis confirmé) ; vous les gardez, corrigez ou retirez, et **Ajouter une note** part d'un extrait sélectionné. « Proposer » les envoie avec les faits. Une note se pose aussi à la main, sans document :
+
+```yaml fichier=note.yaml
+id: n-mervin
+origin: enrichment
+changes:
+  - {op: add_note, note: mervin-voix, subjects: [mervin], facet: habits, text: parle toujours très bas, short: [{aspect: voix, value: basse}], visibility: public}
+```
+
+```powershell
+worldkit --db valmont.db edit apply note.yaml
+worldkit --db valmont.db wiki page mervin
+```
+
+```text sortie
+n-mervin : applied
+## Notes
+### habitudes (habits)
+- « parle toujours très bas » — voix : basse
+```
+
+<!-- écran /wiki/mervin : "parle toujours très bas" ; "habitudes" -->
+
+Une note se retire par `remove_note` ; la corriger, c'est la retirer et en poser une autre dans la même édition. Les facettes de chaque type se lisent sur l'écran **Schéma**.
 
 ## 13. Pour aller plus loin
 

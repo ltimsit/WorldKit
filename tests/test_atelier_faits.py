@@ -254,3 +254,19 @@ def test_correcting_an_out_of_schema_fact_keeps_its_relation_selected(tmp_path):
     w.close()
     page = TestClient(create_app(db)).get(f"/atelier/{doc.doc_id}?fact={fact.ann_id}").text
     assert '<option value="rel:detests" selected>detests (hors schéma' in page
+
+
+def test_a_relaunch_does_not_repropose_a_fact_the_author_decided_even_reworded_I_ATL_02():
+    """Règle de relance normalisée (même que pour les notes) : un attribut décidé ne revient pas avec une autre
+    valeur ; une relation symétrique décidée ne revient pas dans l'autre sens."""
+    world, doc = source_with_ostrel()
+    sibling = ({"op": "add_relation", "from": "odon", "relation": "sibling_of", "to": "new:bertrand-ostrel"},
+               "Il siège au conseil de Bertrand Ostrel.")
+    layers.run_facts(world, "reference", doc.doc_id, FakeFinder([TITLE, sibling]))
+    for a in facts_of(world, doc):
+        gestures.fact_gesture(world, "reference", doc.doc_id, "keep", a.ann_id)
+    reworded = [({**TITLE[0], "value": "baron de Brume"}, TITLE[1]),
+                ({"op": "add_relation", "from": "new:bertrand-ostrel", "relation": "sibling_of", "to": "odon"},
+                 sibling[1])]
+    report = layers.run_facts(world, "reference", doc.doc_id, FakeFinder(reworded))
+    assert report.skipped_by_author == 2 and report.proposed == 0

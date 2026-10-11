@@ -16,8 +16,8 @@ from worldkit.core.schema import (
     Change, EntityInfo, FactKey, Schema, SchemaContext, SchemaKind, SheetBinding, Visibility, fact_keys, qualify,
 )
 from worldkit.core.schema.changes import (
-    WORLD_SCOPE, AddClaim, AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, FactTarget,
-    QualifyClaim, RemoveRelation, RemoveValue, SCHEMA_OPS, Scalar, SetAttribute, SetDocumentObsolete,
+    WORLD_SCOPE, AddClaim, AddNote, AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, FactTarget,
+    QualifyClaim, RemoveNote, RemoveRelation, RemoveValue, SCHEMA_OPS, Scalar, SetAttribute, SetDocumentObsolete,
     SetVisibility, UnsetAttribute,
 )
 from worldkit.core.schema.check import apply_schema_change
@@ -76,6 +76,8 @@ class State:
     claims: dict[str, dict[str, Any]] = field(default_factory=dict)
     qualifications: dict[str, dict[str, Any]] = field(default_factory=dict)
     obsolete_documents: dict[str, bool] = field(default_factory=dict)
+    # Notes (R-NTE-01) : identifiant → sujets, mentions, facette, texte, forme courte, voix, source, notoriété.
+    notes: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def context(self) -> SchemaContext:
         return SchemaContext(self.world, self.systems, self.entities, self.sheet_requirements)
@@ -83,7 +85,8 @@ class State:
     def copy(self) -> State:
         return replace(self, systems=dict(self.systems), entities=dict(self.entities), facts=dict(self.facts),
                        occupancy=dict(self.occupancy), claims=dict(self.claims),
-                       qualifications=dict(self.qualifications), obsolete_documents=dict(self.obsolete_documents))
+                       qualifications=dict(self.qualifications), obsolete_documents=dict(self.obsolete_documents),
+                       notes=dict(self.notes))
 
     def facts_of(self, entity: str) -> list[Fact]:
         return sorted((f for f in self.facts.values() if entity in (f.subject, f.target)), key=lambda f: repr(f.id))
@@ -224,6 +227,8 @@ def apply_change(state: State, change: Change, edit_id: str) -> None:
             fid = fact_id_of(change, ctx)
             assert fid is not None
             _drop(state, fid)
+        case SetVisibility() if change.target.note is not None:
+            state.notes[change.target.note] = {**state.notes[change.target.note], "visibility": change.value}
         case SetVisibility():
             fid = target_fact_id(change.target, sc, ctx)
             if fid is None:
@@ -242,6 +247,14 @@ def apply_change(state: State, change: Change, edit_id: str) -> None:
                                                   "established_by": edit_id}
         case SetDocumentObsolete():
             state.obsolete_documents[change.document] = change.value
+        case AddNote():
+            state.notes[change.note] = {
+                "subjects": [qualify(e, sc) for e in change.subjects], "mentions": [qualify(e, sc) for e in change.mentions],
+                "facet": change.facet, "text": change.text, "short": [[f.aspect, f.value] for f in change.short],
+                "speaker": change.speaker, "document": change.document,
+                "visibility": change.visibility or Visibility.UNQUALIFIED, "established_by": edit_id}
+        case RemoveNote():
+            state.notes.pop(change.note, None)
 
 
 __all__ = [

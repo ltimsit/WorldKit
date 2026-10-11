@@ -841,6 +841,11 @@ def in_french(change: Any, state: Any) -> str | None:
         f = state.facts.get(("attr", eid, "name"))
         return str(f.value) if f is not None else eid
     op = getattr(change, "op", "")
+    if op == "add_note":  # J9 : « Ysolde Marcastel — apparence : « une vieille rousse sèche » »
+        from worldkit.core.views.model import facet_label
+        note = {"subjects": list(change.subjects), "facet": change.facet}
+        voice = f" (selon {name(change.speaker)})" if change.speaker else ""
+        return f"{', '.join(name(e) for e in change.subjects)} — {facet_label(state, note)} : « {change.text} »{voice}"
     if op in ("add_relation", "remove_relation"):
         sign = "" if op == "add_relation" else "plus : "
         return f"{sign}{name(change.from_)} — {relation_label(state, change.relation, change.scope)} — {name(change.to)}"

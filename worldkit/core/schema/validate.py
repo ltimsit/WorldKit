@@ -171,6 +171,9 @@ def _identifier_checks(s: Schema) -> list[Issue]:
     for name, t in s.types.items():
         if not _TYPE_IDENT.fullmatch(name):
             bad(name, "PascalCase", f"types.{name}")
+        for facet in t.facets:  # R-NTE-04
+            if not _MEMBER_IDENT.fullmatch(facet):
+                bad(facet, "snake_case", f"types.{name}.facets.{facet}")
         for attr in t.attributes:
             if not _MEMBER_IDENT.fullmatch(attr):
                 bad(attr, "snake_case", f"types.{name}.attributes.{attr}")
