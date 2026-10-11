@@ -177,6 +177,66 @@ def adopt(world: World, draft_id: str) -> Outcome:
     return outcome
 
 
+BLOCKING_FOR_DRAFT = {IssueCode.UNKNOWN_ENTITY, IssueCode.OUT_OF_SCHEMA, IssueCode.INVALID_VALUE}
+
+
+def draft_id_for(world: World, title: str) -> str:
+    """Identifiant d'une piste tiré de son titre (« piste-corbelle-compte-t-elle… »), suffixé s'il est pris."""
+    import re
+    import unicodedata
+    slug = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode().casefold()
+    slug = "-".join(re.findall(r"[a-z0-9]+", slug))[:40].strip("-") or "piste"
+    base, n = f"piste-{slug}", 2
+    edit_id = base
+    while world.store.has_edit(edit_id):
+        edit_id, n = f"{base}-{n}", n + 1
+    return edit_id
+
+
+def check_author_draft(world: World, title: str, concerns: list[str], changes: list[Any],
+                       branch: str | None = None, point: int | str | None = None) -> tuple[Edit | None, list[Issue]]:
+    """Une piste d'auteur créée à l'écran (I10) : un titre, au moins une entité concernée, **au moins un changement**
+    (ce qu'elle ferait au monde si on l'adopte) ; les entités citées doivent exister (une entité seulement proposée
+    ne le peut pas encore : la proposer d'abord). Une collision avec l'état n'empêche rien : une piste est une
+    hypothèse, la collision est signalée et se tranchera à l'adoption."""
+    branch = branch or world.reference_branch
+    issues: list[Issue] = []
+    if not title.strip():
+        issues.append(Issue(IssueCode.EDIT_RULE, "une piste a un titre", "R-SCN-09"))
+    if not changes:
+        issues.append(Issue(IssueCode.EDIT_RULE, "une piste porte au moins un changement : ce qu'elle ferait au monde "
+                            "si on l'adopte", "R-SCN-09"))
+    head = world.state(branch, point)
+    missing = [e for e in concerns if e not in head.entities]
+    if not concerns:
+        issues.append(Issue(IssueCode.EDIT_RULE, "une piste concerne au moins une entité", "R-SCN-09"))
+    elif missing:
+        issues.append(Issue(IssueCode.UNKNOWN_ENTITY, f"entités absentes du monde : {', '.join(missing)} (une entité "
+                            "seulement proposée doit d'abord être acceptée en revue)", "R-SCN-09"))
+    if issues:
+        return None, issues
+    try:
+        parsed = [c if not isinstance(c, dict) else parse_change(c) for c in changes]
+    except ValueError as e:
+        return None, [Issue(IssueCode.EDIT_RULE, f"changement illisible : {e}", "R-EDI-03")]
+    edit = Edit(id=draft_id_for(world, title), branch=branch, title=title.strip(), concerns=list(concerns),
+                tags=["draft"], changes=parsed)
+    app = check_application(edit.changes, head, edit.id)
+    blocking = [i for i in app.issues if i.code in BLOCKING_FOR_DRAFT]
+    return (None if blocking else edit), (blocking or app.issues)
+
+
+def create_author_draft(world: World, title: str, concerns: list[str], changes: list[Any], note: str | None = None,
+                        branch: str | None = None, point: int | str | None = None) -> Outcome:
+    """Crée la piste (édition en attente, étiquette `draft`) si elle passe `check_author_draft`."""
+    edit, issues = check_author_draft(world, title, concerns, changes, branch, point)
+    if edit is None:
+        return Outcome(draft_id_for(world, title or "piste"), issues)
+    if note:
+        edit = edit.model_copy(update={"note": note})
+    return world.submit(edit, point)
+
+
 # ---------------------------------------------------------------------------
 # Déroulés
 # ---------------------------------------------------------------------------

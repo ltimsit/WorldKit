@@ -1,7 +1,7 @@
 # Guide pas à pas
 
 **Objet :** apprendre à se servir de worldkit par l'exemple : construire le monde de démonstration Valmont, lire un résultat, écrire un changement, essayer dans un bac à sable, ingérer un lot étape par étape, faire un retcon, tester un mécanisme seul, mesurer un extracteur, vérifier après un changement de code. Chaque section donne les gestes dans l'interface, la commande équivalente et ce que vous devez voir.
-**Version :** 1.2 — 11 octobre 2026.
+**Version :** 1.3 — 12 octobre 2026.
 **Lecture :** les sections s'enchaînent sur un même monde ; suivez-les dans l'ordre la première fois. Les commandes se tapent sous PowerShell, **depuis la racine du projet**, environnement activé (`.venv\Scripts\activate`). Tout identifiant souligné dans l'interface (règle, étape, opération, statut) mène à sa définition ; en ligne de commande : `worldkit explain <code>`. La carte des écrans est dans *outils.md*, les définitions dans *glossaire.md*.
 **Ce guide est testé :** `tests/test_guide.py` exécute chaque bloc de commandes et vérifie chaque bloc « sortie » et chaque écran annoncé. S'il ment, la suite de tests échoue.
 
@@ -590,6 +590,35 @@ n-mervin : applied
 <!-- écran /wiki/mervin : "parle toujours très bas" ; "habitudes" -->
 
 Une note se retire par `remove_note` ; la corriger, c'est la retirer et en poser une autre dans la même édition. Les facettes de chaque type se lisent sur l'écran **Schéma**.
+
+### Les pistes : ce qui n'est pas encore décidé
+
+Un texte hésite (« genre 2000 habitants, jsp encore »), une idée vous vient (« et si le passeur trahissait la guilde ? ») : n'en faites ni un fait ni une note, qui seraient des vérités du monde, mais une **piste d'auteur**. Elle porte ce qu'elle ferait au monde si vous l'adoptez, concerne des entités, et attend votre décision. Dans l'atelier, le panneau d'un fait ou d'une bribe propose **« En faire une piste »** : la bribe passe « en piste » et ne part pas avec « Proposer ». L'écran **Pistes** les rassemble : adopter, écarter, ou en créer une. En ligne de commande, vérifier d'abord :
+
+```powershell
+worldkit --db valmont.db call drafts.create --param "title=Et si Mervin était le parent de Corvin ?" --param "concerns=[mervin, corvin]" --param "changes=[{op: add_relation, from: mervin, relation: parent_of, to: corvin}]"
+```
+
+```text sortie
+drafts.create [write] → world : pending
+créera la piste piste-et-si-mervin-etait-le-parent-de-corvin
+```
+
+Puis la même commande avec `--param confirm=true`, qui la crée en attente :
+
+```powershell
+worldkit --db valmont.db call drafts.create --param "title=Et si Mervin était le parent de Corvin ?" --param "concerns=[mervin, corvin]" --param "changes=[{op: add_relation, from: mervin, relation: parent_of, to: corvin}]" --param confirm=true
+worldkit --db valmont.db draft list
+```
+
+```text sortie
+drafts.create [write] → world : ok
+piste-et-si-mervin-etait-le-parent-de-corvin [pending] Et si Mervin était le parent de Corvin ?
+```
+
+<!-- écran /pistes : "Et si Mervin était le parent de Corvin ?" ; "adopter" -->
+
+La piste paraît aussi dans « Pistes ouvertes » sur les pages de Mervin et de Corvin (vue d'auteur). **Adopter** l'applique au monde (`worldkit draft adopt <piste>`) ; **écarter** l'abandonne, elle reste tracée. Si un retcon touche ce qu'elle suppose, elle passe **à revérifier**. Une piste porte toujours au moins un changement et ne cite que des entités du monde : une entité seulement proposée doit d'abord être acceptée en revue.
 
 ## 13. Pour aller plus loin
 

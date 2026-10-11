@@ -144,6 +144,12 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
         for key in ("ann_id", "passage", "start", "end"):
             if form.get(key) not in (None, ""):
                 params[key] = int(str(form.get(key)))
+        if params["action"] == "draft":  # I10 : en faire une piste
+            params["title"] = str(form.get("title") or "")
+            result = page.call("atelier.annotate", params)
+            if not result.ok:
+                return source_page(request, page, doc_id, error="; ".join(i.message for i in result.issues))
+            return RedirectResponse(f"/atelier/{quote(doc_id)}", status_code=303)
         if params["kind"] == "note":  # J9 : une bribe de description
             subjects = [str(x) for x in form.getlist("subjects")]
             if subjects:

@@ -196,6 +196,42 @@ def create_app(db: str | Path) -> FastAPI:
         index = page.call("wiki.index", params_of(ctx, "branch", "point", "filter"), ctx["target"] or None)
         return render(request, "wiki_index.html", page, index=index)
 
+    def pistes_page(request: Request, page: Page, form: dict[str, Any] | None = None, checked: Any = None,
+                    error: str | None = None) -> HTMLResponse:
+        """Pistes d'auteur (I10, I-VUE-13) : la liste, adopter, écarter, créer."""
+        ctx = context(request)
+        show_all = request.query_params.get("status") == "all"
+        params = {"status": "all" if show_all else "open", **params_of(ctx, "branch")}
+        listing = page.call("drafts.list", params, ctx["target"] or None)
+        return render(request, "pistes.html", page, listing=listing, show_all=show_all, form=form or {},
+                      checked=checked, error=error)
+
+    @app.get("/pistes", response_class=HTMLResponse)
+    def pistes(request: Request) -> HTMLResponse:
+        return pistes_page(request, Page(db))
+
+    @app.post("/pistes/decide", response_class=HTMLResponse)
+    async def pistes_decide(request: Request) -> Any:
+        data = await request.form()
+        page = Page(db)
+        op = "drafts.adopt" if data.get("action") == "adopt" else "drafts.discard"
+        result = page.call(op, {"id": str(data.get("id") or "")})
+        if not result.ok:
+            return pistes_page(request, page, error="; ".join(i.message for i in result.issues))
+        return RedirectResponse("/pistes", status_code=303)
+
+    @app.post("/pistes/new", response_class=HTMLResponse)
+    async def pistes_new(request: Request) -> Any:
+        data = await request.form()
+        page = Page(db)
+        form = {k: str(data.get(k) or "") for k in ("title", "concerns", "changes_yaml")}
+        params = {"title": form["title"], "concerns": [c.strip() for c in form["concerns"].split(",") if c.strip()],
+                  "changes_yaml": form["changes_yaml"], "confirm": data.get("action") == "confirm"}
+        result = page.call("drafts.create", params)
+        if params["confirm"] and result.ok:
+            return RedirectResponse(f"/pistes#{result.output['id']}", status_code=303)
+        return pistes_page(request, page, form=form, checked=result)
+
     @app.get("/schema", response_class=HTMLResponse)
     def schema_screen(request: Request) -> HTMLResponse:
         page = Page(db)

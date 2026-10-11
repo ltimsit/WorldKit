@@ -255,3 +255,49 @@ def note_gesture(world: Any, branch: str, doc_id: str, action: str, ann_id: int 
     status = {"keep": "kept", "remove": "removed", "correct": "corrected"}[action]
     return [store.add_annotation(world, branch, doc, "note", value, "author", target.passage, target.start,
                                  target.end, "sure", status, target.ann_id)]
+
+
+# ---------------------------------------------------------------------------
+# En faire une piste (I10, I-ATL-11) : un fait ou une bribe dont l'auteur n'est pas sûr
+# ---------------------------------------------------------------------------
+
+def _cited(draft: dict[str, Any]) -> list[str]:
+    out: list[str] = []
+    for k in ("entity", "from", "to"):
+        if isinstance(draft.get(k), str):
+            out.append(draft[k])
+    for k in ("subjects", "mentions"):
+        out.extend(draft.get(k) or [])
+    return list(dict.fromkeys(out))
+
+
+def to_draft(world: Any, branch: str, doc_id: str, kind: str, ann_id: int, title: str) -> tuple[Any, list[int]]:
+    """Met un fait ou une bribe en piste : une piste d'auteur (en attente) porte son changement, concerne ses
+    entités, et garde la source en remarque ; l'annotation prend l'état « en piste » (`drafted`), ne part pas avec
+    « Proposer » et n'est pas reproposée à la relance. Une entité seulement proposée (`new:…`) refuse le geste :
+    la proposer d'abord (décision 2 de la fiche I10). Rend l'issue de la création et les annotations écrites."""
+    from worldkit.core.workflows.scenarios import create_author_draft
+    from worldkit.ingest.stages import note_draft
+    if kind not in ("fact", "note"):
+        raise ValueError("en faire une piste : un fait ou une note")
+    doc = store.source(world, doc_id)
+    target = next((a for a in layers.effective(world, branch, doc) if a.ann_id == ann_id and a.kind == kind), None)
+    if target is None:
+        raise ValueError(f"{kind} inconnu ou remplacé : {ann_id}")
+    draft = dict(target.value["draft"])
+    cited = _cited(draft)
+    pending = [e for e in cited if str(e).startswith(("new:", "pending:"))]
+    if pending:
+        raise ValueError(f"entités pas encore créées : {', '.join(pending)} ; les proposer d'abord (et les accepter "
+                         "en revue), puis mettre en piste")
+    if kind == "note":
+        draft = note_draft(draft, doc.doc_id, target.passage, None)
+    quote = target.value.get("evidence") or draft.get("text") or ""
+    note = f"source : {doc.doc_id}, passage {target.passage} — « {quote} »"
+    outcome = create_author_draft(world, title, cited, [draft], note, branch)
+    if not outcome.ok:
+        return outcome, []
+    value = {**target.value, "draft_id": outcome.edit_id}
+    written = [store.add_annotation(world, branch, doc, kind, value, "author", target.passage, target.start,
+                                    target.end, "sure", "drafted", target.ann_id)]
+    return outcome, written

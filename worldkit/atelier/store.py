@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS atelier_rules (
     created REAL NOT NULL);
 """
 
-STATUSES = ("proposed", "kept", "removed", "corrected", "ignored")
+STATUSES = ("proposed", "kept", "removed", "corrected", "ignored", "drafted")  # drafted : mise en piste (I10)
 RULE_KINDS = ("not_entity", "not_entity_of")
 
 
