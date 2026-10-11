@@ -100,10 +100,27 @@ class AttributeDef(StrictModel):
         return self
 
 
+class FacetDef(StrictModel):
+    """Rubrique où ranger les notes d'une entité (R-NTE-04) : « apparence », « ambiance »… Dans un fichier,
+    `appearance: {fr: apparence}` vaut `appearance: {labels: {fr: apparence}}`."""
+
+    labels: dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _short(cls, v: Any) -> Any:
+        return {"labels": v} if isinstance(v, dict) and "labels" not in v else v
+
+
+OTHER_FACET = "other"  # toujours présente (R-NTE-04)
+OTHER_LABELS = {"fr": "autre"}
+
+
 class TypeDef(StrictModel):
     extends: str | None = None
     attributes: dict[str, AttributeDef] = Field(default_factory=dict)
     labels: dict[str, str] = Field(default_factory=dict)  # préparé (R-SCH-08)
+    facets: dict[str, FacetDef] = Field(default_factory=dict)  # R-NTE-04 : héritées par les sous-types
 
 
 def _as_list(v: Any) -> Any:
@@ -147,6 +164,14 @@ class Schema(StrictModel):
 
     def is_subtype(self, type_name: str, parent: str) -> bool:
         return parent in self.ancestors(type_name)
+
+    def facets_of(self, type_name: str) -> dict[str, FacetDef]:
+        """Facettes propres et héritées, et `other`, toujours présente (R-NTE-04)."""
+        merged: dict[str, FacetDef] = {}
+        for t in reversed(self.ancestors(type_name)):
+            merged.update(self.types[t].facets)
+        merged.setdefault(OTHER_FACET, FacetDef(labels=dict(OTHER_LABELS)))
+        return merged
 
     def attributes_of(self, type_name: str) -> dict[str, AttributeDef]:
         """Attributs propres et hérités."""

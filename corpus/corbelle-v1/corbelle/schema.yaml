@@ -10,6 +10,7 @@ version: 1
 types:
   Character:
     labels: { fr: "Personnage" }
+    facets: { appearance: { fr: apparence }, character: { fr: caractère }, history: { fr: histoire }, habits: { fr: habitudes } }  # R-NTE-04
     attributes:
       name:      { type: text, required: true, labels: { fr: "nom" } }
       aliases:   { type: "list[text]", labels: { fr: "autres noms" } }
@@ -18,6 +19,7 @@ types:
 
   Place:
     labels: { fr: "Lieu" }
+    facets: { appearance: { fr: aspect }, atmosphere: { fr: ambiance }, history: { fr: histoire } }  # R-NTE-04
     attributes:
       name:     { type: text, required: true, labels: { fr: "nom" } }
       aliases:  { type: "list[text]", labels: { fr: "autres noms" } }
@@ -25,12 +27,14 @@ types:
 
   Faction:
     labels: { fr: "Faction" }
+    facets: { reputation: { fr: réputation }, organization: { fr: organisation }, history: { fr: histoire } }  # R-NTE-04
     attributes:
       name:    { type: text, required: true, labels: { fr: "nom" } }
       aliases: { type: "list[text]", labels: { fr: "autres noms" } }
 
   Creature:
     labels: { fr: "Créature" }
+    facets: { appearance: { fr: apparence }, behavior: { fr: comportement }, history: { fr: histoire } }  # R-NTE-04
     attributes:
       name:       { type: text, required: true, labels: { fr: "nom" } }
       aliases:    { type: "list[text]", labels: { fr: "autres noms" } }
@@ -38,23 +42,27 @@ types:
 
   Item:
     labels: { fr: "Objet" }
+    facets: { appearance: { fr: aspect }, use: { fr: usage }, history: { fr: histoire } }  # R-NTE-04
     attributes:
       name:   { type: text, required: true, labels: { fr: "nom" } }
       origin: { type: text, labels: { fr: "origine" } }
 
   Event:
     labels: { fr: "Événement" }
+    facets: { course: { fr: déroulement }, consequences: { fr: conséquences } }  # R-NTE-04
     attributes:
       name: { type: text, required: true, labels: { fr: "nom" } }
       date: { type: text, labels: { fr: "date" } }
 
   Concept:
     labels: { fr: "Concept" }
+    facets: { meaning: { fr: sens }, history: { fr: histoire } }  # R-NTE-04
     attributes:
       name: { type: text, required: true, labels: { fr: "nom" } }
 
   Text:
     labels: { fr: "Écrit du monde" }
+    facets: { content: { fr: contenu }, history: { fr: histoire } }  # R-NTE-04
     attributes:
       name:        { type: text, required: true, labels: { fr: "titre" } }
       author_name: { type: text, labels: { fr: "auteur" } }
