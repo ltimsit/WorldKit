@@ -358,6 +358,8 @@ Restent ouverts : l'approche des incohérences (comparer les formes courtes d'un
 2. **Aspects cumulatifs ou exclusifs** : un comportement, un trait, une habitude s'additionnent ; une couleur de cheveux, un âge, une taille s'excluent. Les aspects exclusifs se déclareraient par facette dans le schéma, comme la cardinalité d'une relation ; seuls ceux-là seraient signalés quand deux valeurs divergent (« rousse » contre « brune »), sans décider ; le reste resterait cumulatif.
 3. **Incubateur du schéma** : un aspect qui revient chez plusieurs entités (« fiabilité ») devient un attribut proposé ; il passe alors en fait à clé, avec sa cardinalité et le contrôle des collisions.
 
+**Décisions de l'auteur après la séance J9 ([X-018](recherche-ingestion/X-018-seance-notes.md)).** La synthèse des formes courtes attend : les notes restent séparées, une ligne par note (cela sert aussi les incohérences). Les hésitations (« genre », « jsp ») : pas de règle sans modèle, trop propre à un passage ; l'auteur tranche ; une consigne au modèle sera envisagée plus tard, mesurée (coût, fiabilité). Facette forcée (« population » en « aspect ») : définitions de facettes (§10.5) ou attribut `population` dans le monde de l'auteur.
+
 **Traduire une fois, lire plusieurs fois** : la résolution des références est faite une seule fois et gardée sous forme d'annotations sur le texte original, pas de réécriture. Raisons : la notoriété d'une note redevient calculable par le noyau (plafonnement par les entités citées, R-NOT-04) ; l'identité peut évoluer (`same_as`, R-IDT-04, redéfinition) ; la provenance reste exacte (R-HIS-01).
 
 ### 10.7 Écartés, reportés ou à reconsidérer
@@ -644,6 +646,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 11. **Ingérer plus que les faits, niveau 1** (fait, R-VUE-05, T-ING-21) : passages qui nomment une entité sur sa page d'auteur, capté ou non capté. Formes courtes : règle B à vérifier (fait, choix 40). Suites possibles : le niveau 2 à la phrase, puis les notes par facette (niveau 3).
 12. **Première session réelle de l'atelier** (fait, [X-017](recherche-ingestion/X-017-premiere-session-atelier.md)) : mentions justes sans correction (16 clics contre 27 gestes simulés) ; 5 gestes sur 6 sur les faits viennent du schéma (5 relations ajoutées à la main) ; prochaine étape : le geste « ajouter au schéma » (§6.6).
 13. **« Ajouter au schéma »** (fait, I-ATL-09) : depuis l'atelier et la revue, aperçu puis confirmation, fait rattaché ; export du schéma vers un monde d'auteur. Restent : la mémoire des tournures (« relation existante », §10.5) et celle des refus (« ignorer »).
+14. **Notes, jalon J9** (fait, [X-018](recherche-ingestion/X-018-seance-notes.md)) : séance réelle, 2 appels, 0,008 $, 5 bribes sur 5 gardées, une facette forcée ; deux défauts de l'atelier corrigés (dernière passe lue dans tout l'historique ; relation répétée en note).
 
 ## 17. Références
 
