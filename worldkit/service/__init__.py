@@ -9,6 +9,7 @@ from . import measures as _measures  # noqa: F401 — mesures T2 (I6)
 from . import lexicon as _lexicon  # noqa: F401 — lexique et aide (I7)
 from . import atelier as _atelier  # noqa: F401 — atelier d'ingestion (I8)
 from . import schema as _schema  # noqa: F401 — schéma d'un état (I-VUE-12)
+from . import drafts as _drafts  # noqa: F401 — pistes d'auteur à l'écran (I10)
 from .registry import REGISTRY, Operation, Output, Params, describe
 from .result import IssueView, Result
 from .session import WORLD, Session, parse_target

@@ -289,7 +289,7 @@ def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = No
 
 def fact_excluded(a: store.Annotation) -> bool:
     """Un fait qui ne partira pas avec « Proposer » (Q1) : retiré, ou écarté par la couche et non repris."""
-    if a.status == "removed":
+    if a.status in ("removed", "drafted"):  # retiré, ou mis en piste (I10)
         return True
     if a.by_author:
         return False
@@ -379,5 +379,5 @@ def run_notes(world: Any, branch: str, doc_id: str, finder: Any) -> NotesReport:
 
 
 def note_excluded(a: store.Annotation) -> bool:
-    """Une bribe qui ne partira pas avec « Proposer » : retirée par l'auteur."""
-    return a.status == "removed"
+    """Une bribe qui ne partira pas avec « Proposer » : retirée par l'auteur, ou mise en piste (I10)."""
+    return a.status in ("removed", "drafted")

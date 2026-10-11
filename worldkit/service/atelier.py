@@ -158,13 +158,14 @@ def _notes_view(world: Any, branch: str, doc: Any, current: list[Any]) -> dict[s
     notes = []
     for a in sorted((a for a in current if a.kind == "note"), key=lambda a: (a.passage or 0, a.start or 0, a.ann_id)):
         d = a.value["draft"]
-        state = {"removed": "retirée", "corrected": "corrigée"}.get(a.status, "ajoutée" if a.value.get("layer") == "author"
-                                                                   else "gardée") if a.by_author else "proposée"
+        state = {"removed": "retirée", "corrected": "corrigée", "drafted": "en piste"}.get(
+            a.status, "ajoutée" if a.value.get("layer") == "author" else "gardée") if a.by_author else "proposée"
         notes.append({"id": a.ann_id, "passage": a.passage, "start": a.start, "end": a.end, "draft": d,
                       "facet_label": facet_labels.get(d.get("facet", "other"), d.get("facet")),
                       "subjects": [names.get(e, e) for e in d.get("subjects", [])],
                       "mentions": [names.get(e, e) for e in d.get("mentions", [])],
-                      "state": state, "excluded": layers.note_excluded(a), "by_author": a.by_author})
+                      "state": state, "excluded": layers.note_excluded(a), "by_author": a.by_author,
+                      "draft_id": a.value.get("draft_id")})
     return {"notes": notes, "notes_to_send": sum(1 for n in notes if not n["excluded"]),
             "note_facets": [{"id": f, "label": lbl} for f, lbl in facet_labels.items()],
             "notes_run": layers.last_run(world, branch, doc, layers.NOTES)}
@@ -174,8 +175,8 @@ def _fact_state(a: Any) -> str:
     """La pastille d'un fait à l'écran (Q3 d'I9) : ce que la couche ou l'auteur en a fait."""
     v = a.value
     if a.by_author:
-        return {"removed": "retiré", "corrected": "corrigé"}.get(a.status, "ajouté" if v.get("layer") == "author"
-                                                                 else "gardé")
+        return {"removed": "retiré", "corrected": "corrigé", "drafted": "en piste"}.get(
+            a.status, "ajouté" if v.get("layer") == "author" else "gardé")
     if v.get("voice"):
         return "rumeur" if v["voice"] == "attribution" else "note"
     if v.get("verdict") == "not_supported":
@@ -217,7 +218,8 @@ def _facts_view(world: Any, branch: str, doc: Any, current: list[Any]) -> dict[s
                       "evidence": v.get("evidence"), "layer": v.get("layer"), "verdict": v.get("verdict"),
                       "reason": v.get("reason"), "voice": v.get("voice"), "exact": v.get("exact"),
                       "indirect": [name(e) for e in v.get("indirect") or []],
-                      "state": _fact_state(a), "excluded": excluded, "by_author": a.by_author, "status": a.status})
+                      "state": _fact_state(a), "excluded": excluded, "by_author": a.by_author, "status": a.status,
+                      "draft_id": v.get("draft_id")})
     relations = [{"id": r, "label": (d.labels or {}).get("fr", r)} for r, d in sorted(schema.relations.items())]
     attributes = sorted({(attr, (d.labels or {}).get("fr", attr)) for t in schema.types
                          for attr, d in schema.attributes_of(t).items() if attr not in ("name",)})
@@ -328,7 +330,7 @@ def _run_notes(ctx: Context, p: RunParams) -> Output:
 
 
 class AnnotateParams(SourceParams):
-    action: str = Field(..., description="keep, remove, correct, add, ignore")
+    action: str = Field(..., description="keep, remove, correct, add, ignore ; draft : en faire une piste (I10)")
     scope: str = Field("source", description="occurrence, source (défaut) ou world (retenu)")
     ann_id: int | None = None
     passage: int | None = None
@@ -342,6 +344,7 @@ class AnnotateParams(SourceParams):
     facet: str | None = Field(None, description="note : facette (R-NTE-04)")
     text: str | None = Field(None, description="note : citation recopiée du passage")
     short: str | None = Field(None, description="note : formes courtes « aspect : valeur ; aspect : valeur »")
+    title: str | None = Field(None, description="fait ou note, action draft : titre de la piste (I10)")
     subject: str | None = Field(None, description="fait : sujet (identifiant d'entité)")
     relation: str | None = Field(None, description="fait : relation du schéma")
     object: str | None = Field(None, description="fait : objet d'une relation (identifiant d'entité)")
@@ -355,6 +358,15 @@ class AnnotateParams(SourceParams):
 def atelier_annotate(ctx: Context, p: AnnotateParams) -> Output:
     from worldkit.atelier import gestures
     assert ctx.world is not None
+    if p.action == "draft":  # I10 : en faire une piste
+        try:
+            outcome, written = gestures.to_draft(ctx.world, _branch(ctx, p), p.doc_id, p.kind, p.ann_id or 0,
+                                                 p.title or "")
+        except ValueError as e:
+            return Output(None, [Issue(IssueCode.EDIT_RULE, str(e), "I-ATL-11")])
+        if not outcome.ok:
+            return Output(None, outcome.issues)
+        return Output({"written": written, "draft": outcome.edit_id}, outcome.issues, {"written": len(written)})
     if p.kind == "note":
         draft = {k: v for k, v in (("subjects", p.subjects), ("mentions", p.mentions), ("facet", p.facet),
                                    ("text", p.text)) if v}
