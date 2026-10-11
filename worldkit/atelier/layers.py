@@ -59,6 +59,42 @@ class RunReport:
     calls: list[Any] = field(default_factory=list)
 
 
+def decision_keys(kind: str, draft: dict[str, Any], passage: int | None, schema: Any = None) -> set[tuple[Any, ...]]:
+    """Clé(s) de décision d'une proposition de couche (règle de relance, I-ATL-02) : une proposition dont une clé a
+    déjà été décidée par l'auteur (gardée, corrigée, retirée) n'est plus proposée, même reformulée.
+
+    - note : passage et citation pliée (facette et forme courte peuvent varier d'une passe à l'autre) ;
+    - attribut simple : passage, entité, attribut — la valeur peut varier (« régent de Brume », « régent ») ;
+    - valeur d'une liste : passage, entité, attribut, valeur pliée (une liste en reçoit légitimement plusieurs) ;
+    - relation : passage, entités, relation ; dans les deux sens si la relation est symétrique."""
+    from worldkit.periphery.matching import fold
+    if kind == "note":
+        return {("note", passage, fold(str(draft.get("text", ""))))}
+    op = draft.get("op")
+    if op == "set_attribute":
+        return {("attr", passage, draft.get("entity"), draft.get("attribute"))}
+    if op == "add_value":
+        return {("value", passage, draft.get("entity"), draft.get("attribute"), fold(str(draft.get("value", ""))))}
+    if op == "add_relation":
+        keys = {("rel", passage, draft.get("from"), draft.get("relation"), draft.get("to"))}
+        r = schema.relations.get(draft.get("relation")) if schema is not None else None
+        if r is not None and r.symmetric:
+            keys.add(("rel", passage, draft.get("to"), draft.get("relation"), draft.get("from")))
+        return keys
+    return {(op, passage, str(sorted(draft.items())))}
+
+
+def decided_keys(annotations: list[store.Annotation], kind: str, schema: Any = None) -> set[tuple[Any, ...]]:
+    """Les clés de décision de l'auteur pour une sorte d'annotation (brouillon d'origine et brouillon corrigé)."""
+    out: set[tuple[Any, ...]] = set()
+    for a in annotations:
+        if a.kind == kind and a.by_author:
+            for d in (a.value.get("origin_draft"), a.value.get("draft")):
+                if d:
+                    out |= decision_keys(kind, d, a.passage, schema)
+    return out
+
+
 def _overlaps(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
     return a_start < b_end and b_start < a_end
 
@@ -211,8 +247,7 @@ def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = No
                 verdicts[id(f)] = critic.judge(f, texts[f.passage], entities, context.schema,
                                                {e.id: e.names for e in context.entities})
     voices = {id(f): voice for f, voice in result.withheld}
-    decided = {json.dumps(a.value.get("origin_draft") or a.value.get("draft"), sort_keys=True) for a in now
-               if a.kind == "fact" and a.by_author}
+    decided = decided_keys(now, "fact", context.schema)  # règle de relance, normalisée (I-ATL-02)
     origin = _layer_origin(report.run, FACTS)
     seen: set[tuple[str, int | None]] = set()
     for f in result.kept + [f for f, _ in result.judged if f not in result.kept] + [f for f, _ in result.withheld]:
@@ -223,7 +258,7 @@ def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = No
         if f.passage is None:
             report.unplaced += 1
             continue
-        if signature in decided:
+        if decision_keys("fact", f.draft, f.passage, context.schema) & decided:
             report.skipped_by_author += 1
             continue
         verdict = verdicts.get(id(f)) or {}
@@ -320,15 +355,10 @@ def run_notes(world: Any, branch: str, doc_id: str, finder: Any) -> NotesReport:
     before = len(finder.rejected)
     found = finder.find(window, entities, world.state(branch).world, known, values, evidence)
     report.rejected = len(finder.rejected) - before
-    from worldkit.periphery.matching import fold
-    # Règle de relance : une citation que l'auteur a décidée (gardée, corrigée, retirée) n'est plus proposée, même
-    # si la couche la rend avec une autre facette ou une autre forme courte.
-    decided = {(a.passage, fold(str((a.value.get("origin_draft") or a.value["draft"]).get("text", ""))))
-               for a in now if a.kind == "note" and a.by_author}
-    decided |= {(a.passage, fold(str(a.value["draft"].get("text", "")))) for a in now if a.kind == "note" and a.by_author}
+    decided = decided_keys(now, "note")  # règle de relance, normalisée (I-ATL-02)
     origin = _layer_origin(report.run, NOTES)
     for n in found:
-        if (n.passage, fold(n.draft["text"])) in decided:
+        if decision_keys("note", n.draft, n.passage) & decided:
             report.skipped_by_author += 1
             continue
         start, end = _span(window.passage_texts.get(n.passage, ""), n.draft["text"])
