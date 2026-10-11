@@ -353,6 +353,11 @@ Usages, dans l'ordre où ils viendront : **relire et retrouver** (suivre la cons
 
 Restent ouverts : l'approche des incohérences (comparer les formes courtes d'une même facette et d'un même aspect, signalées sans décider, ou une lecture par un modèle) ; la description consolidée (niveau 4) ; le grain de la couche (fenêtre ou passage) et son coût.
 
+**Piste : plusieurs sources, une même caractéristique (11 octobre 2026, question de l'auteur).** Exemple réel : « Ostrel est pas fiable, il magouille » (fiabilité : pas fiable · comportement : magouille) ; une lettre écrite plus tard dirait « cupide comme un rat » (comportement : cupide). Aujourd'hui les notes s'additionnent (pas de clé, R-NTE-02) : deux notes dans la même facette, chacune avec sa source ; un même texte d'une autre source est un support ; une paraphrase fait une seconde note presque identique (limite connue). Ce qui manque, par ordre de coût :
+1. **Synthèse des formes courtes sur la page**, sans modèle : chaque aspect une fois, avec toutes ses valeurs et leurs sources (« comportement : magouille (brouillon), cupide (lettre) ») ; utile à la relecture, base des incohérences.
+2. **Aspects cumulatifs ou exclusifs** : un comportement, un trait, une habitude s'additionnent ; une couleur de cheveux, un âge, une taille s'excluent. Les aspects exclusifs se déclareraient par facette dans le schéma, comme la cardinalité d'une relation ; seuls ceux-là seraient signalés quand deux valeurs divergent (« rousse » contre « brune »), sans décider ; le reste resterait cumulatif.
+3. **Incubateur du schéma** : un aspect qui revient chez plusieurs entités (« fiabilité ») devient un attribut proposé ; il passe alors en fait à clé, avec sa cardinalité et le contrôle des collisions.
+
 **Traduire une fois, lire plusieurs fois** : la résolution des références est faite une seule fois et gardée sous forme d'annotations sur le texte original, pas de réécriture. Raisons : la notoriété d'une note redevient calculable par le noyau (plafonnement par les entités citées, R-NOT-04) ; l'identité peut évoluer (`same_as`, R-IDT-04, redéfinition) ; la provenance reste exacte (R-HIS-01).
 
 ### 10.7 Écartés, reportés ou à reconsidérer
