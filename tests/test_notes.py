@@ -307,3 +307,36 @@ def test_propose_sends_notes_with_the_facts_then_in_their_own_lot():
                           draft={"subjects": ["odon"], "facet": "character", "text": "gouverne Brume"})
     proposing.propose(w, "reference", doc.doc_id)
     assert [c.change.text for p in load(w) for c in p.changes] == ["gouverne Brume"]
+
+
+def test_the_atelier_screen_runs_shows_corrects_and_adds_notes(tmp_path):
+    """Écran (étape 7) : la couche se lance (estimation, confirmation), les bribes s'affichent sous leur passage,
+    le panneau corrige la facette, l'ajout passe par la sélection."""
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    from test_service import make_world
+    from worldkit.core.world import World
+    from worldkit.web import create_app
+    db = make_world(tmp_path / "valmont.db")
+    w = World.open(db)
+    doc = store.import_source(w, SOURCE)
+    layers.run_mentions(w, "reference", doc.doc_id)
+    layers.run_notes(w, "reference", doc.doc_id, NoteFinder(FakeAdapter(FOUND), Profile()))
+    note = next(a for a in notes_of(w, doc) if a.value["draft"]["facet"] == "habits")
+    w.close()
+    client = TestClient(create_app(db))
+    page = client.get(f"/atelier/{doc.doc_id}").text
+    assert "Couche « descriptions »" in page and "« ne sort jamais sans sa canne d&#39;ébène »" in page
+    panel = client.get(f"/atelier/{doc.doc_id}?note={note.ann_id}").text
+    assert 'name="facet"' in panel and "Partira avec « Proposer »." in panel
+    done = client.post(f"/atelier/{doc.doc_id}/annotate", data={"kind": "note", "action": "correct", "ann_id": note.ann_id,
+                                                                "facet": "character", "subjects": "odon", "short": ""},
+                       follow_redirects=False)
+    assert done.status_code == 303
+    added = client.post(f"/atelier/{doc.doc_id}/annotate", data={"kind": "note", "action": "add", "passage": 1,
+                                                                 "text": "gouverne Brume", "facet": "character",
+                                                                 "subjects": "odon", "short": "rôle : souverain"},
+                        follow_redirects=False)
+    assert added.status_code == 303
+    page = client.get(f"/atelier/{doc.doc_id}").text
+    assert "corrigée" in page and "rôle : souverain" in page

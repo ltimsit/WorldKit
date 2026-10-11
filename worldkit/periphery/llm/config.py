@@ -24,7 +24,7 @@ import yaml
 from .adapters import ADAPTERS, LLMError, Profile
 
 DEFAULT_PATH = "worldkit-llm.yaml"
-TASKS = ("extraction", "mentions", "facts")
+TASKS = ("extraction", "mentions", "facts", "notes")
 
 DEFAULT: dict[str, Any] = {
     "profiles": {
@@ -46,7 +46,10 @@ class LLMConfig:
     max_calls_per_run: int = 30  # plafond d'appels au modèle par exécution (I-LLM-01)
 
     def profile(self, name: str | None = None, task: str = "extraction") -> Profile:
-        name = name or self.tasks.get(task) or self.tasks.get("extraction")  # une tâche sans profil : celui de l'extraction
+        # Une tâche sans profil : celui de l'extraction ; la couche « descriptions », qui suit les faits, prend
+        # d'abord celui des faits (J9).
+        name = name or self.tasks.get(task) or (self.tasks.get("facts") if task == "notes" else None) \
+            or self.tasks.get("extraction")
         if name is None:
             raise LLMError(f"aucun profil pour la tâche « {task} » : préciser --profile ou tasks.{task}")
         if name not in self.profiles:

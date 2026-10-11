@@ -582,12 +582,7 @@ Validés par l'auteur au fil du brainstorm, pas encore actés dans les cadres.
 40. *Formes courtes : règle B à vérifier (X-003)* : acté au cadre technique (T-ING-21) ; les homonymes de prénom ne sont jamais des formes courtes, l'alias tranche.
 41. *« Ajouter au schéma » (§6.6, premier incrément)* : acté au cadre d'interface (I-ATL-09) ; écriture au journal du monde après confirmation ; « relation existante » avec mémoire de la tournure et « ignorer » avec mémoire restent à faire ; report dans un monde d'auteur par `worldkit schema export`.
 42. **Forme des valeurs, par étapes** (E-005) : d'abord une règle sans modèle après C5 (« X de <entité reliée au sujet> » → « X », forme d'origine gardée en précision) ; le vocabulaire déclaré par attribut (§10.5) plus tard, si un écart de synonyme (E-001) réapparaît sur un vrai texte.
-43. **Notes descriptives : citation exacte + forme courte facultative** « aspect : valeur » (§10.6).
-44. **Notes : atelier puis journal** ; nouvelle sorte d'élément du monde, sans collision, acceptable en lot (§10.6).
-45. **Facettes déclarées par le schéma, par type**, avec défauts et « autre » (§10.6).
-46. **Notoriété d'une note comme celle d'un fait**, plafonnée par les entités nommées (R-NOT-04) (§10.6).
-47. **Notes et faits complémentaires** : la couche « descriptions » passe après les faits et ne décrit que ce qu'aucun fait ne dit (§10.6).
-48. **Une note a un ou plusieurs sujets, sans ordre, et des mentions** : pas de « source » arbitraire quand deux entités s'équivalent (§10.6).
+43. *Notes descriptives (choix 43 à 48 du brainstorm)* : actées au cadre de la fondation (R-NTE-01 à R-NTE-07), au cadre technique (T-ING-22) et au cadre d'interface (I-ATL-10), jalon J9 ; restent ouverts : incohérences, description consolidée, mesure de la couche.
 
 ## 14. Questions ouvertes
 

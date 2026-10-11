@@ -113,28 +113,61 @@ def atelier_view(ctx: Context, p: SourceParams) -> Output:
     doc = store.source(ctx.world, p.doc_id)
     current = layers.effective(ctx.world, branch, doc)
     facts_view = _facts_view(ctx.world, branch, doc, current)
+    notes_view = _notes_view(ctx.world, branch, doc, current)
     from worldkit.ingest.batch import extraction_context
     names = {e.id: e.names for e in extraction_context(ctx.world, ctx.world.state(branch)).entities}
     passages = [{"index": x.index, "text": x.text,
                  "annotations": [_annotation(a, names) for a in sorted(current, key=lambda a: a.start or 0)
                                  if a.passage == x.index and a.kind == "mention"],
-                 "facts": [f for f in facts_view["facts"] if f["passage"] == x.index]} for x in doc.passages]
+                 "facts": [f for f in facts_view["facts"] if f["passage"] == x.index],
+                 "notes": [n for n in notes_view["notes"] if n["passage"] == x.index]} for x in doc.passages]
     to_review = sum(1 for a in current if not a.by_author and a.kind == "mention")
     from worldkit.ingest.batch import extraction_context
     state = ctx.world.state(branch)
     entities = [{"id": e.id, "type": e.type, "name": e.names[0] if e.names else e.id}
                 for e in extraction_context(ctx.world, state).entities]
-    from worldkit.atelier.propose import attachments, facts_proposed, new_entities, proposed
+    from worldkit.atelier.propose import attachments, facts_proposed, new_entities, notes_proposed, proposed
     news = [{"id": e["id"], "type": e["type"], "name": e["name"]}
             for e in sorted(new_entities(ctx.world, branch, doc).values(), key=lambda e: e["name"].casefold())]
     return Output({"doc_id": doc.doc_id, "version": doc.fingerprint, "title": doc.title, "branch": branch,
                    "passages": passages, "rules": [r.__dict__ for r in store.rules(ctx.world, branch)],
                    "run": layers.runs_of(current), "entities": entities, "new_entities": news,
                    "attachments": attachments(ctx.world, branch, doc), "proposed": proposed(ctx.world, doc),
-                   "facts_proposed": facts_proposed(ctx.world, doc), "types": sorted(state.world.types),
-                   **{k: v for k, v in facts_view.items() if k != "facts"}},
+                   "facts_proposed": facts_proposed(ctx.world, doc), "notes_proposed": notes_proposed(ctx.world, doc),
+                   "types": sorted(state.world.types),
+                   **{k: v for k, v in facts_view.items() if k != "facts"},
+                   **{k: v for k, v in notes_view.items() if k != "notes"}},
                   [], {"to_review": to_review, "decided": sum(1 for a in current if a.by_author and a.kind == "mention"),
-                       "facts": len(facts_view["facts"]), "facts_to_send": facts_view["to_send"]})
+                       "facts": len(facts_view["facts"]), "facts_to_send": facts_view["to_send"],
+                       "notes": len(notes_view["notes"]), "notes_to_send": notes_view["notes_to_send"]})
+
+
+def _notes_view(world: Any, branch: str, doc: Any, current: list[Any]) -> dict[str, Any]:
+    """Les bribes de la source (J9), en clair : facette, sujets, forme courte, état ; et les facettes possibles."""
+    from worldkit.atelier import layers
+    schema = world.state(branch).world
+    entities, _ = layers.confirmed_entities(world, branch, doc)
+    names = {e.id: e.name for e in entities}
+    types = {e.id: e.type for e in entities}
+    facet_labels: dict[str, str] = {}
+    for t in sorted(set(types.values())):
+        if t in schema.types:
+            for f, d in schema.facets_of(t).items():
+                facet_labels.setdefault(f, (d.labels or {}).get("fr", f))
+    facet_labels.setdefault("other", "autre")
+    notes = []
+    for a in sorted((a for a in current if a.kind == "note"), key=lambda a: (a.passage or 0, a.start or 0, a.ann_id)):
+        d = a.value["draft"]
+        state = {"removed": "retirée", "corrected": "corrigée"}.get(a.status, "ajoutée" if a.value.get("layer") == "author"
+                                                                   else "gardée") if a.by_author else "proposée"
+        notes.append({"id": a.ann_id, "passage": a.passage, "start": a.start, "end": a.end, "draft": d,
+                      "facet_label": facet_labels.get(d.get("facet", "other"), d.get("facet")),
+                      "subjects": [names.get(e, e) for e in d.get("subjects", [])],
+                      "mentions": [names.get(e, e) for e in d.get("mentions", [])],
+                      "state": state, "excluded": layers.note_excluded(a), "by_author": a.by_author})
+    return {"notes": notes, "notes_to_send": sum(1 for n in notes if not n["excluded"]),
+            "note_facets": [{"id": f, "label": lbl} for f, lbl in facet_labels.items()],
+            "notes_run": layers.runs_of(current, layers.NOTES)}
 
 
 def _fact_state(a: Any) -> str:
@@ -195,7 +228,8 @@ def _facts_view(world: Any, branch: str, doc: Any, current: list[Any]) -> dict[s
 
 
 class RunParams(SourceParams):
-    layer: str = Field("mentions", description="mentions (défaut) ou facts (C5, question ciblée, énonciation, critique)")
+    layer: str = Field("mentions", description="mentions (défaut), facts (C5, question ciblée, énonciation, critique) "
+                                               "ou notes (descriptions, J9)")
     model: bool = Field(False, description="faire appel au modèle (C1b) ; sinon noms connus et recoupement seuls")
     profile: str | None = Field(None, description="profil du modèle (défaut : tâche « mentions »)")
     llm_config: str | None = None
@@ -211,6 +245,8 @@ def atelier_run(ctx: Context, p: RunParams) -> Output:
     assert ctx.world is not None
     if p.layer == "facts":
         return _run_facts(ctx, p)
+    if p.layer == "notes":
+        return _run_notes(ctx, p)
     if p.layer != "mentions":
         return Output(None, [Issue(IssueCode.EDIT_RULE, f"couche inconnue : {p.layer}", "I-ATL-02")])
     finder = None
@@ -266,6 +302,31 @@ def _run_facts(ctx: Context, p: RunParams) -> Output:
                    "doubts": report.doubts, "llm_calls": len(report.calls)})
 
 
+def _run_notes(ctx: Context, p: RunParams) -> Output:
+    """Couche « descriptions » (J9) : un appel au modèle par source, estimé puis confirmé (I-LLM-01)."""
+    from worldkit.atelier import layers, store
+    from worldkit.periphery.llm import load_config, make_adapter
+    from worldkit.periphery.llm.usage import input_budget, summarize
+    from worldkit.periphery.notes import NoteFinder
+    assert ctx.world is not None
+    branch = _branch(ctx, p)
+    entities, _ = layers.confirmed_entities(ctx.world, branch, store.source(ctx.world, p.doc_id))
+    if not entities:
+        return Output(None, [Issue(IssueCode.EDIT_RULE, "aucune entité confirmée : lancer d'abord la couche "
+                                   "« mentions » (et, de préférence, les faits)", "I-ATL-02")])
+    profile = load_config(p.llm_config).profile(p.profile, "notes")
+    if not p.confirm:
+        return Output({"estimate": {"calls": 1, "model": profile.model, "profile": profile.name,
+                                    "adapter": profile.adapter, "entities": len(entities), "layer": "notes"}},
+                      [Issue(IssueCode.EDIT_RULE, f"1 appel au modèle {profile.model} (profil {profile.name}, "
+                             f"{profile.adapter}) : confirmer pour lancer", "I-LLM-01", Severity.WARNING)],
+                      {"estimated_calls": 1}, status="pending")
+    report = layers.run_notes(ctx.world, branch, p.doc_id, NoteFinder(make_adapter(profile), profile))
+    usage = summarize(report.calls, input_budget()) | {"seconds": round(sum(c.seconds for c in report.calls), 1)}
+    return Output(report.__dict__ | {"calls": len(report.calls), "usage": usage}, [],
+                  {"proposed": report.proposed, "rejected": report.rejected, "llm_calls": len(report.calls)})
+
+
 class AnnotateParams(SourceParams):
     action: str = Field(..., description="keep, remove, correct, add, ignore")
     scope: str = Field("source", description="occurrence, source (défaut) ou world (retenu)")
@@ -275,7 +336,12 @@ class AnnotateParams(SourceParams):
     end: int | None = None
     entity: str | None = Field(None, description="identifiant d'entité, « new », ou « new:<étiquette> » (une entité nouvelle de la source)")
     type: str | None = None
-    kind: str = Field("mention", description="mention (défaut) ou fact (I9)")
+    kind: str = Field("mention", description="mention (défaut), fact (I9) ou note (J9)")
+    subjects: list[str] | None = Field(None, description="note : sujets (identifiants d'entités)")
+    mentions: list[str] | None = Field(None, description="note : entités nommées sans être décrites")
+    facet: str | None = Field(None, description="note : facette (R-NTE-04)")
+    text: str | None = Field(None, description="note : citation recopiée du passage")
+    short: str | None = Field(None, description="note : formes courtes « aspect : valeur ; aspect : valeur »")
     subject: str | None = Field(None, description="fait : sujet (identifiant d'entité)")
     relation: str | None = Field(None, description="fait : relation du schéma")
     object: str | None = Field(None, description="fait : objet d'une relation (identifiant d'entité)")
@@ -289,6 +355,18 @@ class AnnotateParams(SourceParams):
 def atelier_annotate(ctx: Context, p: AnnotateParams) -> Output:
     from worldkit.atelier import gestures
     assert ctx.world is not None
+    if p.kind == "note":
+        draft = {k: v for k, v in (("subjects", p.subjects), ("mentions", p.mentions), ("facet", p.facet),
+                                   ("text", p.text)) if v}
+        if p.short is not None:
+            draft["short"] = [{"aspect": a.strip(), "value": v.strip()} for a, _, v in
+                              (x.partition(":") for x in p.short.split(";")) if a.strip() and v.strip()]
+        try:
+            written = gestures.note_gesture(ctx.world, _branch(ctx, p), p.doc_id, p.action, p.ann_id, p.passage,
+                                            draft if p.action in ("correct", "add") else None)
+        except ValueError as e:
+            return Output(None, [Issue(IssueCode.EDIT_RULE, str(e), "I-ATL-10")])
+        return Output({"written": written}, [], {"written": len(written)})
     if p.kind == "fact":
         try:
             written = gestures.fact_gesture(ctx.world, _branch(ctx, p), p.doc_id, p.action, p.ann_id, p.passage,

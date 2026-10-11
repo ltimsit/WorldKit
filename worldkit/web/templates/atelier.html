@@ -26,6 +26,8 @@
   .fact.on { outline: 2px solid #2563eb; }
   .pill { display: inline-block; font-size: .8em; padding: 0 .45em; border-radius: 9px; background: #e5e7eb; margin-right: .3em; }
   .pill-soutenu, .pill-gardé, .pill-ajouté, .pill-corrigé { background: #dcfce7; } .pill-douteux { background: #fef3c7; }
+  .pill-gardée, .pill-ajoutée, .pill-corrigée { background: #dcfce7; } .pill-retirée { background: #eee; }
+  .notes .fact-label { font-weight: 600; }
   .pill-mis { background: #fee2e2; } .pill-rumeur, .pill-note { background: #ede9fe; } .pill-déjà { background: #dbeafe; }
   .evidence { color: #666; font-style: italic; }
   .ptext mark { background: #fde68a; }
@@ -71,6 +73,14 @@
   </form>
   {% if indicators.facts %} · {{ indicators.facts }} fait(s), {{ indicators.facts_to_send }} partiront{% endif %}
   </div>
+  <div style="margin-top:.4em">
+  <form method="post" action="/atelier/{{ view.doc_id }}/run" hx-boost="false" style="display:inline">
+    <input type="hidden" name="layer" value="notes">
+    <b>Couche « descriptions »</b> (lancement {{ view.notes_run }}) : ce que le texte dit des entités sans être un fait (portrait, caractère, habitudes…), rangé par facette
+    <button{{ ' disabled' if (job and job.live) or not view.fact_entities }}>{{ "Relancer" if view.notes_run else "Lancer" }} avec le modèle</button>
+  </form>
+  {% if indicators.notes %} · {{ indicators.notes }} note(s), {{ indicators.notes_to_send }} partiront{% endif %}
+  </div>
 </div>
 <p class="small"><label><input type="checkbox" id="show-how" checked> étiquettes sous les mentions</label> <span class="muted">(pourquoi une mention est liée : nom, alias, titre, forme courte… ; « ? » : à vérifier ; après un geste, ce que vous avez décidé et sa portée)</span></p>
 <p class="small legend"><span class="ann ann-known">connue</span><span class="ann ann-new">nouvelle</span><span class="ann ann-doubt">doute</span><span class="ann ann-known ann-check" title="forme courte, ou casse différente du nom connu">à vérifier</span><span class="ann ann-off">retirée, ignorée</span><span class="ann ann-known ann-author">décidée par l'auteur</span> · Cliquer une mention pour la traiter ; sélectionner un mot pour ajouter une mention.</p>
@@ -84,10 +94,28 @@
 {% if p.facts %}<ul class="facts">{% for f in p.facts %}<li class="fact{{ ' fact-off' if f.excluded }}{{ ' fact-author' if f.by_author }}{{ ' on' if chosen_fact and chosen_fact.id == f.id }}" data-start="{{ f.start if f.start is not none else '' }}" data-end="{{ f.end if f.end is not none else '' }}">
   <a href="/atelier/{{ view.doc_id|urlencode }}?fact={{ f.id }}" title="{{ f.reason or '' }}{{ ' · couche ' ~ f.layer if f.layer }}"><span class="pill pill-{{ f.state.split(' ')[0] }}">{{ f.state }}</span>{% if f.indirect %}<span class="pill pill-douteux" title="le passage ne nomme pas : {{ f.indirect|join(', ') }} ; la preuve tient par une coréférence (« sa soeur », « elle ») : vérifier le passage">preuve indirecte</span>{% endif %}<span class="fact-label">{{ f.label }}</span></a>
   {% if f.evidence and f.layer != 'author' %}<span class="evidence small">« {{ f.evidence|truncate(90) }} »</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
+{% if p.notes %}<ul class="facts notes">{% for n in p.notes %}<li class="fact{{ ' fact-off' if n.excluded }}{{ ' fact-author' if n.by_author }}{{ ' on' if chosen_note and chosen_note.id == n.id }}" data-start="{{ n.start if n.start is not none else '' }}" data-end="{{ n.end if n.end is not none else '' }}">
+  <a href="/atelier/{{ view.doc_id|urlencode }}?note={{ n.id }}"><span class="pill pill-{{ n.state }}">{{ n.state }}</span><span class="pill">{{ n.facet_label }}</span><span class="fact-label">{{ n.subjects|join(", ") }}</span> « {{ n.draft.text|truncate(80) }} »{% if n.draft.short %} <span class="small muted">— {% for s in n.draft.short %}{{ s.aspect }} : {{ s.value }}{{ " · " if not loop.last }}{% endfor %}</span>{% endif %}</a></li>{% endfor %}</ul>{% endif %}
 </div>{% endfor %}
 </div>
 
 <div class="panel">
+{% if chosen_note %}{% set n = chosen_note %}
+<div class="stat">
+  <h3><span class="pill pill-{{ n.state }}">{{ n.state }}</span> note — {{ n.facet_label }} <span class="small muted">p{{ n.passage }}</span></h3>
+  <p>« {{ n.draft.text }} »</p>
+  <p class="small">sujets : {{ n.subjects|join(", ") }}{% if n.mentions %} · mentions : {{ n.mentions|join(", ") }}{% endif %}{% if n.draft.short %} · {% for s in n.draft.short %}{{ s.aspect }} : {{ s.value }}{{ " · " if not loop.last }}{% endfor %}{% endif %}</p>
+  <p class="small">{{ "Ne partira pas avec « Proposer »." if n.excluded else "Partira avec « Proposer »." }}</p>
+  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
+    <input type="hidden" name="kind" value="note"><input type="hidden" name="ann_id" value="{{ n.id }}">
+    <p><button name="action" value="keep">Garder</button> <button name="action" value="remove">Retirer</button></p>
+    <p class="small">Corriger : facette <select name="facet">{% for f in view.note_facets %}<option value="{{ f.id }}"{{ ' selected' if f.id == n.draft.facet }}>{{ f.label }}</option>{% endfor %}</select>
+      sujets {% for e in view.fact_entities %}<label><input type="checkbox" name="subjects" value="{{ e.id }}"{{ ' checked' if e.id in n.draft.subjects }}> {{ e.name }}</label> {% endfor %}
+      <br>forme courte <input name="short" size="40" value="{% for s in n.draft.short or [] %}{{ s.aspect }} : {{ s.value }}{{ " ; " if not loop.last }}{% endfor %}" placeholder="cheveux : roux ; âge : vieille">
+      <button name="action" value="correct">Corriger</button></p>
+  </form>
+</div>
+{% endif %}
 {% if chosen_fact %}{% set f = chosen_fact %}
 <div class="stat">
   <h3><span class="pill pill-{{ f.state.split(' ')[0] }}">{{ f.state }}</span> {{ f.label }} <span class="small muted">p{{ f.passage }}</span></h3>
@@ -140,7 +168,19 @@
       <button id="add-button" disabled title="sélectionner d'abord une portion du texte">Ajouter</button></p>
   </form>
 </div>
-{% if view.fact_entities %}<div class="stat" id="add-fact">
+{% if view.fact_entities %}<div class="stat" id="add-note">
+  <h3>Ajouter une note</h3>
+  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
+    <input type="hidden" name="kind" value="note"><input type="hidden" name="action" value="add">
+    <input type="hidden" name="passage" id="note-passage"><input type="hidden" name="text" id="note-text">
+    <p class="small">citation : <b id="note-label" class="muted">sélectionner un extrait dans le texte</b></p>
+    <p class="small">facette <select name="facet">{% for f in view.note_facets %}<option value="{{ f.id }}">{{ f.label }}</option>{% endfor %}</select>
+      sujets {% for e in view.fact_entities %}<label><input type="checkbox" name="subjects" value="{{ e.id }}"> {{ e.name }}</label> {% endfor %}
+      <br>forme courte <input name="short" size="40" placeholder="cheveux : roux ; âge : vieille">
+      <button id="note-button" disabled title="sélectionner d'abord un extrait du texte">Ajouter</button></p>
+  </form>
+</div>
+<div class="stat" id="add-fact">
   <h3>Ajouter un fait</h3>
   <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
     <input type="hidden" name="kind" value="fact"><input type="hidden" name="action" value="add">
@@ -202,6 +242,13 @@
     label.textContent = "« " + chosen + " » (p" + box.dataset.passage + ")"; label.classList.remove("muted");
     const button = document.getElementById("add-button");
     if (button) { button.disabled = false; button.title = ""; }
+    const notePassage = document.getElementById("note-passage");
+    if (notePassage) {
+      notePassage.value = box.dataset.passage; document.getElementById("note-text").value = chosen;
+      const noteLabel = document.getElementById("note-label");
+      noteLabel.textContent = "« " + chosen + " » (p" + box.dataset.passage + ")"; noteLabel.classList.remove("muted");
+      const noteButton = document.getElementById("note-button"); noteButton.disabled = false; noteButton.title = "";
+    }
   });
 </script>
 {% endblock %}
