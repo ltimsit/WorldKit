@@ -175,3 +175,54 @@ def test_an_in_world_document_gives_attributed_notes_R_NTE_01(tmp_path):
     assert decide.accept(w, load(w)[0].id).ok
     [n] = w.state().notes.values()
     assert n["speaker"] == "chronique-de-la-chute"
+
+
+# --- Couche « descriptions » (étape 5), modèle simulé ---
+
+from worldkit.periphery.facts import Confirmed  # noqa: E402
+from worldkit.periphery.mentions import window_of  # noqa: E402
+from worldkit.periphery.notes import NoteFinder  # noqa: E402
+
+
+class FakeAdapter:
+    def __init__(self, notes):
+        self.notes, self.calls = notes, []
+
+    def complete(self, system, user, schema):
+        self.calls.append(user)
+        return {"notes": self.notes}
+
+
+class Profile:
+    signature = "fake"
+
+
+def test_the_descriptions_layer_checks_what_the_model_returns_R_NTE_01_R_NTE_04_R_NTE_05():
+    from worldkit.ingest.declaration import parse_document
+    text = ("---\nid: notes\nmode: source\nnature: diegetic\nvoice: author\n---\n# Notes\n\n"
+            "Odon, un homme massif aux mains baguées, est le baron de Brume.\n\n"
+            "On dit que le baron est un traître.\n")
+    doc = parse_document(text, "notes.md")
+    window = window_of(doc)
+    entities = [Confirmed("odon", "Character", "Odon de Brume"), Confirmed("brume", "Place", "Brume")]
+    schema = base_world().state().world
+    adapter = FakeAdapter([
+        {"subjects": ["odon"], "mentions": ["brume", "odon"], "facet": "appearance", "text": "un homme massif aux mains baguées",
+         "short": [{"aspect": "corpulence", "value": "massif"}, {"aspect": "", "value": "x"}]},
+        {"subjects": ["odon"], "mentions": [], "facet": "atmosphere", "text": "un homme massif aux mains baguées", "short": []},
+        {"subjects": ["odon"], "mentions": [], "facet": "character", "text": "un traître", "short": []},
+        {"subjects": ["odon"], "mentions": [], "facet": "character", "text": "un homme inventé", "short": []},
+        {"subjects": ["personne"], "mentions": [], "facet": "other", "text": "le baron de Brume", "short": []},
+        {"subjects": ["odon"], "mentions": [], "facet": "other", "text": "baron", "short": []},
+    ])
+    finder = NoteFinder(adapter, Profile())
+    found = finder.find(window, entities, schema, ["odon — titre : baron"], {"odon": {"baron"}})
+    drafts = [n.draft for n in found]
+    assert drafts[0] == {"op": "add_note", "subjects": ["odon"], "facet": "appearance", "mentions": ["brume"],
+                         "text": "un homme massif aux mains baguées",
+                         "short": [{"aspect": "corpulence", "value": "massif"}]}
+    assert drafts[1]["facet"] == "other" and len(drafts) == 2  # facette de lieu pour un personnage : « autre »
+    reasons = sorted(r for _, r in finder.rejected)
+    assert reasons == ["aucun sujet parmi les entités confirmées", "citation introuvable dans le texte",
+                       "déjà dit par un fait gardé", "rumeur ou paroles rapportées"]
+    assert "facettes : appearance (apparence)" in adapter.calls[0] and "odon — titre : baron" in adapter.calls[0]
