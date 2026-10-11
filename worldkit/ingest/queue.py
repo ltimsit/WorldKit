@@ -168,6 +168,8 @@ def record_support(world: World, p: StoredProposal, change: Change, state: State
         value = True
     elif isinstance(change, AddRelation):
         value = list(relation_fact_id(change.from_, change.relation, change.to, change.scope, ctx))
+    elif getattr(change, "op", "") == "add_note":
+        value = True  # la note reste attachée à son passage (R-NTE-06)
     else:
         return
     for k in keys:

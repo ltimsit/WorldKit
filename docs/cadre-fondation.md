@@ -144,6 +144,7 @@ flowchart TB
 | Provenance | `provenance` | Origine d'un fait : l'édition qui l'a établi (issue d'un document et d'un lot, d'une édition structurée ou d'un déroulé), et ses supports documentaires. |
 | Support documentaire | `Support` | Passage d'un document qui affirme une valeur pour une clé de fait ; n'est pas une édition (R-FAI-01). |
 | Fait orphelin | `orphan_fact` | Fait d'origine documentaire qui n'a plus aucun support (R-FAI-06). |
+| Note orpheline | `orphan_note` | Note issue d'un document dont aucun passage ne la porte plus ; signalée, conservée (R-NTE-06). |
 
 ## 4. Modèle structurel
 

@@ -16,6 +16,7 @@ E8 Qualification · E9 Propositions · **E9+ Enregistrer** · E10 Revue · E11 A
 
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 from collections.abc import Callable
@@ -438,9 +439,18 @@ def e6_classify(run: Run, art: PipelineArt) -> PipelineArt:
                 continue
             ex = _extraction(p)
             count = lambda: sum(1 for r in raw if r["doc_id"] == d.doc_id and r["passage"] == p.index)  # noqa: E731
-            if doc.axes.voice is not Voice.IN_WORLD:  # en in_world, le contenu n'établit pas de faits
+            speakers = dp.speakers()
+            in_world = doc.axes.voice is Voice.IN_WORLD
+            for entry in p.drafts or []:  # notes : aussi d'un document en jeu, attribuées (R-NTE-01) ; pas de méta
+                if entry["draft"].get("op") == "add_note" and p.nature != METAN:
+                    voice = (speakers[0] if speakers else doc.axes.speaker) if in_world else None
+                    raw.append({"doc_id": d.doc_id, "passage": p.index, "i": count(), "optional": entry["optional"],
+                                "awaiting": False, "draft": note_draft(entry["draft"], d.doc_id, p.index, voice)})
+            if not in_world:  # en in_world, le contenu n'établit pas de faits
                 for entry in p.drafts or []:
                     draft = entry["draft"]
+                    if draft.get("op") == "add_note":
+                        continue
                     meta = is_meta(draft, head)
                     if p.nature == DIEGETIC and meta:
                         _flag(p.flags, "meta_in_diegetic")
@@ -453,7 +463,6 @@ def e6_classify(run: Run, art: PipelineArt) -> PipelineArt:
                         _flag(p.flags, NATURE_FLAG)
                     raw.append({"doc_id": d.doc_id, "passage": p.index, "i": count(), "draft": draft,
                                 "optional": entry["optional"], "awaiting": awaiting})
-            speakers = dp.speakers()
             for n, claim in enumerate(ex.claims, start=1):
                 speaker = claim.get("speaker") or (speakers[0] if speakers else doc.axes.speaker)
                 if speaker is None:
@@ -466,6 +475,19 @@ def e6_classify(run: Run, art: PipelineArt) -> PipelineArt:
                                       "claimed": json.loads(json.dumps(claim.get("claimed"), sort_keys=True))}})
     art.raw = raw
     return _done(art, "E6")
+
+
+def note_draft(draft: dict[str, Any], doc_id: str, passage: int, speaker: str | None) -> dict[str, Any]:
+    """Une note tirée d'un passage : sa source (R-NTE-06), sa voix (document en jeu, R-NTE-01) et un identifiant
+    tiré de la source et du contenu, stable d'une ingestion à l'autre du même texte."""
+    from worldkit.ingest.declaration import normalize
+    content = json.dumps([sorted(draft.get("subjects", [])), draft.get("facet", "other"),
+                          normalize(str(draft.get("text", ""))).casefold()], ensure_ascii=False)
+    out = {**draft, "document": draft.get("document") or doc_id,
+           "note": draft.get("note") or f"{doc_id}.p{passage}.n-{hashlib.sha256(content.encode()).hexdigest()[:8]}"}
+    if speaker and not out.get("speaker"):
+        out["speaker"] = speaker
+    return out
 
 
 def e7_resolve(run: Run, art: PipelineArt) -> PipelineArt:

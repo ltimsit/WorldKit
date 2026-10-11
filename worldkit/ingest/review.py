@@ -9,7 +9,8 @@ from typing import Any
 from worldkit.core.journal.models import BaseState, EditStatus
 from worldkit.core.schema import Change, Issue, IssueCode, Severity, Visibility
 from worldkit.core.schema.changes import (
-    AddClaim, AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, RemoveRelation, RemoveValue, SetAttribute,
+    AddClaim, AddNote, AddRelation, AddValue, CloseEntity, CreateEntity, DeleteEntity, RemoveNote, RemoveRelation,
+    RemoveValue, SetAttribute,
     SetVisibility, UnsetAttribute,
 )
 from worldkit.core.world import World
@@ -46,6 +47,14 @@ def describe(c: Change) -> str:
             return f"- {c.relation}({c.from_}, {c.to})"
         case AddClaim():
             return f"affirmation de {c.speaker} : « {c.text} »"
+        case AddNote():
+            short = " — " + " · ".join(f"{f.aspect} : {f.value}" for f in c.short) if c.short else ""
+            voice = f" (selon {c.speaker})" if c.speaker else ""
+            return f"+ note {', '.join(c.subjects)} [{c.facet}] « {c.text} »{short}{voice}"
+        case RemoveNote():
+            return f"- note {c.note}"
+        case SetVisibility() if c.target.note:
+            return f"notoriété de la note {c.target.note} → {c.value}"
         case SetVisibility():
             t = c.target
             target = f"{t.relation}({t.from_}, {t.to})" if t.relation else \
@@ -158,9 +167,10 @@ def orphan_fact_ids(world: World, branch: str | None = None) -> list[Any]:
 
 def orphan_facts(world: World, branch: str | None = None) -> list[Issue]:
     """R-FAI-06 : faits établis par l'ingestion qui n'ont plus aucun support documentaire.
-    Signalés, jamais retirés (R-PRI-01). Un fait d'édition structurée n'est jamais orphelin (T-ING-11)."""
+    Signalés, jamais retirés (R-PRI-01). Un fait d'édition structurée n'est jamais orphelin (T-ING-11).
+    Aussi les notes (R-NTE-06) : une note issue d'un document dont aucun passage ne la porte plus."""
     head = world.state(branch or world.reference_branch)
-    out = []
+    out = orphan_notes(world, head)
     for fid in orphan_fact_ids(world, branch):
         f = head.facts[fid]
         label = f"{f.name}({f.subject}, {f.target})" if f.kind == "rel" else f"{f.subject}.{f.name}"
@@ -168,6 +178,17 @@ def orphan_facts(world: World, branch: str | None = None) -> list[Issue]:
                          f"{label} n'a plus aucun support documentaire (établi par {f.established_by}) ; "
                          "conservé dans l'état", "R-FAI-06", Severity.WARNING, label))
     return out
+
+
+def orphan_notes(world: World, head: Any) -> list[Issue]:
+    """R-NTE-06 : notes venues d'un document (une note saisie par l'auteur n'en a pas) dont aucun passage ne reste
+    support ; signalées, jamais retirées d'office."""
+    conn = world.store.conn
+    ensure_tables(conn)
+    supported = {loads_key(k) for (k,) in conn.execute("SELECT DISTINCT fact_key FROM supports")}
+    return [Issue(IssueCode.ORPHAN_NOTE, f"note {nid} (« {n['text'][:40]} ») : plus aucun passage de {n['document']} "
+                  "ne la porte ; conservée dans l'état", "R-NTE-06", Severity.WARNING, nid)
+            for nid, n in sorted(head.notes.items()) if n.get("document") and ("note", nid) not in supported]
 
 
 def sources(world: World, branch: str | None = None) -> dict[str, list[tuple[str, Visibility]]]:
