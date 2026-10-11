@@ -199,3 +199,59 @@ def fact_gesture(world: Any, branch: str, doc_id: str, action: str, ann_id: int 
     status = {"keep": "kept", "remove": "removed", "correct": "corrected"}[action]
     return [store.add_annotation(world, branch, doc, "fact", value, "author", target.passage, target.start,
                                  target.end, "sure", status, target.ann_id)]
+
+
+# ---------------------------------------------------------------------------
+# Gestes sur une bribe de description (J9) : garder, retirer, corriger, ajouter
+# ---------------------------------------------------------------------------
+
+def _check_note(world: Any, branch: str, doc: Any, passage: int, draft: dict[str, Any] | None) -> dict[str, Any]:
+    """Une bribe corrigée ou ajoutée : citation recopiée du passage, sujets parmi les entités de la source, facette
+    commune aux sujets (sinon refusée, R-NTE-04), forme courte « aspect : valeur »."""
+    from worldkit.periphery.notes import common_facets
+    if not draft or not str(draft.get("text", "")).strip():
+        raise ValueError("note : il manque la citation")
+    texts = {p.index: p.text for p in doc.passages}
+    text = str(draft["text"]).strip()
+    if text not in texts.get(passage, ""):
+        raise ValueError("note : la citation doit être recopiée du passage")
+    entities, _ = layers.confirmed_entities(world, branch, doc)
+    types = {e.id: e.type for e in entities}
+    subjects = sorted({s for s in draft.get("subjects", []) if s})
+    if not subjects or any(s not in types for s in subjects):
+        raise ValueError("note : des sujets parmi les entités de la source")
+    mentions = sorted({m for m in draft.get("mentions", []) if m in types} - set(subjects))
+    facets = common_facets(world.state(branch).world, [types[s] for s in subjects])
+    facet = draft.get("facet") or "other"
+    if facet not in facets:
+        raise ValueError(f"note : facette « {facet} » impossible pour ces sujets ; possibles : {', '.join(facets)}")
+    short = [{"aspect": str(x["aspect"]).strip(), "value": str(x["value"]).strip()} for x in draft.get("short", [])
+             if str(x.get("aspect", "")).strip() and str(x.get("value", "")).strip()]
+    return {"op": "add_note", "subjects": subjects, "facet": facet, "text": text,
+            **({"mentions": mentions} if mentions else {}), **({"short": short} if short else {})}
+
+
+def note_gesture(world: Any, branch: str, doc_id: str, action: str, ann_id: int | None = None,
+                 passage: int | None = None, draft: dict[str, Any] | None = None) -> list[int]:
+    """Un geste sur une bribe ; annotation d'origine « auteur » (ajout seul, R-HIS-01). `correct` garde le brouillon
+    d'origine ; `add` : une bribe choisie dans le passage (sélection)."""
+    if action not in FACT_ACTIONS:
+        raise ValueError(f"geste inconnu sur une note : {action}")
+    doc = store.source(world, doc_id)
+    if action == "add":
+        if passage is None:
+            raise ValueError("note : passage manquant")
+        checked = _check_note(world, branch, doc, passage, draft)
+        start = next(p.text for p in doc.passages if p.index == passage).find(checked["text"])
+        return [store.add_annotation(world, branch, doc, "note", {"draft": checked, "layer": "author"}, "author",
+                                     passage, start, start + len(checked["text"]), "sure", "kept")]
+    target = next((a for a in layers.effective(world, branch, doc) if a.ann_id == ann_id and a.kind == "note"), None)
+    if target is None:
+        raise ValueError(f"note inconnue ou remplacée : {ann_id}")
+    value = dict(target.value)
+    if action == "correct":
+        value["origin_draft"] = value.get("origin_draft") or value["draft"]
+        value["draft"] = _check_note(world, branch, doc, target.passage, {**value["draft"], **(draft or {})})
+    status = {"keep": "kept", "remove": "removed", "correct": "corrected"}[action]
+    return [store.add_annotation(world, branch, doc, "note", value, "author", target.passage, target.start,
+                                 target.end, "sure", status, target.ann_id)]

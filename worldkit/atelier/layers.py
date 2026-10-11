@@ -25,6 +25,7 @@ from . import store
 
 LAYER = "c1-c2"
 FACTS = "facts"
+NOTES = "notes"  # couche « descriptions » (J9)
 
 
 def _layer_origin(run: int, layer: str = LAYER) -> str:
@@ -39,7 +40,7 @@ def runs_of(annotations: list[store.Annotation], layer: str = LAYER) -> int:
 def effective(world: Any, branch: str, doc: Any) -> list[store.Annotation]:
     """Les annotations qui comptent : celles de l'auteur, et celles du dernier lancement de chaque couche."""
     now = store.current(world, branch, doc)
-    last = {layer: runs_of(now, layer) for layer in (LAYER, FACTS)}
+    last = {layer: runs_of(now, layer) for layer in (LAYER, FACTS, NOTES)}
 
     def latest(a: store.Annotation) -> bool:
         return any(a.origin == _layer_origin(n, layer) for layer, n in last.items())
@@ -250,3 +251,73 @@ def fact_excluded(a: store.Annotation) -> bool:
     if a.by_author:
         return False
     return a.value.get("verdict") == "not_supported" or a.value.get("voice") is not None
+
+
+# ---------------------------------------------------------------------------
+# Couche « descriptions » (J9 ; R-NTE-01 à R-NTE-05)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class NotesReport:
+    run: int
+    entities: int = 0
+    proposed: int = 0
+    rejected: int = 0
+    skipped_by_author: int = 0
+    calls: list[Any] = field(default_factory=list)
+
+
+def kept_facts(world: Any, branch: str, doc: Any) -> tuple[list[str], dict[str, set[str]]]:
+    """Les faits de la source qui partiront, dits en clair pour la couche « descriptions » (à ne pas répéter,
+    R-NTE-05), et les valeurs d'attribut pliées par entité (contrôle sans modèle)."""
+    from worldkit.periphery.matching import fold
+    known: list[str] = []
+    values: dict[str, set[str]] = {}
+    for a in effective(world, branch, doc):
+        if a.kind != "fact" or fact_excluded(a):
+            continue
+        d = a.value["draft"]
+        if d.get("op") == "add_relation":
+            known.append(f"{d['from']} — {d['relation']} — {d['to']}")
+        else:
+            known.append(f"{d['entity']} — {d['attribute']} : {d['value']}")
+            values.setdefault(d["entity"], set()).add(fold(str(d["value"])))
+    return sorted(set(known)), values
+
+
+def run_notes(world: Any, branch: str, doc_id: str, finder: Any) -> NotesReport:
+    """Lance la couche « descriptions » après les faits, entre les entités confirmées ; écrit une annotation par bribe
+    (`kind: note`). Relancée, elle ne refait pas une bribe que l'auteur a décidée."""
+    import json
+
+    from worldkit.periphery.mentions import window_of
+    doc = store.source(world, doc_id)
+    entities, _ = confirmed_entities(world, branch, doc)
+    now = store.current(world, branch, doc)
+    report = NotesReport(runs_of(now, NOTES) + 1, len(entities))
+    meter = getattr(finder, "meter", None)
+    first = len(meter.calls) if meter is not None else 0
+    window = window_of(doc)
+    known, values = kept_facts(world, branch, doc)
+    before = len(finder.rejected)
+    found = finder.find(window, entities, world.state(branch).world, known, values)
+    report.rejected = len(finder.rejected) - before
+    decided = {json.dumps(a.value.get("origin_draft") or a.value.get("draft"), sort_keys=True) for a in now
+               if a.kind == "note" and a.by_author}
+    origin = _layer_origin(report.run, NOTES)
+    for n in found:
+        if json.dumps(n.draft, sort_keys=True) in decided:
+            report.skipped_by_author += 1
+            continue
+        start, end = _span(window.passage_texts.get(n.passage, ""), n.draft["text"])
+        store.add_annotation(world, branch, doc, "note", {"draft": n.draft, "layer": NOTES}, origin, n.passage,
+                             start, end, "sure")
+        report.proposed += 1
+    if meter is not None:
+        report.calls = meter.calls[first:]
+    return report
+
+
+def note_excluded(a: store.Annotation) -> bool:
+    """Une bribe qui ne partira pas avec « Proposer » : retirée par l'auteur."""
+    return a.status == "removed"

@@ -226,3 +226,84 @@ def test_the_descriptions_layer_checks_what_the_model_returns_R_NTE_01_R_NTE_04_
     assert reasons == ["aucun sujet parmi les entités confirmées", "citation introuvable dans le texte",
                        "déjà dit par un fait gardé", "rumeur ou paroles rapportées"]
     assert "facettes : appearance (apparence)" in adapter.calls[0] and "odon — titre : baron" in adapter.calls[0]
+
+
+# --- Atelier (étape 6) : couche, gestes, « Proposer » ---
+
+import pytest  # noqa: E402
+
+from worldkit.atelier import gestures, layers, store  # noqa: E402
+from worldkit.atelier import propose as proposing  # noqa: E402
+
+SOURCE = """# Le baron
+
+Odon de Brume, un homme massif aux mains baguées, gouverne Brume.
+
+Odon de Brume ne sort jamais sans sa canne d'ébène.
+"""
+FOUND = [{"subjects": ["odon"], "mentions": [], "facet": "appearance", "text": "un homme massif aux mains baguées",
+          "short": [{"aspect": "corpulence", "value": "massif"}]},
+         {"subjects": ["odon"], "mentions": [], "facet": "habits", "text": "ne sort jamais sans sa canne d'ébène",
+          "short": []}]
+
+
+def atelier_source():
+    w = base_world()
+    doc = store.import_source(w, SOURCE)
+    layers.run_mentions(w, "reference", doc.doc_id)
+    return w, doc
+
+
+def notes_of(w, doc):
+    return [a for a in layers.effective(w, "reference", doc) if a.kind == "note"]
+
+
+def test_the_layer_writes_one_annotation_per_note_and_respects_the_author_on_relaunch():
+    w, doc = atelier_source()
+    report = layers.run_notes(w, "reference", doc.doc_id, NoteFinder(FakeAdapter(FOUND), Profile()))
+    assert report.proposed == 2 and report.entities >= 1
+    first = next(a for a in notes_of(w, doc) if a.value["draft"]["facet"] == "habits")
+    assert first.passage == 2 and first.start is not None
+    gestures.note_gesture(w, "reference", doc.doc_id, "correct", first.ann_id, draft={"facet": "character"})
+    again = layers.run_notes(w, "reference", doc.doc_id, NoteFinder(FakeAdapter(FOUND), Profile()))
+    assert again.skipped_by_author == 1 and again.proposed == 1
+    facets = sorted(a.value["draft"]["facet"] for a in notes_of(w, doc))
+    assert facets == ["appearance", "character"]
+
+
+def test_note_gestures_check_the_citation_subjects_and_facet_R_NTE_04():
+    w, doc = atelier_source()
+    layers.run_notes(w, "reference", doc.doc_id, NoteFinder(FakeAdapter(FOUND), Profile()))
+    note = notes_of(w, doc)[0]
+    with pytest.raises(ValueError, match="impossible pour ces sujets"):
+        gestures.note_gesture(w, "reference", doc.doc_id, "correct", note.ann_id, draft={"facet": "atmosphere"})
+    with pytest.raises(ValueError, match="recopiée du passage"):
+        gestures.note_gesture(w, "reference", doc.doc_id, "add", passage=1,
+                              draft={"subjects": ["odon"], "facet": "character", "text": "un homme inventé"})
+    added = gestures.note_gesture(w, "reference", doc.doc_id, "add", passage=1,
+                                  draft={"subjects": ["odon"], "facet": "character", "text": "gouverne Brume",
+                                         "mentions": ["brume"]})
+    assert added and any(a.value["draft"]["text"] == "gouverne Brume" for a in notes_of(w, doc))
+    gestures.note_gesture(w, "reference", doc.doc_id, "remove", note.ann_id)
+    assert all(a.ann_id != note.ann_id or a.status == "removed" for a in notes_of(w, doc))
+
+
+def test_propose_sends_notes_with_the_facts_then_in_their_own_lot():
+    from worldkit.ingest.batch import BatchError
+    from worldkit.ingest.queue import load
+    w, doc = atelier_source()
+    # Pas d'entité nouvelle : « Proposer » envoie les notes dans le premier lot.
+    layers.run_notes(w, "reference", doc.doc_id, NoteFinder(FakeAdapter(FOUND), Profile()))
+    proposing.propose(w, "reference", doc.doc_id)
+    ops = sorted(c.change.op for p in load(w) for c in p.changes)
+    assert ops == ["add_note", "add_note"]
+    for p in load(w):
+        assert decide.accept(w, p.id).ok
+    assert len(w.state().notes) == 2
+    with pytest.raises(BatchError, match="aucun fait ni aucune note"):
+        proposing.propose(w, "reference", doc.doc_id)  # les notes déjà parties ne repartent pas
+    # Une bribe ajoutée ensuite part seule, au « Proposer » suivant.
+    gestures.note_gesture(w, "reference", doc.doc_id, "add", passage=1,
+                          draft={"subjects": ["odon"], "facet": "character", "text": "gouverne Brume"})
+    proposing.propose(w, "reference", doc.doc_id)
+    assert [c.change.text for p in load(w) for c in p.changes] == ["gouverne Brume"]

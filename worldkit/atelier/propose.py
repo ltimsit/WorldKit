@@ -190,6 +190,52 @@ def fact_drafts(world: Any, branch: str, doc: Any) -> dict[int, list[dict[str, A
     return out
 
 
+def notes_batch_id_of(doc: Any) -> str:
+    return f"{batch_id_of(doc)}-notes"
+
+
+def notes_proposed(world: Any, doc: Any) -> bool:
+    return _batch_exists(world, notes_batch_id_of(doc))
+
+
+def note_drafts(world: Any, branch: str, doc: Any) -> dict[int, list[dict[str, Any]]]:
+    """Les bribes qui partent (J9) : celles de la couche ou de l'auteur, sauf retirées."""
+    out: dict[int, list[dict[str, Any]]] = {}
+    for a in sorted(layers.effective(world, branch, doc), key=lambda a: (a.passage or 0, a.ann_id)):
+        if a.kind != "note" or a.passage is None or layers.note_excluded(a):
+            continue
+        draft = dict(a.value["draft"])
+        if draft not in out.get(a.passage, []):
+            out.setdefault(a.passage, []).append(draft)
+    return out
+
+
+def _unsent(world: Any, doc: Any, drafts: dict[int, list[dict[str, Any]]]) -> dict[int, list[dict[str, Any]]]:
+    """Retire les notes que cette version a déjà envoyées dans un lot (même passage, même facette, même texte plié) :
+    un second « Proposer » n'envoie que les nouvelles."""
+    from worldkit.ingest.batch import ensure_tables
+    from worldkit.periphery.matching import fold
+    ensure_tables(world.store.conn)
+    sent = set()
+    for edit_id, passage in world.store.conn.execute(
+            "SELECT edit_id, passage_idx FROM proposals WHERE doc_id = ? AND version_fp = ?",
+            (doc.doc_id, doc.fingerprint)):
+        for c in world.store.edit(edit_id).edit.changes:
+            if c.op == "add_note":
+                sent.add((passage, c.facet, fold(c.text)))
+    out = {i: [d for d in ds if d.get("op") != "add_note" or (i, d.get("facet"), fold(str(d.get("text")))) not in sent]
+           for i, ds in drafts.items()}
+    return {i: ds for i, ds in out.items() if ds}
+
+
+def _merged(*parts: dict[int, list[dict[str, Any]]]) -> dict[int, list[dict[str, Any]]]:
+    out: dict[int, list[dict[str, Any]]] = {}
+    for part in parts:
+        for passage, ds in part.items():
+            out.setdefault(passage, []).extend(ds)
+    return dict(sorted(out.items()))
+
+
 def _settled(world: Any, branch: str, drafts: dict[int, list[dict[str, Any]]]) -> tuple[dict[int, list[dict[str, Any]]], int]:
     """Lot de faits après le lot des entités (Q2 d'I9) : une entité nouvelle de la source (`new:<étiquette>`) est
     désignée par son identifiant si sa création est acceptée, par `pending:<étiquette>` si elle attend encore en revue
@@ -209,6 +255,8 @@ def _settled(world: Any, branch: str, drafts: dict[int, list[dict[str, Any]]]) -
             if created.get(label) in head.entities:
                 return created[label]
             raise LookupError(label)
+        if isinstance(v, list):  # sujets et mentions d'une note
+            return [settle(x) for x in v]
         return v
     for passage, ds in drafts.items():
         for d in ds:
@@ -238,18 +286,22 @@ def propose(world: Any, branch: str, doc_id: str) -> Any:
     second lot, `…-faits`, ne porte que les faits (Q2 d'I9) ; une version ne se propose qu'une fois de chaque sorte."""
     from worldkit.ingest.batch import BatchError
     doc = store.source(world, doc_id)
-    facts = fact_drafts(world, branch, doc)
+    facts, notes = fact_drafts(world, branch, doc), _unsent(world, doc, note_drafts(world, branch, doc))
     if proposed(world, doc):
-        if facts_proposed(world, doc):
-            raise BatchError("déjà proposée : entités et faits de cette version sont partis")
-        settled, dropped = _settled(world, branch, facts)
+        if facts_proposed(world, doc):  # les notes venues après les faits : un troisième lot (J9)
+            if notes_proposed(world, doc):
+                raise BatchError("déjà proposée : entités, faits et notes de cette version sont partis")
+            settled, dropped = _settled(world, branch, notes)
+            if not settled:
+                raise BatchError("déjà proposée : entités et faits de cette version sont partis ; aucune note à envoyer"
+                                 + (f" ({dropped} sur des entités refusées)" if dropped else ""))
+            return _ingest(world, branch, doc, notes_batch_id_of(doc), settled, reopen=True)
+        settled, dropped = _settled(world, branch, _merged(facts, notes))
         if not settled:
-            raise BatchError("rien à proposer : aucun fait à envoyer" + (f" ({dropped} sur des entités refusées)"
-                                                                         if dropped else ""))
+            raise BatchError("rien à proposer : aucun fait ni aucune note à envoyer"
+                             + (f" ({dropped} sur des entités refusées)" if dropped else ""))
         return _ingest(world, branch, doc, facts_batch_id_of(doc), settled, reopen=True)
-    by_passage = drafts_of(world, branch, doc)
-    for passage, ds in facts.items():
-        by_passage.setdefault(passage, []).extend(ds)
+    by_passage = _merged(drafts_of(world, branch, doc), facts, notes)
     if not by_passage:
         raise BatchError("rien à proposer : aucune entité nouvelle confirmée, aucun alias retenu, aucun fait")
-    return _ingest(world, branch, doc, batch_id_of(doc), dict(sorted(by_passage.items())))
+    return _ingest(world, branch, doc, batch_id_of(doc), by_passage)
