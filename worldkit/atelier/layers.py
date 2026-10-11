@@ -267,22 +267,41 @@ class NotesReport:
     calls: list[Any] = field(default_factory=list)
 
 
-def kept_facts(world: Any, branch: str, doc: Any) -> tuple[list[str], dict[str, set[str]]]:
-    """Les faits de la source qui partiront, dits en clair pour la couche « descriptions » (à ne pas répéter,
-    R-NTE-05), et les valeurs d'attribut pliées par entité (contrôle sans modèle)."""
+def kept_facts(world: Any, branch: str, doc: Any) -> tuple[list[str], dict[str, set[str]], list[tuple[int, str, set[str]]]]:
+    """Les faits de la source qui partiront (R-NTE-05) : dits **en clair** pour la couche « descriptions » (noms et
+    libellés : « Ysolde Marcastel — déteste — la Guilde des Bateliers »), les valeurs d'attribut pliées par entité, et
+    les preuves extraites (passage, preuve, entités) pour le garde-fou sans modèle. Un fait ajouté à la main n'a pour
+    preuve que son passage entier : il ne sert pas au garde-fou."""
     from worldkit.periphery.matching import fold
+    schema = world.state(branch).world
+    entities, _ = confirmed_entities(world, branch, doc)
+    names = {e.id: e.name for e in entities}
+    types = {e.id: e.type for e in entities}
+
+    def name(eid: str) -> str:
+        return names.get(eid, eid)
     known: list[str] = []
     values: dict[str, set[str]] = {}
+    evidence: list[tuple[int, str, set[str]]] = []
     for a in effective(world, branch, doc):
         if a.kind != "fact" or fact_excluded(a):
             continue
         d = a.value["draft"]
         if d.get("op") == "add_relation":
-            known.append(f"{d['from']} — {d['relation']} — {d['to']}")
+            r = schema.relations.get(d["relation"])
+            label = (r.labels or {}).get("fr", d["relation"]) if r is not None else d["relation"]
+            known.append(f"{name(d['from'])} — {label} — {name(d['to'])}")
+            cited = {d["from"], d["to"]}
         else:
-            known.append(f"{d['entity']} — {d['attribute']} : {d['value']}")
+            t = types.get(d["entity"])
+            definition = schema.attributes_of(t).get(d["attribute"]) if t in schema.types else None
+            label = (definition.labels or {}).get("fr", d["attribute"]) if definition is not None else d["attribute"]
+            known.append(f"{name(d['entity'])} — {label} : {d['value']}")
             values.setdefault(d["entity"], set()).add(fold(str(d["value"])))
-    return sorted(set(known)), values
+            cited = {d["entity"]}
+        if a.passage is not None and a.value.get("layer") != "author" and a.value.get("evidence"):
+            evidence.append((a.passage, str(a.value["evidence"]), cited))
+    return sorted(set(known)), values, evidence
 
 
 def run_notes(world: Any, branch: str, doc_id: str, finder: Any) -> NotesReport:
@@ -298,9 +317,9 @@ def run_notes(world: Any, branch: str, doc_id: str, finder: Any) -> NotesReport:
     meter = getattr(finder, "meter", None)
     first = len(meter.calls) if meter is not None else 0
     window = window_of(doc)
-    known, values = kept_facts(world, branch, doc)
+    known, values, evidence = kept_facts(world, branch, doc)
     before = len(finder.rejected)
-    found = finder.find(window, entities, world.state(branch).world, known, values)
+    found = finder.find(window, entities, world.state(branch).world, known, values, evidence)
     report.rejected = len(finder.rejected) - before
     decided = {json.dumps(a.value.get("origin_draft") or a.value.get("draft"), sort_keys=True) for a in now
                if a.kind == "note" and a.by_author}

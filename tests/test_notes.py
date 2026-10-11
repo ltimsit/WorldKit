@@ -340,3 +340,23 @@ def test_the_atelier_screen_runs_shows_corrects_and_adds_notes(tmp_path):
     assert added.status_code == 303
     page = client.get(f"/atelier/{doc.doc_id}").text
     assert "corrigée" in page and "rôle : souverain" in page
+
+
+def test_a_note_within_a_kept_fact_evidence_is_set_aside_unless_it_says_more_R_NTE_05():
+    """« elle deteste les bateliers » : déjà dit par « Ysolde — déteste — la Guilde » (même passage, mêmes entités) ;
+    « … avant la grande crue … » nomme une entité de plus : elle dit plus que le fait, elle reste (cas réel, X-017)."""
+    from worldkit.ingest.declaration import parse_document
+    from worldkit.periphery.notes import check_notes
+    text = ("---\nid: n\nmode: source\nnature: diegetic\nvoice: author\n---\n# N\n\n"
+            "Odon de Brume déteste Mervin, et le hait depuis la Chute.\n")
+    window = window_of(parse_document(text, "n.md"))
+    entities = [Confirmed("odon", "Character", "Odon de Brume"), Confirmed("mervin", "Character", "Mervin"),
+                Confirmed("la-chute", "Event", "la Chute")]
+    evidence = [(1, "Odon de Brume déteste Mervin, et le hait depuis la Chute.", {"odon", "mervin"})]
+    raw = [{"subjects": ["odon"], "mentions": ["mervin"], "facet": "character", "text": "déteste Mervin", "short": []},
+           {"subjects": ["odon"], "mentions": ["mervin", "la-chute"], "facet": "history",
+            "text": "le hait depuis la Chute", "short": []}]
+    rejected = []
+    kept = check_notes(raw, window, entities, base_world().state().world, {}, rejected, evidence)
+    assert [n.draft["text"] for n in kept] == ["le hait depuis la Chute"]
+    assert [why for _, why in rejected] == ["déjà dit par un fait gardé"]

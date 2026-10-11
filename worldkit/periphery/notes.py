@@ -8,7 +8,10 @@ faits déjà gardés (à ne pas répéter : notes et faits complémentaires, R-N
 - sujets et mentions sont des entités confirmées ; une mention qui est aussi un sujet reste un sujet ;
 - la facette est commune aux types des sujets, sinon `other` (R-NTE-04) ;
 - une rumeur ou une note de travail ne donne pas de note (énonciation sans modèle, X-010) ;
-- une bribe qui ne fait que répéter la valeur d'un fait gardé (« apothicaire » pour le titre) est écartée ;
+- une bribe qui ne fait que répéter un fait gardé est écartée (R-NTE-05) : la valeur d'un attribut (« apothicaire »
+  pour le titre), ou un extrait contenu dans la preuve d'un fait du même passage qui nomme exactement les mêmes
+  entités (« elle deteste les bateliers », preuve de « Ysolde — déteste — la Guilde des Bateliers ») ; une bribe qui
+  nomme une entité de plus (« avant la grande crue ») dit plus que le fait, elle reste ;
 - deux bribes identiques (mêmes sujets, même facette, même texte plié) n'en font qu'une.
 
 La périphérie ne fait que proposer (T-ARC-03) : l'auteur garde, corrige ou retire dans l'atelier.
@@ -72,8 +75,14 @@ def common_facets(schema: Any, types: list[str]) -> list[str]:
     return common or ["other"]
 
 
+def _plain(text: str) -> str:
+    from worldkit.ingest.declaration import normalize
+    return " ".join(normalize(text).casefold().replace("’", "'").strip(" .;,!?").split())
+
+
 def check_notes(raw: list[dict[str, Any]], window: Window, entities: list[Confirmed], schema: Any,
-                kept_values: dict[str, set[str]], rejected: list[tuple[dict[str, Any], str]]) -> list[NoteDraft]:
+                kept_values: dict[str, set[str]], rejected: list[tuple[dict[str, Any], str]],
+                kept_evidence: list[tuple[int, str, set[str]]] | None = None) -> list[NoteDraft]:
     """Contrôles sans modèle (voir le module) ; les bribes écartées vont dans `rejected`, avec la raison."""
     from .matching import fold
     types = {e.id: e.type for e in entities}
@@ -95,6 +104,11 @@ def check_notes(raw: list[dict[str, Any]], window: Window, entities: list[Confir
             continue
         mentions = sorted({m.strip() for m in n.get("mentions", []) if m.strip() in types} - set(subjects))
         if any(fold(text) in kept_values.get(s, set()) for s in subjects):
+            rejected.append((n, "déjà dit par un fait gardé"))
+            continue
+        cited = set(subjects) | set(mentions)
+        if any(p == passage and _plain(text) in _plain(ev) and ents == cited  # mêmes entités : rien de plus
+               for p, ev, ents in kept_evidence or []):
             rejected.append((n, "déjà dit par un fait gardé"))
             continue
         facets = common_facets(schema, [types[s] for s in subjects])
@@ -140,7 +154,9 @@ class NoteFinder:
         return SYSTEM, user
 
     def find(self, window: Window, entities: list[Confirmed], schema: Any, known: list[str] | None = None,
-             kept_values: dict[str, set[str]] | None = None) -> list[NoteDraft]:
+             kept_values: dict[str, set[str]] | None = None,
+             kept_evidence: list[tuple[int, str, set[str]]] | None = None) -> list[NoteDraft]:
         system, user = self.prompt(window, entities, schema, known or [])
         raw = self.adapter.complete(system, user, output_schema())
-        return check_notes(raw.get("notes", []), window, entities, schema, kept_values or {}, self.rejected)
+        return check_notes(raw.get("notes", []), window, entities, schema, kept_values or {}, self.rejected,
+                           kept_evidence)
