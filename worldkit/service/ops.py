@@ -845,7 +845,9 @@ def in_french(change: Any, state: Any) -> str | None:
         from worldkit.core.views.model import facet_label
         note = {"subjects": list(change.subjects), "facet": change.facet}
         voice = f" (selon {name(change.speaker)})" if change.speaker else ""
-        return f"{', '.join(name(e) for e in change.subjects)} — {facet_label(state, note)} : « {change.text} »{voice}"
+        short = " — " + " · ".join(f"{f.aspect} : {f.value}" for f in change.short) if change.short else ""
+        return (f"{', '.join(name(e) for e in change.subjects)} — {facet_label(state, note)} : « {change.text} »"
+                f"{short}{voice}")  # comme l'atelier : citation et forme courte
     if op in ("add_relation", "remove_relation"):
         sign = "" if op == "add_relation" else "plus : "
         return f"{sign}{name(change.from_)} — {relation_label(state, change.relation, change.scope)} — {name(change.to)}"
