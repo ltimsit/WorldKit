@@ -306,8 +306,7 @@ def kept_facts(world: Any, branch: str, doc: Any) -> tuple[list[str], dict[str, 
 
 def run_notes(world: Any, branch: str, doc_id: str, finder: Any) -> NotesReport:
     """Lance la couche « descriptions » après les faits, entre les entités confirmées ; écrit une annotation par bribe
-    (`kind: note`). Relancée, elle ne refait pas une bribe que l'auteur a décidée."""
-    import json
+    (`kind: note`). Relancée, elle ne repropose pas une citation que l'auteur a décidée."""
 
     from worldkit.periphery.mentions import window_of
     doc = store.source(world, doc_id)
@@ -321,11 +320,15 @@ def run_notes(world: Any, branch: str, doc_id: str, finder: Any) -> NotesReport:
     before = len(finder.rejected)
     found = finder.find(window, entities, world.state(branch).world, known, values, evidence)
     report.rejected = len(finder.rejected) - before
-    decided = {json.dumps(a.value.get("origin_draft") or a.value.get("draft"), sort_keys=True) for a in now
-               if a.kind == "note" and a.by_author}
+    from worldkit.periphery.matching import fold
+    # Règle de relance : une citation que l'auteur a décidée (gardée, corrigée, retirée) n'est plus proposée, même
+    # si la couche la rend avec une autre facette ou une autre forme courte.
+    decided = {(a.passage, fold(str((a.value.get("origin_draft") or a.value["draft"]).get("text", ""))))
+               for a in now if a.kind == "note" and a.by_author}
+    decided |= {(a.passage, fold(str(a.value["draft"].get("text", "")))) for a in now if a.kind == "note" and a.by_author}
     origin = _layer_origin(report.run, NOTES)
     for n in found:
-        if json.dumps(n.draft, sort_keys=True) in decided:
+        if (n.passage, fold(n.draft["text"])) in decided:
             report.skipped_by_author += 1
             continue
         start, end = _span(window.passage_texts.get(n.passage, ""), n.draft["text"])

@@ -360,3 +360,18 @@ def test_a_note_within_a_kept_fact_evidence_is_set_aside_unless_it_says_more_R_N
     kept = check_notes(raw, window, entities, base_world().state().world, {}, rejected, evidence)
     assert [n.draft["text"] for n in kept] == ["le hait depuis la Chute"]
     assert [why for _, why in rejected] == ["déjà dit par un fait gardé"]
+
+
+def test_a_relaunch_does_not_repropose_a_citation_the_author_decided_even_reworded():
+    """Cas réel : la bribe gardée revenait, la nouvelle passe ayant formulé autrement sa forme courte
+    (« activité antérieure » / « activité passée »). Une citation décidée (gardée, corrigée, retirée) ne revient pas."""
+    w, doc = atelier_source()
+    layers.run_notes(w, "reference", doc.doc_id, NoteFinder(FakeAdapter(FOUND), Profile()))
+    first, second = sorted(notes_of(w, doc), key=lambda a: a.passage)
+    gestures.note_gesture(w, "reference", doc.doc_id, "keep", first.ann_id)
+    gestures.note_gesture(w, "reference", doc.doc_id, "remove", second.ann_id)
+    reworded = [{**FOUND[0], "short": [{"aspect": "carrure", "value": "massive"}]},
+                {**FOUND[1], "facet": "character"}]
+    report = layers.run_notes(w, "reference", doc.doc_id, NoteFinder(FakeAdapter(reworded), Profile()))
+    assert report.skipped_by_author == 2 and report.proposed == 0
+    assert sorted(a.status for a in notes_of(w, doc)) == ["kept", "removed"]
