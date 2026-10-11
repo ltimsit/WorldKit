@@ -26,6 +26,7 @@ types:
       name:     { type: text, required: true, labels: { fr: "nom" } }
       aliases:  { type: "list[text]", labels: { fr: "autres noms" } }
       category: { type: text, labels: { fr: "catégorie" } }
+      population: { type: text, labels: { fr: "population" } }  # ajouté par l'auteur (X-018), texte : « environ 2000 »
 
   Faction:
     labels: { fr: "Faction" }
