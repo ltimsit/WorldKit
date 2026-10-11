@@ -25,16 +25,17 @@ Dans l'atelier, sur un fait ou une bribe dont il n'est pas sûr, l'auteur fait *
 1. **Service** : les quatre opérations ; une piste créée par l'atelier garde sa source (document, passage) en remarque ; tests.
 2. **Atelier** : le geste sur un fait et sur une bribe, formulaire prérempli, état de l'annotation ; tests d'écran.
 3. **Écran `/pistes`** : liste filtrée (ouvertes, adoptées, écartées), adopter, écarter, créer (changements écrits comme dans la Saisie, vérifiés en direct) ; entrée de navigation.
-4. **(Selon la question 3) revue** : « En faire une piste » sur un changement proposé.
-5. **Documents** : cadre d'interface, glossaire, carte des outils, guide exécuté, chantier (le geste « en faire une piste » sort des pistes), CLAUDE.md.
+4. **Documents** : cadre d'interface, glossaire, carte des outils, guide exécuté, chantier (le geste « en faire une piste » sort des pistes), CLAUDE.md.
 
-## 5. Questions à l'auteur (une à la fois)
+## 5. Décisions de l'auteur (12 octobre 2026)
 
-1. **L'annotation mise en piste** : un état propre « en piste » (lien vers la piste, ne part pas avec « Proposer »), ou simplement « retirée » avec un lien ?
-2. **Une piste sur une entité nouvelle** pas encore créée (Bertrand Ostrel avant la revue) : la refuser (« proposer d'abord l'entité »), ou la permettre en la faisant dépendre de la création en attente (comme un lot de faits, T-ING-07) ?
-3. **Le geste dans la revue** (sur un changement proposé) : dans ce jalon, ou plus tard ?
-4. **Une piste sans changement** (une question pure : « Corbelle a-t-elle 2000 habitants ? », rien à appliquer encore) : admise, ou une piste porte toujours au moins un changement ?
-5. **Créer une piste libre sur la page** (hors atelier) : dans ce jalon, ou la page ne fait d'abord que lister, adopter, écarter ?
+| Q | Décision |
+|---|---|
+| 1 | Une bribe ou un fait mis en piste prend un **état propre « en piste »** (pastille, lien vers la piste) ; il ne part pas avec « Proposer » ; une relance ne le repropose pas. |
+| 2 | Une piste sur une **entité nouvelle pas encore créée** est **refusée** : proposer d'abord l'entité (et l'accepter en revue). Une piste ne cite que des entités du monde. |
+| 3 | Le geste dans la **revue** : **plus tard** ; ce jalon le met dans l'atelier seulement. |
+| 4 | Une piste porte **toujours au moins un changement** (ce qu'elle ferait au monde si on l'adopte). |
+| 5 | La page `/pistes` permet de **créer une piste libre** (titre, entités, changements écrits comme dans la Saisie, vérifiés en direct), en plus de lister, adopter, écarter. |
 
 ## 6. Hors du jalon
 
