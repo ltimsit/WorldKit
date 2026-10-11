@@ -143,3 +143,13 @@ def test_the_atelier_puts_a_note_in_a_draft_from_its_panel(tmp_path):
     assert done.status_code == 303
     assert "en piste" in client.get(f"/atelier/{doc.doc_id}").text
     assert "Odon est-il massif ?" in client.get("/pistes").text
+
+
+def test_a_note_reads_the_same_on_pistes_and_in_the_atelier_citation_and_short_form():
+    """Cas réel : l'atelier montrait la forme courte, l'écran Pistes seulement la citation."""
+    from worldkit.core.journal.models import parse_edit
+    from worldkit.service.ops import in_french
+    change = parse_edit({"id": "x", "changes": [{"op": "add_note", "note": "n", "subjects": ["brume"], "facet": "other",
+                                                 "text": "un port qui sent la vase",
+                                                 "short": [{"aspect": "odeur", "value": "vase"}]}]}).changes[0]
+    assert in_french(change, base_world().state()) == "Brume — autre : « un port qui sent la vase » — odeur : vase"
