@@ -60,6 +60,7 @@ Les axes de test et le plan des corpus sont dans [axes-corpus.md](axes-corpus.md
 | [X-016](X-016-schema-de-genre-pivot.md) | Schéma de genre « fantasy jdr » comme ontologie pivot de l'extraction (correspondance sans modèle, cache) | conclue, non adoptée (plus de faits faux) ; cache confirmé |
 | [X-017](X-017-premiere-session-atelier.md) | Première session réelle de l'atelier : l'auteur sur ses notes de Corbelle (gestes réels contre simulés) | conclue : le schéma est le premier coût |
 | [X-018](X-018-seance-notes.md) | Séance réelle de la couche « descriptions » (J9) sur les notes de Corbelle | conclue : 5 bribes sur 5 gardées, une facette forcée ; deux défauts de l'atelier corrigés |
+| [X-019](X-019-qwen3-4b-local-b1.md) | Premier modèle local : qwen3:4b (Ollama) sur b1, extracteur et couche « faits » | conclue : extracteur 0,14 / 0,14, couche « faits » 0,56 / 0,29 ; l'orientation par couches tient, le rappel est le point faible |
 
 Statuts : **ouverte** (observée, non traitée), **en cours** (remède essayé), **résolue** (remède mesuré, sans régression), **acceptée** (on vit avec, avec la raison), **transformée** (devenue une expérience ou une question du chantier).
 

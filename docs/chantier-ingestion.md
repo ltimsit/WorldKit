@@ -1,6 +1,6 @@
 # Chantier : faire évoluer l'ingestion
 
-**Statut :** document de travail, version 0.6 — 10 octobre 2026. Ce n'est pas un cadre : il consigne une réflexion en cours (brainstorm, mesures, choix déjà faits, questions ouvertes) pour qu'on puisse la reprendre. En cas de divergence, les cadres priment. Quand un choix sera acté, il passera dans *cadre-technique.md* (décisions `T-ING`), dans *cadre-interface.md* pour l'Atelier, et dans l'analyse (section 00.xx), et sortira d'ici. Le travail expérimental lui-même (fiches d'écart, expériences) vit dans [`docs/recherche-ingestion/`](recherche-ingestion/README.md).
+**Statut :** document de travail, version 0.7 — 13 octobre 2026. Ce n'est pas un cadre : il consigne une réflexion en cours (brainstorm, mesures, choix déjà faits, questions ouvertes) pour qu'on puisse la reprendre. En cas de divergence, les cadres priment. Quand un choix sera acté, il passera dans *cadre-technique.md* (décisions `T-ING`), dans *cadre-interface.md* pour l'Atelier, et dans l'analyse (section 00.xx), et sortira d'ici. Le travail expérimental lui-même (fiches d'écart, expériences) vit dans [`docs/recherche-ingestion/`](recherche-ingestion/README.md).
 
 ## 1. Orientation
 
@@ -214,6 +214,7 @@ Esquisse d'un espace dédié. Le **premier incrément** (les entités : import, 
 1. **Maintenant** : établir le cadre avec **Claude Haiku 4.5 par l'API** (profil `api-haiku`), en le traitant comme un petit modèle.
 2. **En même temps** : construire l'outillage qui permet de comparer, couche par couche, deux modèles sur les mêmes entrées.
 3. **Ensuite** : passer à un **petit modèle hébergé** (modèle ouvert de 7 à 8 milliards de paramètres, mêmes poids qu'en local), puis à un modèle local quand une machine le permettra.
+4. **Fait en avance** : un modèle local tourne sur la machine de l'auteur, **qwen3:4b** par Ollama (adaptateur `ollama`, profil `qwen3-4b`, T-LLM-01), sans carte graphique : 75 à 90 s par appel, gratuit. Plus petit que la cible, il sert de **second point de mesure**, à côté de Haiku : un remède qui n'aide que Haiku est suspect ([X-019](recherche-ingestion/X-019-qwen3-4b-local-b1.md)).
 
 ### 8.2 Conditions de mise en place
 
@@ -233,7 +234,7 @@ Esquisse d'un espace dédié. Le **premier incrément** (les entités : import, 
 ### 8.3 Conditions de passage au petit modèle hébergé
 
 - les couches sont stabilisées sur b1 et b2 avec Haiku, et leurs mesures sont reproductibles ;
-- un **adaptateur compatible OpenAI** existe (le même servirait pour ollama en local, qui expose ce protocole), avec repli sur un mode JSON simple et revalidation quand l'hébergeur ne gère pas le schéma ;
+- un **adaptateur compatible OpenAI** existe (pour ollama en local, l'adaptateur `ollama` parle déjà son API native, sortie contrainte par le schéma), avec repli sur un mode JSON simple et revalidation quand l'hébergeur ne gère pas le schéma ;
 - la clé est dans une variable propre à worldkit (nom à fixer, sur le modèle de `WORLDKIT_ANTHROPIC_API_KEY`) ;
 - **confidentialité** : un réglage par monde est prévu (synthétique : tout peut partir ; privé : local seulement, ou fournisseurs listés ; un appel vers un fournisseur non autorisé refusé avant l'envoi). Il est **désactivé pendant la phase de développement**, qui ne traite que des corpus synthétiques ; à activer avant d'ingérer de vraies notes ;
 - le choix de l'hébergeur et du modèle est argumenté (taille, contexte, support du schéma, *logprobs*, prix).
@@ -647,6 +648,7 @@ Le cadre est appelé à évoluer ; ces tensions sont attendues, pas des obstacle
 12. **Première session réelle de l'atelier** (fait, [X-017](recherche-ingestion/X-017-premiere-session-atelier.md)) : mentions justes sans correction (16 clics contre 27 gestes simulés) ; 5 gestes sur 6 sur les faits viennent du schéma (5 relations ajoutées à la main) ; prochaine étape : le geste « ajouter au schéma » (§6.6).
 13. **« Ajouter au schéma »** (fait, I-ATL-09) : depuis l'atelier et la revue, aperçu puis confirmation, fait rattaché ; export du schéma vers un monde d'auteur. Restent : la mémoire des tournures (« relation existante », §10.5) et celle des refus (« ignorer »).
 14. **Notes, jalon J9** (fait, [X-018](recherche-ingestion/X-018-seance-notes.md)) : séance réelle, 2 appels, 0,008 $, 5 bribes sur 5 gardées, une facette forcée ; deux défauts de l'atelier corrigés (dernière passe lue dans tout l'historique ; relation répétée en note).
+15. **Premier modèle local** (fait, [X-019](recherche-ingestion/X-019-qwen3-4b-local-b1.md)) : qwen3:4b sur b1, extracteur 0,14 / 0,14 (Haiku : 0,65 / 0,59), couche « faits » 0,56 / 0,29 (Haiku : 0,93 / 0,82) ; trois faits écartés par les contrôles de types ; une relation voisine inventée (« vassal » → `spouse_of`, cas d'E-016). L'orientation par couches tient sur un vrai petit modèle ; le rappel des attributs est le point faible. Reste : C1, C2 et la chaîne complète des faits sur b1 et Corbelle avec qwen3:4b.
 
 ## 17. Références
 
