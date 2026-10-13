@@ -214,7 +214,7 @@ Esquisse d'un espace dédié. Le **premier incrément** (les entités : import, 
 1. **Maintenant** : établir le cadre avec **Claude Haiku 4.5 par l'API** (profil `api-haiku`), en le traitant comme un petit modèle.
 2. **En même temps** : construire l'outillage qui permet de comparer, couche par couche, deux modèles sur les mêmes entrées.
 3. **Ensuite** : passer à un **petit modèle hébergé** (modèle ouvert de 7 à 8 milliards de paramètres, mêmes poids qu'en local), puis à un modèle local quand une machine le permettra.
-4. **Fait en avance** : un modèle local tourne sur la machine de l'auteur, **qwen3:4b** par Ollama (adaptateur `ollama`, profil `qwen3-4b`, T-LLM-01), sans carte graphique : 75 à 90 s par appel, gratuit. Plus petit que la cible, il sert de **second point de mesure**, à côté de Haiku : un remède qui n'aide que Haiku est suspect ([X-019](recherche-ingestion/X-019-qwen3-4b-local-b1.md)).
+4. **Fait en avance** : un modèle local tourne chez l'auteur, **qwen3:4b** par Ollama (adaptateur `ollama`, profil `qwen3-4b`, T-LLM-01), gratuit ; environ 17 s par passage sur sa machine de bureau (Radeon RX 6600), 75 à 90 s par appel sur son portable sans carte graphique (Ryzen 5 4500U). Une durée ne se compare qu'à machine égale. Plus petit que la cible, il sert de **second point de mesure**, à côté de Haiku : un remède qui n'aide que Haiku est suspect ([X-019](recherche-ingestion/X-019-qwen3-4b-local-b1.md)).
 
 ### 8.2 Conditions de mise en place
 

@@ -2,10 +2,10 @@
 
 - **Statut** : conclue (premier point de mesure d'un vrai petit modèle ; une passe)
 - **Hypothèse** : le chantier vise de petits modèles et Haiku 4.5 n'en est qu'un substitut, plus capable (§8.2, point 5). Un modèle local réel dit ce que vaut l'orientation « fenêtre large, question étroite » : l'extracteur actuel (une seule grande question) devrait s'effondrer, la couche « faits » (C5, entités confirmées) devrait mieux tenir.
-- **Couche et modèle** : extracteur actuel (`llm-3`) et couche « faits » (`facts-1`, entités du gold) ; **qwen3:4b** par Ollama sur la machine de l'auteur, sans carte graphique (profil d'exemple `qwen3-4b` : `num_ctx` 16 384, réflexion coupée, température 0, `concurrency: 1`).
+- **Couche et modèle** : extracteur actuel (`llm-3`) et couche « faits » (`facts-1`, entités du gold) ; **qwen3:4b** par Ollama sur le portable de l'auteur (Ryzen 5 4500U, 16 Go de DDR4, sans carte graphique dédiée : le modèle tourne sur le processeur) (profil d'exemple `qwen3-4b` : `num_ctx` 16 384, réflexion coupée, température 0, `concurrency: 1`).
 - **Données** : lot b1 de Valmont v1 (12 passages : `notes-baron` v1, `lieux-de-valmont`), monde neuf ; 13 octobre 2026. Traces : `llm-log/x019-extraction/`, `llm-log/x019-facts/`.
 
-**Limites** : une passe ; corpus synthétique et optimiste (T-TST-01) ; 4 milliards de paramètres, en dessous de la cible de 7 à 8 milliards (§8.1) ; la machine de l'auteur, pas un serveur.
+**Limites** : une passe ; corpus synthétique et optimiste (T-TST-01) ; 4 milliards de paramètres, en dessous de la cible de 7 à 8 milliards (§8.1) ; les durées valent pour un portable sans carte graphique, pas pour un serveur ni pour une machine de bureau.
 
 ## Indicateurs
 
@@ -44,7 +44,7 @@
 - **L'orientation du chantier est confirmée sur un vrai petit modèle.** La même machine donne 0,14 en précision avec la grande question et 0,56 avec la question étroite. L'écart entre Haiku et qwen3:4b est bien plus grand sur l'extracteur (0,51 point de précision) que sur la couche « faits » (0,37). Les couches font moins dépendre le résultat du modèle.
 - **Le rappel est le point faible** (0,29). C'est ce qu'une couche par attribut, ou une question par entité, viserait (§10). La précision restante dépend des contrôles déterministes (types) et de la décision de l'auteur.
 - **Le substitut est optimiste**, comme annoncé (§8.2, point 5). Aucune conclusion de faisabilité sur une passe d'un modèle de 4 milliards, plus petit que la cible.
-- **Durée** : 75 à 90 s par appel sur cette machine, contre environ 17 s mesurés sur un passage court. La durée suit la longueur du prompt (1 766 tokens pour l'extracteur) et de la réponse. Un lot comme b1 reste faisable en tâche de fond ; la couche « mentions » (C1) n'a pas été mesurée.
+- **Durée** : 75 à 90 s par appel sur le portable. Les premiers essais de l'autre session (environ 17 s par passage) avaient été faits sur une machine de bureau plus puissante (Ryzen 5 3600, Radeon RX 6600, 16 Go de DDR4). La différence vient surtout de là, et un peu de la longueur du prompt (1 766 tokens pour l'extracteur) et de la réponse. **Une durée ne se compare donc qu'à machine égale** : toute fiche qui en donne une nomme la machine. La qualité, elle, ne dépend pas de la machine (même modèle, mêmes poids, température 0). Un lot comme b1 reste faisable en tâche de fond ; la couche « mentions » (C1) n'a pas été mesurée.
 
 ## Suite possible
 
