@@ -11,6 +11,7 @@ a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: un
 header.top { display: flex; gap: 18px; align-items: center; padding: 6px 14px; background: #20232a; color: #eee; }
 header.top a { color: #cfe0ff; } header.top .brand { font-weight: 600; color: #fff; }
 header.top nav a { margin-right: 12px; } header.top nav a.on { color: #fff; font-weight: 600; }
+header.top form.llm-route { white-space: nowrap; color: #ccc; } header.top form.llm-route select { font-size: 12px; max-width: 18em; }
 form.context { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; padding: 6px 14px;
   background: var(--panel); border-bottom: 1px solid var(--line); }
 form.context label { display: flex; flex-direction: column; font-size: 11px; color: var(--muted); }

@@ -12,7 +12,7 @@
   <p>lots {% for x in batches %}<label><input type="checkbox" name="batch" value="{{ x }}"> {{ x }}</label> {% endfor %}<span class="small muted">(aucun coché : tous)</span></p>
   <p><label><input type="radio" name="extractor" value="oracle" checked> oracle (contrôle)</label>
      <label><input type="radio" name="extractor" value="profile"> modèle</label>
-     <select name="profile">{% for pr in profiles %}<option>{{ pr }}</option>{% endfor %}</select>
+     <select name="profile">{% for pr in profiles %}<option {{ 'selected' if llm.tasks.extraction == pr }}>{{ pr }}</option>{% endfor %}</select>
      <label>répétitions <select name="repeat"><option>1</option><option value="2">2 (stabilité)</option></select></label>
      <label>plafond <input name="max_calls" size="4" placeholder="30"></label>
      <label><input type="checkbox" name="confirm" value="1"> confirmer les appels au modèle</label>

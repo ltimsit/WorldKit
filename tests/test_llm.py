@@ -208,10 +208,23 @@ def test_ollama_adapter_against_a_fake_server():
         adapter = OllamaAdapter("qwen2.5:7b", base_url=f"http://127.0.0.1:{server.server_port}")
         assert adapter.complete("s", "p", {"type": "object"}) == {"ok": True}
         assert received["format"] == {"type": "object"} and received["messages"][0]["role"] == "system"
+        # réflexion coupée et contexte élargi par défaut : celui d'Ollama tronquerait le prompt sans le dire
+        assert received["think"] is False and received["options"] == {"temperature": 0.0, "num_ctx": 16384}
         [call] = adapter.meter.calls
         assert (call.input_tokens, call.output_tokens, call.cost) == (812, 40, 0.0)
+        with pytest.raises(LLMError, match="num_ctx"):  # 812 tokens lus : le contexte était plein
+            OllamaAdapter("qwen3:4b", base_url=f"http://127.0.0.1:{server.server_port}", num_ctx=812) \
+                .complete("s", "p", {"type": "object"})
     finally:
         server.shutdown()
+
+
+def test_ollama_profile_options_reach_the_adapter():
+    profile = parse_config({"profiles": {"q": {"adapter": "ollama", "model": "qwen3:4b", "num_ctx": 32768,
+                                               "think": True, "temperature": 0.2, "concurrency": 1}}}).profiles["q"]
+    adapter = adapters.make_adapter(profile)
+    assert (adapter.num_ctx, adapter.think, adapter.temperature) == (32768, True, 0.2)
+    assert profile.signature == "ollama:qwen3:4b:t0.2:think"  # la réflexion change la sortie : elle entre dans le cache
 
 
 def test_ollama_unreachable_is_an_llm_error():

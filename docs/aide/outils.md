@@ -12,6 +12,7 @@
 - **Écritures** : par défaut dans un **bac à sable** (`sandbox`), jamais directement dans le monde de travail sans confirmation (I-PRI-04). Un bac se garde, se jette, ou se **rend réel** (`promote`).
 - **Appels au service** : en bas de chaque écran, la liste des opérations appelées pour le produire, avec leur JSON brut. Tout ce qu'affiche un écran vient de là (I-PRI-02) ; `worldkit call <opération>` donne la même chose en ligne de commande.
 - **Résultat** : chaque action affiche l'opération, sa sorte (`read`, `compute`, `write`, `admin`), la cible, le statut (`ok`, `refused`, `pending`, `error`), la durée et les signalements avec la règle qui les fonde.
+- **Modèle** (à droite de l'en-tête) : le profil de modèle par défaut de toutes les tâches, écrit dans `worldkit-llm.yaml` (`llm.route`) ; « (mixte) » si elles diffèrent. Chaque bouton qui appelle un modèle a aussi sa liste, pour ce lancement seul (I-LLM-02).
 - **Aide** : tout identifiant souligné (règle, décision, étape, opération, statut) mène à sa définition ; le survol la montre.
 
 ## 2. Les écrans

@@ -107,6 +107,8 @@ Un signalement (`Issue`) porte un code, une sévérité, un message et la règle
 | Ignorée | `ignored` | Deux sens. **Verdict** de répétition à blanc : action refusée ou en erreur dans le bac, donc non rejouée. **Annotation d'atelier** : portion que l'auteur déclare « pas une entité » ; une couche relancée n'y revient pas, et retenu pour le monde, le geste devient une règle d'atelier. |
 | Monde d'acceptation | `acceptance_world` | Fichier neuf (`monde.acceptance-<n>.db`) où s'exécute un parcours d'acceptation ; jamais promouvable. |
 | Plafond d'appels | `max_calls_per_run` | Nombre maximal d'appels au modèle par exécution (30 par défaut, `worldkit-llm.yaml`). Un pipeline s'arrête proprement au plafond ; une mesure T2 qui le dépasserait est refusée (I-LLM-01, I-MES-01). |
+| Profil de modèle | `profile` | Un modèle précis derrière un adaptateur (`claude-code`, `anthropic-api`, `ollama`) avec ses réglages, nommé dans `worldkit-llm.yaml` (T-LLM-01). Choisi par défaut dans l'en-tête, ou pour un seul lancement (I-LLM-02). |
+| Routage | `tasks` | Le profil de chaque tâche (`extraction`, `mentions`, `facts`, `notes`) ; une tâche sans profil prend celui de l'extraction (les descriptions, d'abord celui des faits). « (mixte) » dans l'en-tête : les tâches n'ont pas toutes le même profil. |
 | Estimation | `estimate` | Nombre exact d'appels au modèle qu'une exécution ferait : passages absents du cache pour ce profil et ce prompt. Montrée avant toute confirmation. |
 
 ## 5. Parcours d'acceptation

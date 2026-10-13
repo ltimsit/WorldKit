@@ -71,6 +71,48 @@ def parse_config(raw: dict[str, Any]) -> LLMConfig:
     return LLMConfig(profiles, tasks, int(raw.get("max_calls_per_run", 30)))
 
 
+def routing(config: LLMConfig) -> dict[str, str | None]:
+    """Profil effectif de chaque tâche (avec les replis de `LLMConfig.profile`), None s'il n'y en a pas."""
+    out: dict[str, str | None] = {}
+    for task in TASKS:
+        try:
+            out[task] = config.profile(None, task).name
+        except LLMError:
+            out[task] = None
+    return out
+
+
+def write_routing(tasks: dict[str, str], path: str | Path | None = None) -> LLMConfig:
+    """Fixe le profil de tâches dans le fichier (I-LLM-02) et rend la configuration relue.
+
+    Seul le bloc `tasks:` est réécrit : profils, réglages et commentaires du reste du fichier restent. Sans
+    fichier, il est créé depuis la configuration par défaut. Un profil inconnu est refusé avant toute écriture."""
+    candidate = Path(path) if path else Path(DEFAULT_PATH)
+    text = candidate.read_text(encoding="utf-8") if candidate.exists() else yaml.safe_dump(
+        {k: v for k, v in DEFAULT.items() if k != "tasks"}, allow_unicode=True, sort_keys=False)
+    raw = yaml.safe_load(text) or {}
+    merged = {**(raw.get("tasks") or {}), **tasks}
+    parse_config({**raw, "tasks": merged})  # refuse un profil ou une tâche inconnus, sans rien écrire
+    for task in tasks:
+        if task not in TASKS:
+            raise LLMError(f"tâche inconnue : {task} (connues : {', '.join(TASKS)})")
+    block = ["tasks:"] + [f"  {task}: {name}" for task, name in merged.items()]
+    lines, kept, inside = text.splitlines(), [], False
+    for line in lines:
+        if line.startswith("tasks:"):
+            inside = True
+            kept.extend(block)
+            continue
+        if inside and (line.startswith((" ", "\t")) or not line.strip()):
+            continue  # ligne du bloc remplacé
+        inside = False
+        kept.append(line)
+    if "tasks:" not in kept:
+        kept.extend(block)
+    candidate.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    return load_config(candidate)
+
+
 def load_config(path: str | Path | None = None) -> LLMConfig:
     """Le fichier donné, sinon `worldkit-llm.yaml` s'il existe, sinon la configuration par défaut."""
     candidate = Path(path) if path else Path(DEFAULT_PATH)

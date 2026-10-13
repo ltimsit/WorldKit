@@ -33,7 +33,13 @@
     <a href="/aide" class="{{ 'on' if path == '/aide' }}">Aide</a>
   </nav>
   {% set tool = tool_for(path) %}{% if tool and path != '/aide' %}<a class="help-link" href="{{ help_href(tool.key) }}" title="{{ tool.title }} : {{ tool.text|striptags }}">?</a>{% endif %}
-  <span class="small muted" style="margin-left:auto">écritures : bac à sable par défaut · worldkit {{ server.version }} · serveur démarré à {{ server.started }}</span>
+  {% if llm.profiles %}<form class="llm-route small" method="post" action="/llm/route" hx-boost="false" style="margin-left:auto" title="Profil de modèle par défaut de toutes les tâches (extraction, mentions, faits, descriptions), écrit dans worldkit-llm.yaml ; chaque lancement peut en prendre un autre">
+    <input type="hidden" name="next" value="{{ request.url.path }}{{ '?' ~ request.url.query if request.url.query }}">
+    <label>modèle <select name="profile" onchange="this.form.submit()">
+      {% if not llm.current %}<option selected disabled>(mixte)</option>{% endif %}
+      {% for pr in llm.profiles %}<option value="{{ pr.name }}" {{ 'selected' if llm.current == pr.name }}>{{ pr.name }} — {{ pr.model }}</option>{% endfor %}
+    </select></label></form>{% elif llm.error %}<span class="small" style="margin-left:auto; color:var(--warn)" title="{{ llm.error }}">configuration des modèles illisible</span>{% endif %}
+  <span class="small muted" style="{{ '' if llm.profiles or llm.error else 'margin-left:auto' }}">écritures : bac à sable par défaut · worldkit {{ server.version }} · serveur démarré à {{ server.started }}</span>
 </header>
 <div id="htmx-error" class="error-banner" hidden></div>
 <script>

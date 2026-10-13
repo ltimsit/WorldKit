@@ -31,7 +31,7 @@
   <p><label><input type="radio" name="extractor" value="oracle" {{ 'checked' if values.get('extractor', 'oracle') == 'oracle' }}> oracle</label>
      <input name="oracle" value="{{ values.oracle }}" size="36"></p>
   <p><label><input type="radio" name="extractor" value="profile" {{ 'checked' if values.get('extractor') == 'profile' }}> modèle</label>
-     <select name="profile">{% for pr in profiles %}<option {{ 'selected' if values.get('profile') == pr }}>{{ pr }}</option>{% endfor %}</select>
+     <select name="profile">{% for pr in profiles %}<option {{ 'selected' if values.get('profile', llm.tasks.extraction) == pr }}>{{ pr }}</option>{% endfor %}</select>
      <label>plafond <input name="max_calls" value="{{ values.max_calls or '' }}" size="4" placeholder="30"></label>
      <label><input type="checkbox" name="confirm" value="1"> confirmer les appels au modèle</label></p>
   <p><label>cible (état de base lu)

@@ -42,13 +42,13 @@
 {% elif job.result %}<div class="stat">{{ m.result_head(job.result) }}{% if job.result.status == "ok" %}{% if job.result.indicators.set_aside is defined %} {{ job.result.indicators.proposed }} fait(s) proposé(s), dont {{ job.result.indicators.set_aside }} mis de côté par le critique, {{ job.result.indicators.withheld }} retenu(s) par l'énonciation et {{ job.result.indicators.doubts }} douteux.{% else %} {{ job.result.indicators.proposed }} mention(s) proposée(s), dont {{ job.result.indicators.new }} nouvelle(s) et {{ job.result.indicators.doubts }} doute(s).{% endif %}{% set u = job.result.output.usage %}{% if u and u.calls %}<br><span class="small">modèle : {{ u.seconds }} s sur {{ (job.result.trace.duration_ms / 1000)|round(1) }} s ; {{ u.input_tokens }} tokens en entrée, {{ u.output_tokens }} en sortie{% if u.cost is not none %} ; {{ "%.4f"|format(u.cost) }} ${% endif %}{% if u.over_budget %} ; au-delà du budget d'entrée ({{ u.budget }}) de {{ u.excess_tokens }} tokens{% endif %}</span>{% endif %}{% endif %}</div>{% endif %}{% endif %}
 {% if message %}<div class="stat" style="border-color:var(--ok, #1b7f3b)">{{ message }} — <a href="/review">ouvrir la revue</a></div>{% endif %}
 {% if estimate %}<div class="stat" style="border-color:var(--warn)">{{ m.result_head(estimate) }}
-  <form method="post" action="/atelier/{{ view.doc_id }}/run" hx-boost="false"><input type="hidden" name="model" value="1"><input type="hidden" name="confirm" value="1"><input type="hidden" name="layer" value="{{ estimate.output.estimate.layer or 'mentions' }}">
+  <form method="post" action="/atelier/{{ view.doc_id }}/run" hx-boost="false"><input type="hidden" name="model" value="1"><input type="hidden" name="confirm" value="1"><input type="hidden" name="layer" value="{{ estimate.output.estimate.layer or 'mentions' }}"><input type="hidden" name="profile" value="{{ estimate.output.estimate.profile }}">
   {{ estimate.output.estimate.calls }} appel(s) au modèle {{ estimate.output.estimate.model }} (profil {{ estimate.output.estimate.profile }}, {{ estimate.output.estimate.adapter }}). <button>Confirmer et lancer</button></form></div>{% endif %}
 
 <div class="stat">
   <form method="post" action="/atelier/{{ view.doc_id }}/run" hx-boost="false" style="display:inline">
     <b>Couche « mentions »</b> (lancement {{ view.run }}) :
-    <label><input type="checkbox" name="model" value="1"> avec le modèle</label>
+    <label><input type="checkbox" name="model" value="1"> avec le modèle</label> <select name="profile" title="profil du modèle pour ce lancement (défaut : celui de la tâche « mentions »)">{% for pr in llm.profiles %}<option value="{{ pr.name }}" {{ 'selected' if llm.tasks.mentions == pr.name }}>{{ pr.name }}</option>{% endfor %}</select>
     <label><input type="checkbox" name="signals" value="1"> signaler les noms ressemblants</label>
     <button{{ ' disabled' if job and job.live }}>{{ "Relancer" if view.run else "Lancer" }}</button>
   </form>
@@ -70,6 +70,7 @@
   <form method="post" action="/atelier/{{ view.doc_id }}/run" hx-boost="false" style="display:inline">
     <input type="hidden" name="layer" value="facts">
     <b>Couche « faits »</b> (lancement {{ view.facts_run }}) : C5, question ciblée, énonciation, critique, entre {{ view.fact_entities|length }} entité(s)
+    <select name="profile" title="profil du modèle pour ce lancement (défaut : celui de la tâche « facts »)">{% for pr in llm.profiles %}<option value="{{ pr.name }}" {{ 'selected' if llm.tasks.facts == pr.name }}>{{ pr.name }}</option>{% endfor %}</select>
     <button{{ ' disabled' if (job and job.live) or not view.fact_entities }}>{{ "Relancer" if view.facts_run else "Lancer" }} avec le modèle</button>
   </form>
   {% if indicators.facts %} · {{ indicators.facts }} fait(s), {{ indicators.facts_to_send }} partiront{% endif %}
@@ -78,6 +79,7 @@
   <form method="post" action="/atelier/{{ view.doc_id }}/run" hx-boost="false" style="display:inline">
     <input type="hidden" name="layer" value="notes">
     <b>Couche « descriptions »</b> (lancement {{ view.notes_run }}) : ce que le texte dit des entités sans être un fait (portrait, caractère, habitudes…), rangé par facette
+    <select name="profile" title="profil du modèle pour ce lancement (défaut : celui de la tâche « notes »)">{% for pr in llm.profiles %}<option value="{{ pr.name }}" {{ 'selected' if llm.tasks.notes == pr.name }}>{{ pr.name }}</option>{% endfor %}</select>
     <button{{ ' disabled' if (job and job.live) or not view.fact_entities }}>{{ "Relancer" if view.notes_run else "Lancer" }} avec le modèle</button>
   </form>
   {% if indicators.notes %} · {{ indicators.notes }} note(s), {{ indicators.notes_to_send }} partiront{% endif %}
