@@ -53,7 +53,8 @@ class Profile:
     def signature(self) -> str:
         temperature = self.options.get("temperature")  # l'échantillonnage change la sortie : il entre dans le cache
         return f"{self.adapter}:{self.model}" + (f":{self.effort}" if self.effort else "") \
-            + (f":t{temperature}" if temperature is not None else "")
+            + (f":t{temperature}" if temperature is not None else "") \
+            + (":think" if self.options.get("think") else "")
 
 
 # ---------------------------------------------------------------------------
@@ -273,15 +274,25 @@ class AnthropicApiAdapter:
 
 @dataclass
 class OllamaAdapter:
-    """Modèle local via l'API HTTP d'Ollama ; sortie contrainte par le schéma (`format`)."""
+    """Modèle local via l'API HTTP d'Ollama ; sortie contrainte par le schéma (`format`).
+
+    `num_ctx` : fenêtre de contexte demandée. Celle d'Ollama par défaut (2 048 à 4 096 tokens) tronque le début
+    du prompt sans le dire : un prompt qui la remplit est refusé (LLMError) plutôt que lu à moitié.
+    `think` : réflexion des modèles qui en ont une (Qwen3) ; coupée par défaut — sur une phrase, qwen3:4b passe
+    de 60 à 4 000 tokens de sortie et de 15 à 100 secondes."""
 
     model: str
     base_url: str = "http://localhost:11434"
     timeout: float = 600.0
+    num_ctx: int = 16384
+    think: bool = False
+    temperature: float = 0.0
     meter: UsageMeter = field(default_factory=UsageMeter)
 
     def complete(self, system: str, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
-        body = json.dumps({"model": self.model, "stream": False, "format": schema, "options": {"temperature": 0},
+        options = {"temperature": self.temperature, "num_ctx": self.num_ctx}
+        body = json.dumps({"model": self.model, "stream": False, "format": schema, "think": self.think,
+                           "options": options,
                            "messages": [{"role": "system", "content": system},
                                         {"role": "user", "content": prompt}]}).encode("utf-8")
         request = urllib.request.Request(f"{self.base_url.rstrip('/')}/api/chat", data=body,
@@ -290,12 +301,20 @@ class OllamaAdapter:
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 payload = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:  # 404 : modèle absent (« ollama pull »), 400 : requête refusée
+            raise LLMError(f"Ollama ({self.base_url}) : {e} — {e.read().decode('utf-8', 'replace')[:300]}") from e
         except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
-            raise LLMError(f"Ollama ({self.base_url}) : {e}") from e
-        self.meter.trace("ollama", self.model, system, prompt, schema, {"temperature": 0}, payload)
-        self.meter.record(CallUsage(self.model, int(payload.get("prompt_eval_count") or 0),
-                                    int(payload.get("eval_count") or 0), seconds=time.perf_counter() - start,
-                                    cost=0.0))  # local : rien n'est facturé
+            raise LLMError(f"Ollama ({self.base_url}) : {e} — le serveur est-il lancé (« ollama serve ») ?") from e
+        self.meter.trace("ollama", self.model, system, prompt, schema,
+                         {**options, "think": self.think, "seconds": round(time.perf_counter() - start, 2)}, payload)
+        read = int(payload.get("prompt_eval_count") or 0)
+        self.meter.record(CallUsage(self.model, read, int(payload.get("eval_count") or 0),
+                                    seconds=time.perf_counter() - start, cost=0.0))  # local : rien n'est facturé
+        if read >= self.num_ctx:
+            raise LLMError(f"Ollama : prompt de {read} tokens pour un contexte de {self.num_ctx} (tronqué) : "
+                           "augmenter num_ctx dans le profil")
+        if payload.get("done_reason") == "length":
+            raise LLMError("Ollama : réponse interrompue (longueur)")
         try:
             return json.loads(payload["message"]["content"])
         except (KeyError, TypeError, json.JSONDecodeError) as e:
@@ -314,5 +333,8 @@ def make_adapter(profile: Profile) -> LLMAdapter:
                                    temperature=float(temperature) if temperature is not None else None,
                                    price=profile.options.get("price"))
     if profile.adapter == "ollama":
-        return OllamaAdapter(profile.model, profile.options.get("base_url", "http://localhost:11434"))
+        o = profile.options
+        return OllamaAdapter(profile.model, o.get("base_url", "http://localhost:11434"),
+                             timeout=float(o.get("timeout", 600)), num_ctx=int(o.get("num_ctx", 16384)),
+                             think=bool(o.get("think", False)), temperature=float(o.get("temperature", 0)))
     raise LLMError(f"adaptateur inconnu : {profile.adapter} (attendu : {', '.join(sorted(ADAPTERS))})")
