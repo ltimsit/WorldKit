@@ -151,7 +151,26 @@ def create_app(db: str | Path) -> FastAPI:
         branches = page.call("branch.list", {}, ctx["target"] or None)
         return templates.TemplateResponse(request, name, {
             "ctx": ctx, "sandboxes": boxes, "branches": branches.output["branches"] if branches.ok else [],
-            "calls": page.calls, "path": request.url.path, **data})
+            "llm": llm_state(page), "calls": page.calls, "path": request.url.path, **data})
+
+    def llm_state(page: Page) -> dict[str, Any]:
+        """Profils et routage pour l'en-tête et les lancements (I-LLM-02) ; « current » : le profil commun à
+        toutes les tâches, None si elles diffèrent (ou si la configuration est illisible)."""
+        result = page.call("llm.profiles")
+        if not result.ok:
+            return {"profiles": [], "tasks": {}, "current": None, "error": result.issues[0].message}
+        routed = set(result.output["tasks"].values())
+        return {**result.output, "current": routed.pop() if len(routed) == 1 else None, "error": None}
+
+    @app.post("/llm/route")
+    async def llm_route(request: Request) -> Any:
+        """Le sélecteur de l'en-tête : profil par défaut de toutes les tâches, puis retour à la page (I-LLM-02)."""
+        form = await request.form()
+        back = str(form.get("next") or "/")
+        result = Page(db).call("llm.route", {"profile": str(form.get("profile") or "")})
+        if not result.ok:
+            return HTMLResponse("; ".join(i.message for i in result.issues), status_code=400)
+        return RedirectResponse(back if back.startswith("/") and not back.startswith("//") else "/", status_code=303)
 
     def params_of(ctx: dict[str, str], *keys: str) -> dict[str, Any]:
         return {k: ctx[k] for k in keys if ctx.get(k)}

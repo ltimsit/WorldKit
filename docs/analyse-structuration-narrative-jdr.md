@@ -2,7 +2,7 @@
 
 **Cadre (révisé) :** outil de worldbuilding pour MJ-auteur en JDR fantasy — une couche Univers (wiki MJ complet adossé à un graphe versionné) et une couche Scénario (temporalité, potentiel/réalisé, impact sur l'univers), avec le méta (règles, stats) représenté à part et un schéma d'entités configurable par monde. Priorité : petits univers construits progressivement. Ouverture ultérieure à d'autres formes narratives.
 *Cadre v1 d'origine : mémoire de campagne, wiki, aide au MJ.*
-**Statut :** analyse pré-cahier des charges, **v46** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
+**Statut :** analyse pré-cahier des charges, **v47** — modèle conceptuel de la fondation complet ; conception technique engagée. La section 00 consolide les décisions prises après échanges et **fait foi** ; les sections 0 à 13 constituent l'analyse exploratoire initiale, conservée et annotée. Les règles à jour vivent dans *cadre-fondation.md* ; les décisions techniques dans *cadre-technique.md*.
 **Date :** septembre 2026 (v1 : analyse exploratoire ; v2 : cadrage révisé ; v3 : ingestion, historique, méta ; v4 : pistes, scénarios, redéfinitions, schéma, notoriété ; v5 : forme des éditions, identité, scénarios liés au monde, vues du wiki ; v6 : premières décisions de conception technique ; v7 : confirmation partielle des éditions en attente ; v8 : supports documentaires ; v9 : hors schéma et non-conformité ; v10 : propositions concurrentes entre lots ; v11 : attributs à valeurs multiples ; v12 : stockage ; v13 : langage de schéma ; v14 : noyau sur mesure en Python ; v15 : principe d'architecture ; v16 : décisions d'ingestion validées ; v17 : corpus synthétique ; v18 : plafonnement de la notoriété ; v19 : résolution contre les entités en attente ; v20 : notoriété des qualifications ; v21 : origine curation ; v22 : décisions du jalon J1 ; v23 : décisions du jalon J2 ; v24 : précisions du jalon J2 ; v25 : décisions du jalon J3 ; v26 : accès aux modèles de langage ; v27 : branches et transposition ; v28 : scénarios et déroulés).
 
 Légende utilisée dans tout le document :
@@ -1263,6 +1263,16 @@ La voie **traçable** est retenue partout où elle ne retarde pas le premier éc
 
 **Décision.** I-ATL-11, I-VUE-13 (*cadre-interface.md* v1.11). Choix faits sans validation explicite : l'identifiant d'une piste est tiré de son titre ; la source (document, passage, citation) est gardée dans la remarque de la piste ; une collision avec l'état n'empêche pas de créer une piste (c'est une hypothèse), seuls une entité absente, un changement hors schéma ou une valeur invalide l'empêchent.
 
+### 00.67 Choisir le modèle depuis l'interface (v47)
+
+> Décision du 13 octobre 2026, à la demande de l'auteur (un modèle local, qwen3:4b sous Ollama, à essayer à côté des profils d'API).
+
+**Problème.** Le choix du modèle se faisait par écran (Pipeline, Mesures) ou seulement dans `worldkit-llm.yaml` (atelier, qui suit le routage `tasks`). Passer d'un modèle à l'autre pour comparer obligeait à éditer le fichier.
+
+**Voies comparées.** Un sélecteur global gardé dans la session du navigateur (écarté : contraire à I-WEB-01, invisible en ligne de commande) ; un sélecteur global qui écrit le routage dans le fichier ; une liste à chaque lancement. L'auteur a retenu les deux dernières ensemble.
+
+**Décision.** I-LLM-02 (*cadre-interface.md* v1.12) : l'en-tête fixe le profil par défaut de toutes les tâches dans le fichier (`llm.route`) ; chaque lancement peut prendre un autre profil pour lui seul. Choix faits sans validation explicite : le sélecteur de l'en-tête vise toutes les tâches à la fois (l'opération accepte une liste de tâches, en ligne de commande) ; seul le bloc `tasks:` est réécrit, ses commentaires internes sont perdus ; sans fichier, il est créé depuis la configuration par défaut.
+
 ---
 
 ## 0. Comment lire ce document
@@ -1879,6 +1889,7 @@ Le socle transférable est : **entités + événements + états à fenêtre de v
 91. Comment l'auteur fait-il évoluer le schéma quand une relation manque, sans écrire d'édition à la main ? — **Réponse (v44) :** ✅ Depuis le fait (atelier) ou le changement hors schéma (revue), un formulaire prérempli : vérifier, puis confirmer l'écriture au journal ; le fait est rattaché ; un export reporte le schéma dans le fichier d'un monde d'auteur (00.64).
 92. Comment garder ce que les textes disent d'une entité sans que ce soit un fait (un portrait, une habitude) ? — **Réponse (v45) :** ✅ Des notes : citation et forme courte, rangées par facette, un ou plusieurs sujets sans ordre et des mentions, sans collision, notoriété plafonnée ; proposées par une couche de l'atelier, acceptées en revue (00.65).
 93. Où mettre ce qui n'est pas encore décidé (une hésitation, une idée d'intrigue) sans en faire une vérité du monde ? — **Réponse (v46) :** ✅ Une piste d'auteur, créée d'un geste depuis l'atelier ou sur l'écran Pistes ; adoptée ou écartée plus tard (00.66).
+94. Comment passer d'un modèle à l'autre (un modèle local, un modèle d'API) sans éditer le fichier de configuration ? — **Réponse (v47) :** ✅ Un sélecteur dans l'en-tête fixe le profil par défaut de toutes les tâches, écrit dans `worldkit-llm.yaml` ; chaque lancement peut en prendre un autre pour lui seul (00.67).
 
 ---
 

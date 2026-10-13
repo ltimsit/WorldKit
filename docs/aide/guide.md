@@ -399,6 +399,21 @@ Pour voir exactement ce qui part vers le modèle, désignez un dossier : chaque 
 $env:WORLDKIT_LLM_LOG_DIR = "llm-log"
 ```
 
+### Choisir le modèle
+
+À droite de l'en-tête, la liste **modèle** donne un profil à toutes les tâches (extraction, mentions, faits, descriptions) : le choix est écrit dans `worldkit-llm.yaml`, et la ligne de commande le suit. Chaque bouton qui appelle un modèle — dans l'atelier, le Pipeline, les Mesures — a aussi sa liste, préremplie par ce défaut : un autre choix ne vaut que pour ce lancement, et l'estimation dit quel modèle sera appelé avant de confirmer.
+
+<!-- écran /wiki : "modèle" ; "api-haiku — claude-haiku-4-5" -->
+
+En ligne de commande, la liste des profils et le profil de chaque tâche, puis le changement du défaut (il réécrit votre fichier) :
+
+```powershell sans-test
+worldkit --db valmont.db call llm.profiles
+worldkit --db valmont.db call llm.route --param profile=qwen3-4b
+```
+
+Un modèle local (profil `ollama`) ne coûte rien et ne consomme pas de quota, mais il est lent (une quinzaine de secondes par passage pour `qwen3:4b`) : lancer `ollama serve` avant, et `ollama pull qwen3:4b` s'il n'est pas installé.
+
 ## 11. Vérifier après un changement de code
 
 Les **parcours d'acceptation** W00 à W17 du corpus rejouent des scénarios d'usage complets, chacun dans un monde neuf, avec leurs prérequis :

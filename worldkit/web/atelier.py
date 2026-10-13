@@ -121,6 +121,8 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
         layer = str(form.get("layer") or "mentions")
         params = {"doc_id": doc_id, "layer": layer, "model": bool(form.get("model")) or layer == "facts",
                   "signals": bool(form.get("signals")), "confirm": bool(form.get("confirm"))}
+        if form.get("profile") and params["model"]:  # un autre profil pour ce lancement seul (I-LLM-02)
+            params["profile"] = str(form.get("profile"))
         if params["model"] and params["confirm"]:  # le modèle prend des minutes : en tâche de fond
             try:
                 run_id = jobs.start(db, "atelier.run", params)
