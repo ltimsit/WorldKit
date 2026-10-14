@@ -103,12 +103,12 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
         run_id = int(raw)
         with Session(db) as s:
             try:
-                status, _ = s.runs.progress(run_id)
+                status, progress = s.runs.progress(run_id)
             except KeyError:
                 return None
             result = None if status in ("running", "interrupted") else s.runs.result(run_id)
         return {"id": run_id, "status": status, "live": run_id in {j.run_id for j in jobs.running(db)},
-                "result": result}
+                "progress": progress, "result": result}
 
     @app.get("/atelier/{doc_id}", response_class=HTMLResponse)
     def atelier_source(doc_id: str, request: Request) -> HTMLResponse:
@@ -135,6 +135,15 @@ def register(app: FastAPI, db: Path, render: Callable[..., HTMLResponse], page_f
         if not result.ok:
             return source_page(request, page, doc_id, error="; ".join(i.message for i in result.issues))
         return RedirectResponse(f"/atelier/{quote(doc_id)}", status_code=303)
+
+    @app.post("/atelier/{doc_id}/cancel")
+    async def atelier_cancel(doc_id: str, request: Request) -> RedirectResponse:
+        """Arrêter une passe du modèle entre deux appels (I-WEB-04) : la couche n'écrit rien."""
+        raw = str((await request.form()).get("job") or "")
+        if raw.isdigit():
+            jobs.cancel(db, int(raw))
+        return RedirectResponse(f"/atelier/{quote(doc_id)}" + (f"?job={raw}" if raw.isdigit() else ""),
+                                status_code=303)
 
     @app.post("/atelier/{doc_id}/annotate", response_class=HTMLResponse)
     async def atelier_annotate(doc_id: str, request: Request) -> Any:

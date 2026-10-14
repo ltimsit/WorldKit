@@ -33,8 +33,8 @@ JOBS: dict[tuple[str, int], Job] = {}
 
 
 def _uses_model(operation: str, params: dict[str, Any]) -> bool:
-    if operation == "atelier.run":  # I8 : la couche « mentions » avec modèle
-        return bool(params.get("model")) and bool(params.get("confirm"))
+    if operation == "atelier.run":  # I8 : une couche avec modèle (« faits » et « descriptions » : toujours)
+        return (bool(params.get("model")) or params.get("layer") in ("facts", "notes")) and bool(params.get("confirm"))
     return operation == "pipeline.run" and bool(params.get("profile")) and bool(params.get("confirm"))
 
 

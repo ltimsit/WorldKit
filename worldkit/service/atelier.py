@@ -229,6 +229,37 @@ def _facts_view(world: Any, branch: str, doc: Any, current: list[Any]) -> dict[s
             "facts_run": layers.last_run(world, branch, doc, layers.FACTS)}
 
 
+class _Stopped(Exception):
+    """Arrêt demandé par l'auteur, levé entre deux appels au modèle : la couche n'a rien écrit."""
+
+    def __init__(self, stage: str) -> None:
+        super().__init__(stage)
+        self.stage = stage
+
+
+STEP_NAMES = {"mentions": "repérage des mentions", "c5": "faits (C5)", "probe": "question ciblée",
+              "critic": "critique", "notes": "descriptions"}
+
+
+def _stepper(ctx: Context, meter: Any) -> Any:
+    """Progression d'une couche (I-WEB-04) : l'étape, l'appel en cours sur le total, les appels faits ; un arrêt
+    demandé (`jobs.cancel`) est pris entre deux appels."""
+    def step(stage: str, done: int, total: int) -> None:
+        if ctx.cancel is not None and ctx.cancel.is_set():
+            raise _Stopped(stage)
+        ctx.report(stage, {"label": STEP_NAMES.get(stage, stage), "done": done, "total": total,
+                           "calls": len(meter.calls) if meter is not None else 0})
+    return step
+
+
+def _stopped(e: _Stopped, meter: Any) -> Output:
+    calls = len(meter.calls) if meter is not None else 0
+    return Output({"stopped": e.stage, "calls": calls},
+                  [Issue(IssueCode.EDIT_RULE, f"arrêtée avant l'étape « {STEP_NAMES.get(e.stage, e.stage)} », après "
+                         f"{calls} appel(s) au modèle : rien n'est écrit", "I-OBJ-05", Severity.WARNING)],
+                  {"stopped": 1, "llm_calls": calls})
+
+
 class RunParams(SourceParams):
     layer: str = Field("mentions", description="mentions (défaut), facts (C5, question ciblée, énonciation, critique) "
                                                "ou notes (descriptions, J9)")
@@ -263,7 +294,11 @@ def atelier_run(ctx: Context, p: RunParams) -> Output:
                                  f"{profile.adapter}) : confirmer pour lancer",
                                  "I-LLM-01", Severity.WARNING)], {"estimated_calls": 1}, status="pending")
         finder = MentionFinder(make_adapter(profile), profile)
-    report = layers.run_mentions(ctx.world, _branch(ctx, p), p.doc_id, finder, p.signals)
+    meter = getattr(finder, "meter", None)
+    try:
+        report = layers.run_mentions(ctx.world, _branch(ctx, p), p.doc_id, finder, p.signals, _stepper(ctx, meter))
+    except _Stopped as e:
+        return _stopped(e, meter)
     from worldkit.periphery.llm.usage import input_budget, summarize
     usage = summarize(report.calls, input_budget()) | {"seconds": round(sum(c.seconds for c in report.calls), 1)}
     return Output(report.__dict__ | {"calls": len(report.calls), "usage": usage}, [],
@@ -295,9 +330,13 @@ def _run_facts(ctx: Context, p: RunParams) -> Output:
                              "un jugement par fait qui pose une question : confirmer pour lancer",
                              "I-LLM-01", Severity.WARNING)], {"estimated_calls": calls}, status="pending")
     adapter = make_adapter(profile)
-    report = layers.run_facts(ctx.world, branch, p.doc_id, FactFinder(adapter, profile),
-                              RelationProbe(adapter, profile, with_relations=True, by_pair=True),
-                              Critic(adapter, profile))
+    meter = getattr(adapter, "meter", None)
+    try:
+        report = layers.run_facts(ctx.world, branch, p.doc_id, FactFinder(adapter, profile),
+                                  RelationProbe(adapter, profile, with_relations=True, by_pair=True),
+                                  Critic(adapter, profile), _stepper(ctx, meter))
+    except _Stopped as e:
+        return _stopped(e, meter)
     usage = summarize(report.calls, input_budget()) | {"seconds": round(sum(c.seconds for c in report.calls), 1)}
     return Output(report.__dict__ | {"calls": len(report.calls), "usage": usage}, [],
                   {"proposed": report.proposed, "set_aside": report.set_aside, "withheld": report.withheld,
@@ -323,7 +362,12 @@ def _run_notes(ctx: Context, p: RunParams) -> Output:
                       [Issue(IssueCode.EDIT_RULE, f"1 appel au modèle {profile.model} (profil {profile.name}, "
                              f"{profile.adapter}) : confirmer pour lancer", "I-LLM-01", Severity.WARNING)],
                       {"estimated_calls": 1}, status="pending")
-    report = layers.run_notes(ctx.world, branch, p.doc_id, NoteFinder(make_adapter(profile), profile))
+    adapter = make_adapter(profile)
+    meter = getattr(adapter, "meter", None)
+    try:
+        report = layers.run_notes(ctx.world, branch, p.doc_id, NoteFinder(adapter, profile), _stepper(ctx, meter))
+    except _Stopped as e:
+        return _stopped(e, meter)
     usage = summarize(report.calls, input_budget()) | {"seconds": round(sum(c.seconds for c in report.calls), 1)}
     return Output(report.__dict__ | {"calls": len(report.calls), "usage": usage}, [],
                   {"proposed": report.proposed, "rejected": report.rejected, "llm_calls": len(report.calls)})
