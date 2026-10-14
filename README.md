@@ -41,7 +41,8 @@ pip install -e ".[ui,dev]"
 ```
 
 - `ui` : l'interface web locale (FastAPI, Uvicorn, Jinja2, markdown-it-py) ;
-- `dev` : les tests (pytest, hypothesis, httpx).
+- `dev` : les tests (pytest, hypothesis, httpx) ;
+- `browser` (facultatif) : les tests de l'atelier dans un vrai navigateur (Playwright) ; installer ensuite Chromium avec `python -m playwright install chromium` (environ 150 Mo). Sans eux, ces tests sont sautés.
 
 Vérifier :
 
@@ -73,7 +74,9 @@ worldkit explain R-FAI-05
 
 ## L'interface : un banc d'essai
 
-L'interface web est d'abord un **outil de test et de contrôle** pour les gens qui travaillent sur le projet : elle montre chaque résultat en entier, avec sa règle, ses indicateurs et son JSON brut. Ses écrans : tableau de bord, wiki et comparaison de deux lectures, graphe, branches, journal, saisie d'éditions vérifiées en direct, banc de mécanismes (une opération seule), revue des propositions, banc de pipeline (l'ingestion étape par étape, de E1 à E9), mesures de l'extraction, parcours d'acceptation, exécutions enregistrées, aide.
+L'interface web est d'abord un **outil de test et de contrôle** pour les gens qui travaillent sur le projet : elle montre chaque résultat en entier, avec sa règle, ses indicateurs et son JSON brut. Ses écrans : tableau de bord, wiki et comparaison de deux lectures, graphe, branches, journal, schéma du monde, saisie d'éditions vérifiées en direct, banc de mécanismes (une opération seule), revue des propositions, pistes d'auteur (ce qui n'est pas encore décidé), banc de pipeline (l'ingestion étape par étape, de E1 à E9), mesures de l'extraction, parcours d'acceptation, exécutions enregistrées, aide.
+
+L'**atelier d'ingestion** (`/atelier`) est l'autre voie pour ingérer un texte : on colle ses notes, des couches successives proposent les **mentions** d'entités, puis les **faits**, puis les **descriptions** (portrait, caractère, habitudes), et l'auteur garde, corrige, retire ou ajoute d'un geste avant de tout envoyer à la revue. Les gestes ne rechargent pas la page ; une passe du modèle se suit en direct et peut être arrêtée.
 
 Les écritures faites depuis l'interface vont par défaut dans un **bac à sable** (une copie du monde) ; on le **rend réel** ensuite, après une répétition à blanc. La carte complète des écrans : [docs/aide/outils.md](docs/aide/outils.md).
 
@@ -81,13 +84,13 @@ Tout ce que fait l'interface passe par une **couche de service** accessible auss
 
 ## Modèles de langage (facultatif)
 
-Sans modèle, tout fonctionne avec l'**extracteur oracle**, qui lit les réponses attendues du corpus de test. Pour extraire avec un vrai modèle, copier `worldkit-llm.example.yaml` en `worldkit-llm.yaml` et choisir un profil :
+Sans modèle, tout fonctionne avec l'**extracteur oracle**, qui lit les réponses attendues du corpus de test. Pour extraire avec un vrai modèle, copier `worldkit-llm.example.yaml` en `worldkit-llm.yaml` et choisir un profil ; la liste **modèle**, dans l'en-tête de l'interface, change ensuite le profil de toutes les tâches, et chaque lancement peut en prendre un autre :
 
 | Adaptateur | Ce qu'il faut |
 |---|---|
 | `claude-code` | Claude Code installé et connecté : `claude` sur le `PATH`, dans l'extension VS Code, ou désigné par `WORLDKIT_CLAUDE_BIN` ; appelle `claude -p` |
 | `anthropic-api` | une clé d'API dans la variable d'environnement `WORLDKIT_ANTHROPIC_API_KEY` (le SDK `anthropic` est installé avec worldkit) ; facturé au token. Éviter `ANTHROPIC_API_KEY` pour tout le compte : Claude Code l'utiliserait aussi, et quitterait l'abonnement |
-| `ollama` | un modèle local servi par Ollama |
+| `ollama` | un modèle local servi par [Ollama](https://ollama.com) (`ollama serve`, puis `ollama pull qwen3:4b` pour le profil d'exemple `qwen3-4b`) ; gratuit, mais lent sans carte graphique (une à deux minutes par appel sur un portable) |
 
 **Un appel à un modèle consomme du quota.** Avant toute extraction ou mesure, l'outil affiche le nombre exact d'appels et attend une confirmation ; un plafond par exécution (`max_calls_per_run`, 30 par défaut) protège des mauvaises surprises. Les réponses sont gardées en cache : relancer ne coûte rien.
 
@@ -97,11 +100,14 @@ Sans modèle, tout fonctionne avec l'**extracteur oracle**, qui lit les réponse
 |---|---|
 | `worldkit/core/` | le **noyau déterministe** : schéma et clés de fait, journal SQLite, projection, conflits et transposition, scénarios et rejeux, vues |
 | `worldkit/ingest/` | l'ingestion : déclaration des documents, passages, pipeline en étapes, propositions, revue |
-| `worldkit/periphery/` | la **périphérie probabiliste** : extracteur oracle, adaptateurs de modèles, mesure de l'extraction |
+| `worldkit/periphery/` | la **périphérie probabiliste** : extracteur oracle, adaptateurs de modèles, mentions, faits et descriptions, mesure de l'extraction |
+| `worldkit/atelier/` | l'atelier d'ingestion : annotations en ajout seul, couches, gestes de l'auteur, envoi vers la revue |
 | `worldkit/service/` | la couche de service : opérations, résultats, exécutions, bacs à sable, lexique |
 | `worldkit/web/` | l'interface web locale |
 | `worldkit/cli.py` | la ligne de commande `worldkit` |
 | `corpus/valmont-v1/` | le corpus de test : monde Valmont, documents par lots, annotations de référence (*gold*), scénarios, parcours d'acceptation |
+| `corpus/corbelle-v1/` | un second corpus, ciblé : des notes brouillon (abréviations, hésitations, rumeurs) |
+| `mondes/` | les mondes de l'auteur, distincts des corpus : ils évoluent, un corpus reste un instrument de mesure |
 | `docs/` | les cadres de conception et l'aide (ci-dessous) |
 | `tests/` | les tests |
 
@@ -116,6 +122,8 @@ Sans modèle, tout fonctionne avec l'**extracteur oracle**, qui lit les réponse
 | [docs/cadre-technique.md](docs/cadre-technique.md) | les décisions techniques `T-XXX-nn`, modules, jalons |
 | [docs/cadre-interface.md](docs/cadre-interface.md) | l'interface comme banc d'essai : décisions `I-XXX-nn` |
 | [docs/analyse-structuration-narrative-jdr.md](docs/analyse-structuration-narrative-jdr.md) | l'historique des décisions : le *pourquoi* |
+| [docs/chantier-ingestion.md](docs/chantier-ingestion.md) | le chantier en cours : une ingestion pour de petits modèles (couches, atelier, mesures) |
+| [docs/recherche-ingestion/](docs/recherche-ingestion/README.md) | le journal de recherche : fiches d'écart et d'expérience |
 | [corpus/valmont-v1/README.md](corpus/valmont-v1/README.md) | le corpus de test et ses formats |
 | [CLAUDE.md](CLAUDE.md) | les règles de travail sur le projet (pour les personnes comme pour les agents) |
 
@@ -134,11 +142,11 @@ Trois familles (cadre technique §6) :
 - **T2, statistiques** : qualité de l'extraction mesurée contre le gold du corpus (`worldkit eval extraction`, écran **Mesures**) ;
 - **T3, humains** : questions de compétence, sessions de revue chronométrées.
 
-S'y ajoutent les **parcours d'acceptation** W00 à W17 du corpus (`worldkit walkthrough run W15`), le test du guide et le test de complétude de l'aide (tout statut, code ou écran affichable a sa définition).
+S'y ajoutent les **parcours d'acceptation** W00 à W17 du corpus (`worldkit walkthrough run W15`), le test du guide, le test de complétude de l'aide (tout statut, code ou écran affichable a sa définition) et, si Playwright est installé (`browser`), les tests de l'atelier dans un vrai navigateur.
 
 ## État
 
-Jalons du noyau J0 à J8 et de l'interface I0 à I7 faits : schéma, journal, branches, ingestion, extraction par modèle, scénarios, redéfinition rétroactive, systèmes de règles et fiches, interface complète avec aide et guide. À venir : un second jet du corpus, écrit à la main, pour choisir le modèle d'extraction sur des notes réalistes. Le détail est dans [CLAUDE.md](CLAUDE.md) (« État d'avancement »).
+Jalons du noyau J0 à J9 et de l'interface I0 à I10 faits : schéma, journal, branches, ingestion, extraction par modèle, scénarios, redéfinition rétroactive, systèmes de règles et fiches, notes (descriptions par facette), interface complète avec aide et guide, atelier d'ingestion (mentions, faits, descriptions), écran du schéma, pistes d'auteur, choix du modèle à l'écran. En cours : le chantier d'ingestion pour de petits modèles, mesuré avec Claude Haiku comme substitut et avec un modèle local (qwen3:4b). À venir : un second jet du corpus, écrit à la main, pour choisir le modèle d'extraction sur des notes réalistes. Le détail est dans [CLAUDE.md](CLAUDE.md) (« État d'avancement »).
 
 ## Contribuer
 
