@@ -70,7 +70,8 @@ def test_every_rule_cited_by_the_code_or_the_help_exists_in_the_documents():
 def test_every_screen_has_its_card_in_the_tool_map():
     from worldkit.web.help import tool_for
     routes = re.findall(r'@app\.get\("([^"]+)"', "".join(p.read_text(encoding="utf-8") for p in WEB.glob("*.py")))
-    screens = [re.sub(r"\{[^}]+\}", "1", r) for r in routes if not r.startswith(("/api", "/fragments"))]
+    screens = [re.sub(r"\{[^}]+\}", "1", r) for r in routes
+               if not r.startswith(("/api", "/fragments", "/events"))]  # /events : un flux (I-WEB-04), pas un écran
     assert [s for s in screens if tool_for(s) is None] == []
     assert tool_for("/runs/3/artifact/E4").title == "Artefact d'une étape"
     assert tool_for("/runs/3").title == "Exécution"

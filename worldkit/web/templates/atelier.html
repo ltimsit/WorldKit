@@ -32,14 +32,25 @@
   .pill-mis { background: #fee2e2; } .pill-rumeur, .pill-note { background: #ede9fe; } .pill-déjà { background: #dbeafe; }
   .evidence { color: #666; font-style: italic; }
   .ptext mark { background: #fde68a; }
+  /* Geste en cours d'envoi (I-WEB-04) : le bouton ou la mention cliquée pâlit, la page ne bouge pas. */
+  form.htmx-request button, a.htmx-request { opacity: .5; cursor: progress; }
+  #job-live #job-step { font-weight: 600; }
 </style>
 <p><a href="/atelier">← atelier</a></p>
 <h1>{{ view.title or view.doc_id }} <span class="small muted mono">{{ view.doc_id }} · version {{ view.version[:8] }} · branche {{ view.branch }}</span></h1>
+{# Un geste, un clic sur une mention, un fait ou une bribe ne remplacent que la zone de travail (I-WEB-04) :
+   le défilement est gardé ; l'adresse suit la sélection (I-WEB-01). #}
+{% set here %}hx-target="#atelier-work" hx-select="#atelier-work" hx-swap="outerHTML show:none"{% endset %}
+{% set stay %}{{ here }} hx-push-url="/atelier/{{ view.doc_id|urlencode }}"{% endset %}
+{% macro step(p) %}{{ p.label or "démarrage" }}{% if p.total and p.total > 1 %}, appel {{ p.done + 1 }} sur {{ p.total }}{% endif %}{% endmacro %}
+<div id="atelier-work">
 {% if error %}<div class="error-banner">{{ error }}</div>{% endif %}
-{% if job %}{% if job.status == "running" and job.live %}<meta http-equiv="refresh" content="3">
-<div class="stat" style="border-color:var(--warn)">Le modèle travaille (exécution <a href="/runs/{{ job.id }}">#{{ job.id }}</a>) : la page se met à jour d'elle-même ; cela peut prendre une ou deux minutes.</div>
+{% if job %}{% if job.status == "running" and job.live %}
+<div class="stat" style="border-color:var(--warn)" id="job-live" data-run="{{ job.id }}" data-doc="{{ view.doc_id|urlencode }}">Le modèle travaille (exécution <a href="/runs/{{ job.id }}">#{{ job.id }}</a>) : <span id="job-step">{{ step(job.progress or {}) }}</span> <span id="job-calls" class="small muted">{% if job.progress and job.progress.calls %}· {{ job.progress.calls }} appel(s) faits{% endif %}</span>
+  <form method="post" action="/atelier/{{ view.doc_id }}/cancel" {{ here }} hx-push-url="/atelier/{{ view.doc_id|urlencode }}?job={{ job.id }}" style="display:inline"><input type="hidden" name="job" value="{{ job.id }}"><button title="arrêter entre deux appels au modèle : la couche n'écrit rien">Arrêter</button></form>
+  <br><span class="small muted">Les annotations paraîtront ici à la fin, sans recharger la page ; vous pouvez continuer à lire.</span></div>
 {% elif job.status in ("running", "interrupted") %}<div class="error-banner">Exécution #{{ job.id }} interrompue (serveur arrêté pendant l'appel) : relancer.</div>
-{% elif job.result %}<div class="stat">{{ m.result_head(job.result) }}{% if job.result.status == "ok" %}{% if job.result.indicators.set_aside is defined %} {{ job.result.indicators.proposed }} fait(s) proposé(s), dont {{ job.result.indicators.set_aside }} mis de côté par le critique, {{ job.result.indicators.withheld }} retenu(s) par l'énonciation et {{ job.result.indicators.doubts }} douteux.{% else %} {{ job.result.indicators.proposed }} mention(s) proposée(s), dont {{ job.result.indicators.new }} nouvelle(s) et {{ job.result.indicators.doubts }} doute(s).{% endif %}{% set u = job.result.output.usage %}{% if u and u.calls %}<br><span class="small">modèle : {{ u.seconds }} s sur {{ (job.result.trace.duration_ms / 1000)|round(1) }} s ; {{ u.input_tokens }} tokens en entrée, {{ u.output_tokens }} en sortie{% if u.cost is not none %} ; {{ "%.4f"|format(u.cost) }} ${% endif %}{% if u.over_budget %} ; au-delà du budget d'entrée ({{ u.budget }}) de {{ u.excess_tokens }} tokens{% endif %}</span>{% endif %}{% endif %}</div>{% endif %}{% endif %}
+{% elif job.result %}<div class="stat">{{ m.result_head(job.result) }}{% if job.result.status == "ok" and not (job.result.output or {}).get("stopped") %}{% if job.result.indicators.set_aside is defined %} {{ job.result.indicators.proposed }} fait(s) proposé(s), dont {{ job.result.indicators.set_aside }} mis de côté par le critique, {{ job.result.indicators.withheld }} retenu(s) par l'énonciation et {{ job.result.indicators.doubts }} douteux.{% elif job.result.indicators.rejected is defined %} {{ job.result.indicators.proposed }} bribe(s) de description proposée(s) ; {{ job.result.indicators.rejected }} écartée(s) par les contrôles.{% else %} {{ job.result.indicators.proposed }} mention(s) proposée(s), dont {{ job.result.indicators.new }} nouvelle(s) et {{ job.result.indicators.doubts }} doute(s).{% endif %}{% set u = job.result.output.usage %}{% if u and u.calls %}<br><span class="small">modèle : {{ u.seconds }} s sur {{ (job.result.trace.duration_ms / 1000)|round(1) }} s ; {{ u.input_tokens }} tokens en entrée, {{ u.output_tokens }} en sortie{% if u.cost is not none %} ; {{ "%.4f"|format(u.cost) }} ${% endif %}{% if u.over_budget %} ; au-delà du budget d'entrée ({{ u.budget }}) de {{ u.excess_tokens }} tokens{% endif %}</span>{% endif %}{% endif %}</div>{% endif %}{% endif %}
 {% if message %}<div class="stat" style="border-color:var(--ok, #1b7f3b)">{{ message }} — <a href="/review">ouvrir la revue</a></div>{% endif %}
 {% if estimate %}<div class="stat" style="border-color:var(--warn)">{{ m.result_head(estimate) }}
   <form method="post" action="/atelier/{{ view.doc_id }}/run" hx-boost="false"><input type="hidden" name="model" value="1"><input type="hidden" name="confirm" value="1"><input type="hidden" name="layer" value="{{ estimate.output.estimate.layer or 'mentions' }}"><input type="hidden" name="profile" value="{{ estimate.output.estimate.profile }}">
@@ -54,15 +65,15 @@
   </form>
   · {{ indicators.to_review }} à revoir · {{ indicators.decided }} décidée(s)
   {% if view.proposed and view.facts_proposed %}<span class="small muted" style="float:right">déjà proposée : entités et faits sont partis</span>
-  {% elif view.proposed %}<form method="post" action="/atelier/{{ view.doc_id }}/propose" hx-boost="false" style="display:inline; float:right">
+  {% elif view.proposed %}<form method="post" action="/atelier/{{ view.doc_id }}/propose" {{ stay }} style="display:inline; float:right">
     <span class="small muted">entités déjà proposées · </span><button title="Les faits partent seuls, dans un second lot, vers la revue" {{ 'disabled' if not indicators.facts_to_send }}>Proposer les faits ({{ indicators.facts_to_send }})</button>
   </form>{% else %}
-  <form method="post" action="/atelier/{{ view.doc_id }}/propose" hx-boost="false" style="display:inline; float:right">
+  <form method="post" action="/atelier/{{ view.doc_id }}/propose" {{ stay }} style="display:inline; float:right">
     <button title="Les entités nouvelles confirmées, les alias retenus et les faits non écartés partent en un lot vers la revue">Proposer{% if indicators.facts_to_send %} (avec {{ indicators.facts_to_send }} fait(s)){% endif %}</button>
   </form>{% endif %}
   {% set unretained = view.attachments|rejectattr("retained")|list %}
   {% if unretained and not view.proposed %}<div class="small" id="unretained"><b>Rattachements non retenus</b> : « Proposer » n'en fera pas des alias (ils valent pour cette source).
-    {% for t in unretained %}<form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false" style="display:inline">
+    {% for t in unretained %}<form method="post" action="/atelier/{{ view.doc_id }}/annotate" {{ stay }} style="display:inline">
       <input type="hidden" name="ann_id" value="{{ t.ann_id }}"><input type="hidden" name="scope" value="world">
       « {{ t.text }} » → {{ t.name }} <button name="action" value="keep" title="en faire un alias de {{ t.name }}">retenir</button></form>{{ " ·" if not loop.last }}
     {% endfor %}</div>{% endif %}
@@ -92,13 +103,13 @@
 <div>
 {% for p in view.passages %}{% set pieces, nested = atelier_spans(p.text, p.annotations) %}
 <div class="passage" data-passage="{{ p.index }}"><span class="small muted">p{{ p.index }}</span>
-<span class="ptext">{% for piece in pieces %}{% if piece.ann %}<a class="{{ atelier_class(piece.ann) }}{{ ' on' if chosen and chosen.id == piece.ann.id }}{{ ' how-check' if piece.ann.how and piece.ann.how.check }}"{% if piece.ann.how %} data-how="{{ piece.ann.how.label }}"{% endif %} href="/atelier/{{ view.doc_id|urlencode }}?ann={{ piece.ann.id }}" draggable="false" title="{{ piece.ann.value.entity or ('nouvelle' if piece.ann.value.new else 'doute') }} · {{ piece.ann.origin }}">{{ piece.text }}</a>{% else %}{{ piece.text }}{% endif %}{% endfor %}</span>
-{% if nested %}<div class="small chips">imbriquées : {% for a in nested %}<a class="{{ atelier_class(a) }}" href="/atelier/{{ view.doc_id|urlencode }}?ann={{ a.id }}" draggable="false">{{ a.value.text }}</a>{% if a.how %} <span class="muted">({{ a.how.label }})</span>{% endif %}{% endfor %}</div>{% endif %}
+<span class="ptext">{% for piece in pieces %}{% if piece.ann %}<a class="{{ atelier_class(piece.ann) }}{{ ' on' if chosen and chosen.id == piece.ann.id }}{{ ' how-check' if piece.ann.how and piece.ann.how.check }}"{% if piece.ann.how %} data-how="{{ piece.ann.how.label }}"{% endif %} {{ here }} href="/atelier/{{ view.doc_id|urlencode }}?ann={{ piece.ann.id }}" draggable="false" title="{{ piece.ann.value.entity or ('nouvelle' if piece.ann.value.new else 'doute') }} · {{ piece.ann.origin }}">{{ piece.text }}</a>{% else %}{{ piece.text }}{% endif %}{% endfor %}</span>
+{% if nested %}<div class="small chips">imbriquées : {% for a in nested %}<a class="{{ atelier_class(a) }}" {{ here }} href="/atelier/{{ view.doc_id|urlencode }}?ann={{ a.id }}" draggable="false">{{ a.value.text }}</a>{% if a.how %} <span class="muted">({{ a.how.label }})</span>{% endif %}{% endfor %}</div>{% endif %}
 {% if p.facts %}<ul class="facts">{% for f in p.facts %}<li class="fact{{ ' fact-off' if f.excluded }}{{ ' fact-author' if f.by_author }}{{ ' on' if chosen_fact and chosen_fact.id == f.id }}" data-start="{{ f.start if f.start is not none else '' }}" data-end="{{ f.end if f.end is not none else '' }}">
-  <a href="/atelier/{{ view.doc_id|urlencode }}?fact={{ f.id }}" title="{{ f.reason or '' }}{{ ' · couche ' ~ f.layer if f.layer }}"><span class="pill pill-{{ f.state.split(' ')[0] }}">{{ f.state }}</span>{% if f.indirect %}<span class="pill pill-douteux" title="le passage ne nomme pas : {{ f.indirect|join(', ') }} ; la preuve tient par une coréférence (« sa soeur », « elle ») : vérifier le passage">preuve indirecte</span>{% endif %}<span class="fact-label">{{ f.label }}</span></a>
+  <a {{ here }} href="/atelier/{{ view.doc_id|urlencode }}?fact={{ f.id }}" title="{{ f.reason or '' }}{{ ' · couche ' ~ f.layer if f.layer }}"><span class="pill pill-{{ f.state.split(' ')[0] }}">{{ f.state }}</span>{% if f.indirect %}<span class="pill pill-douteux" title="le passage ne nomme pas : {{ f.indirect|join(', ') }} ; la preuve tient par une coréférence (« sa soeur », « elle ») : vérifier le passage">preuve indirecte</span>{% endif %}<span class="fact-label">{{ f.label }}</span></a>
   {% if f.evidence and f.layer != 'author' %}<span class="evidence small">« {{ f.evidence|truncate(90) }} »</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
 {% if p.notes %}<ul class="facts notes">{% for n in p.notes %}<li class="fact{{ ' fact-off' if n.excluded }}{{ ' fact-author' if n.by_author }}{{ ' on' if chosen_note and chosen_note.id == n.id }}" data-start="{{ n.start if n.start is not none else '' }}" data-end="{{ n.end if n.end is not none else '' }}">
-  <a href="/atelier/{{ view.doc_id|urlencode }}?note={{ n.id }}"><span class="pill pill-{{ n.state }}">{{ n.state }}</span><span class="pill">{{ n.facet_label }}</span><span class="fact-label">{{ n.subjects|join(", ") }}</span> « {{ n.draft.text|truncate(80) }} »{% if n.draft.short %} <span class="small muted">— {% for s in n.draft.short %}{{ s.aspect }} : {{ s.value }}{{ " · " if not loop.last }}{% endfor %}</span>{% endif %}</a></li>{% endfor %}</ul>{% endif %}
+  <a {{ here }} href="/atelier/{{ view.doc_id|urlencode }}?note={{ n.id }}"><span class="pill pill-{{ n.state }}">{{ n.state }}</span><span class="pill">{{ n.facet_label }}</span><span class="fact-label">{{ n.subjects|join(", ") }}</span> « {{ n.draft.text|truncate(80) }} »{% if n.draft.short %} <span class="small muted">— {% for s in n.draft.short %}{{ s.aspect }} : {{ s.value }}{{ " · " if not loop.last }}{% endfor %}</span>{% endif %}</a></li>{% endfor %}</ul>{% endif %}
 </div>{% endfor %}
 </div>
 
@@ -109,7 +120,7 @@
   <p>« {{ n.draft.text }} »</p>
   <p class="small">sujets : {{ n.subjects|join(", ") }}{% if n.mentions %} · mentions : {{ n.mentions|join(", ") }}{% endif %}{% if n.draft.short %} · {% for s in n.draft.short %}{{ s.aspect }} : {{ s.value }}{{ " · " if not loop.last }}{% endfor %}{% endif %}</p>
   <p class="small">{{ "Ne partira pas avec « Proposer »." if n.excluded else "Partira avec « Proposer »." }}</p>
-  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
+  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" {{ stay }}>
     <input type="hidden" name="kind" value="note"><input type="hidden" name="ann_id" value="{{ n.id }}">
     <p><button name="action" value="keep">Garder</button> <button name="action" value="remove">Retirer</button></p>
     <p class="small">Corriger : facette <select name="facet">{% for f in view.note_facets %}<option value="{{ f.id }}"{{ ' selected' if f.id == n.draft.facet }}>{{ f.label }}</option>{% endfor %}</select>
@@ -118,7 +129,7 @@
       <button name="action" value="correct">Corriger</button></p>
   </form>
   {% if n.draft_id %}<p class="small">En piste : <a href="/pistes#{{ n.draft_id }}">{{ n.draft_id }}</a></p>
-  {% else %}<form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false" class="small">
+  {% else %}<form method="post" action="/atelier/{{ view.doc_id }}/annotate" {{ stay }} class="small">
     <input type="hidden" name="kind" value="note"><input type="hidden" name="ann_id" value="{{ n.id }}">
     Pas sûr ? <input name="title" size="42" value="{{ "« " ~ n.draft.text|truncate(60) ~ " » ?" }}"> <button name="action" value="draft">En faire une piste</button>
     <span class="muted">(en attente de ta décision ; ne part pas avec « Proposer »)</span></form>{% endif %}
@@ -130,14 +141,14 @@
   <p class="small">couche {{ {"c5": "C5 (faits)", "probe": "question ciblée", "author": "auteur"}.get(f.layer, f.layer) }}{% if f.verdict %} · critique : {{ {"supported": "soutenu", "unsure": "douteux", "not_supported": "mis de côté"}[f.verdict] }}{% if f.reason %} — {{ f.reason }}{% endif %}{% endif %}{% if f.voice %} · énonciation : {{ "rumeur ou paroles rapportées (attribution, pas un fait du monde)" if f.voice == "attribution" else "note de travail" }}{% endif %}{% if f.exact %} · le texte dit plus précisément : {{ f.exact }}{% endif %}{% if f.indirect %} · <b>preuve indirecte</b> : le passage ne nomme pas {{ f.indirect|join(', ') }} (coréférence à vérifier){% endif %}{% if f.origin_label %} · avant correction : {{ f.origin_label }}{% endif %}</p>
   {% if f.evidence %}<p class="small evidence">« {{ f.evidence }} »</p>{% endif %}
   <p class="small">{{ "Ne partira pas avec « Proposer »." if f.excluded else "Partira avec « Proposer »." }}</p>
-  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
+  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" {{ stay }}>
     <input type="hidden" name="kind" value="fact"><input type="hidden" name="ann_id" value="{{ f.id }}">
     <p><button name="action" value="keep">{{ "Reprendre" if f.excluded else "Garder" }}</button> <button name="action" value="remove">Retirer</button></p>
     {% set d = f.draft %}
     <p>Corriger : {{ fact_fields(view, d) }} <button name="action" value="correct">Corriger</button></p>
   </form>
   {% if f.draft_id %}<p class="small">En piste : <a href="/pistes#{{ f.draft_id }}">{{ f.draft_id }}</a></p>
-  {% else %}<form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false" class="small">
+  {% else %}<form method="post" action="/atelier/{{ view.doc_id }}/annotate" {{ stay }} class="small">
     <input type="hidden" name="kind" value="fact"><input type="hidden" name="ann_id" value="{{ f.id }}">
     Pas sûr ? <input name="title" size="42" value="{{ f.label ~ " ?" }}"> <button name="action" value="draft">En faire une piste</button>
     <span class="muted">(en attente de ta décision ; ne part pas avec « Proposer »)</span></form>{% endif %}
@@ -152,7 +163,7 @@
   · type {{ v.type or "?" }} · {% if chosen.how %}<b>{{ chosen.how.label }}</b> {% endif %}<span class="muted">(règle {{ v.rule or "?" }})</span>{% if v.check %} · <b>à vérifier</b> ({{ "forme courte d'un nom de personne" if v.check == "short" else "casse différente du nom connu" }}){% endif %} · {{ chosen.origin }} · {{ chosen.status }}{% if v.reason %} · {{ v.reason }}{% endif %}</p>
   {% for t in view.attachments if chosen.id in t.ann_ids %}<p class="small">alias proposé : {% if t.retained %}<b>oui</b> (retenu pour le monde : « {{ t.text }} » deviendra un autre nom de {{ t.name }}){% else %}<b>non</b> (« {{ t.text }} » désigne {{ t.name }} dans cette source seulement ; « retenir pour le monde » pour en faire un alias){% endif %}</p>{% endfor %}
   {% if v.candidates %}<p class="small">candidats : {% for c in v.candidates %}<b>{{ names[c].name if c in names else c }}</b> <span class="mono">({{ c }})</span>{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
-  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
+  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" {{ stay }}>
     <input type="hidden" name="ann_id" value="{{ chosen.id }}">
     <p>portée <label><input type="radio" name="scope" value="occurrence"> cette occurrence</label>
       <label><input type="radio" name="scope" value="source" checked> toute la source</label>
@@ -169,7 +180,7 @@
 {% endif %}
 <div class="stat" id="add-panel">
   <h3>Ajouter une mention</h3>
-  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
+  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" {{ stay }}>
     <input type="hidden" name="action" value="add"><input type="hidden" name="passage" id="add-passage">
     <input type="hidden" name="start" id="add-start"><input type="hidden" name="end" id="add-end">
     <p>sélection : <b id="add-text" class="muted">sélectionner un mot dans le texte (une mention déjà surlignée : la cliquer pour la garder ou la corriger)</b></p>
@@ -183,7 +194,7 @@
 </div>
 {% if view.fact_entities %}<div class="stat" id="add-note">
   <h3>Ajouter une note</h3>
-  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
+  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" {{ stay }}>
     <input type="hidden" name="kind" value="note"><input type="hidden" name="action" value="add">
     <input type="hidden" name="passage" id="note-passage"><input type="hidden" name="text" id="note-text">
     <p class="small">citation : <b id="note-label" class="muted">sélectionner un extrait dans le texte</b></p>
@@ -195,7 +206,7 @@
 </div>
 <div class="stat" id="add-fact">
   <h3>Ajouter un fait</h3>
-  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" hx-boost="false">
+  <form method="post" action="/atelier/{{ view.doc_id }}/annotate" {{ stay }}>
     <input type="hidden" name="kind" value="fact"><input type="hidden" name="action" value="add">
     <p>passage <select name="passage">{% for p in view.passages %}<option value="{{ p.index }}">p{{ p.index }} — {{ p.text|truncate(40) }}</option>{% endfor %}</select></p>
     <p>{{ fact_fields(view, {}) }} <button>Ajouter</button></p>
@@ -204,64 +215,103 @@
 {% if view.rules %}<div class="stat small"><h3>Règles d'atelier</h3>{% for r in view.rules %}<div><span class="mono">{{ r.form }}</span> : {{ "n'est pas une entité" if r.kind == "not_entity" else "n'est pas " ~ r.target }}</div>{% endfor %}</div>{% endif %}
 </div>
 </div>
+</div>
 <script>
-  // Étiquettes sous les mentions : affichées par défaut ; le choix est mémorisé dans ce navigateur.
+  // La zone de travail est remplacée après chaque geste (I-WEB-04) : tout se rebranche dans `init`, appelée au
+  // chargement et après chaque remplacement ; les écouteurs du document ne sont posés qu'une fois.
   (() => {
-    const box = document.getElementById("show-how"), grid = document.getElementById("atelier-grid");
-    if (!box || !grid) return;
-    try { if (localStorage.getItem("worldkit.atelier.how") === "off") box.checked = false; } catch (e) {}
-    const apply = () => grid.classList.toggle("with-how", box.checked);
-    apply();
-    box.addEventListener("change", () => { apply();
-      try { localStorage.setItem("worldkit.atelier.how", box.checked ? "on" : "off"); } catch (e) {} });
-  })();
-  // Survol d'un fait : sa preuve surlignée dans le texte du passage (début et fin dans le texte du passage).
-  document.querySelectorAll(".fact[data-start]").forEach(li => {
-    if (li.dataset.start === "") return;
-    const box = li.closest(".passage"), text = box.querySelector(".ptext");
-    li.addEventListener("mouseenter", () => {
-      const start = +li.dataset.start, end = +li.dataset.end;
-      const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
-      let pos = 0, node, ranges = [];
-      while ((node = walker.nextNode())) {
-        const a = Math.max(start, pos), b = Math.min(end, pos + node.length);
-        if (a < b) ranges.push([node, a - pos, b - pos]);
-        pos += node.length;
+    const init = () => {
+      const work = document.getElementById("atelier-work");
+      if (!work || work.dataset.ready) return;
+      work.dataset.ready = "1";
+      // Étiquettes sous les mentions : affichées par défaut ; le choix est mémorisé dans ce navigateur.
+      const box = document.getElementById("show-how"), grid = document.getElementById("atelier-grid");
+      if (box && grid) {
+        try { if (localStorage.getItem("worldkit.atelier.how") === "off") box.checked = false; } catch (e) {}
+        const apply = () => grid.classList.toggle("with-how", box.checked);
+        apply();
+        box.addEventListener("change", () => { apply();
+          try { localStorage.setItem("worldkit.atelier.how", box.checked ? "on" : "off"); } catch (e) {} });
       }
-      ranges.reverse().forEach(([n, a, b]) => { const r = document.createRange(); r.setStart(n, a); r.setEnd(n, b);
-        const mark = document.createElement("mark"); r.surroundContents(mark); });
-    });
-    li.addEventListener("mouseleave", () => {
-      text.querySelectorAll("mark").forEach(m => m.replaceWith(...m.childNodes)); text.normalize();
-    });
-  });
-  // Sélection d'une portion dans un passage → formulaire d'ajout (début et fin dans le texte du passage).
-  document.addEventListener("mouseup", () => {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) return;
-    const range = sel.getRangeAt(0);
-    const box = range.startContainer.parentElement && range.startContainer.parentElement.closest(".passage");
-    if (!box || !box.contains(range.endContainer)) return;
-    const text = box.querySelector(".ptext");
-    const before = document.createRange();
-    before.setStart(text, 0); before.setEnd(range.startContainer, range.startOffset);
-    const start = before.toString().length, chosen = range.toString();
-    const end = start + chosen.length;
-    if (!chosen.trim()) return;
-    document.getElementById("add-passage").value = box.dataset.passage;
-    document.getElementById("add-start").value = start;
-    document.getElementById("add-end").value = end;
-    const label = document.getElementById("add-text");
-    label.textContent = "« " + chosen + " » (p" + box.dataset.passage + ")"; label.classList.remove("muted");
-    const button = document.getElementById("add-button");
-    if (button) { button.disabled = false; button.title = ""; }
-    const notePassage = document.getElementById("note-passage");
-    if (notePassage) {
-      notePassage.value = box.dataset.passage; document.getElementById("note-text").value = chosen;
-      const noteLabel = document.getElementById("note-label");
-      noteLabel.textContent = "« " + chosen + " » (p" + box.dataset.passage + ")"; noteLabel.classList.remove("muted");
-      const noteButton = document.getElementById("note-button"); noteButton.disabled = false; noteButton.title = "";
+      // Survol d'un fait : sa preuve surlignée dans le texte du passage (début et fin dans le texte du passage).
+      work.querySelectorAll(".fact[data-start]").forEach(li => {
+        if (li.dataset.start === "") return;
+        const text = li.closest(".passage").querySelector(".ptext");
+        li.addEventListener("mouseenter", () => {
+          const start = +li.dataset.start, end = +li.dataset.end;
+          const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
+          let pos = 0, node, ranges = [];
+          while ((node = walker.nextNode())) {
+            const a = Math.max(start, pos), b = Math.min(end, pos + node.length);
+            if (a < b) ranges.push([node, a - pos, b - pos]);
+            pos += node.length;
+          }
+          ranges.reverse().forEach(([n, a, b]) => { const r = document.createRange(); r.setStart(n, a); r.setEnd(n, b);
+            const mark = document.createElement("mark"); r.surroundContents(mark); });
+        });
+        li.addEventListener("mouseleave", () => {
+          text.querySelectorAll("mark").forEach(m => m.replaceWith(...m.childNodes)); text.normalize();
+        });
+      });
+      follow();
+    };
+    // Passe du modèle en cours : la progression arrive par le serveur (Server-Sent Events) ; à la fin, la zone de
+    // travail est remplacée une fois, avec les annotations et le bilan de la passe.
+    const follow = () => {
+      const live = document.getElementById("job-live");
+      if (window.wkAtelierEvents && (!live || window.wkAtelierEvents.run !== live.dataset.run)) {
+        window.wkAtelierEvents.source.close(); window.wkAtelierEvents = null;
+      }
+      if (!live || window.wkAtelierEvents || !window.EventSource) return;
+      const run = live.dataset.run, source = new EventSource("/events/run/" + run);
+      window.wkAtelierEvents = {run, source};
+      source.addEventListener("progress", (e) => {
+        const p = JSON.parse(e.data).progress || {}, step = document.getElementById("job-step");
+        if (!step) return;
+        step.textContent = (p.label || "démarrage") + (p.total > 1 ? ", appel " + (p.done + 1) + " sur " + p.total : "");
+        document.getElementById("job-calls").textContent = p.calls ? "· " + p.calls + " appel(s) faits" : "";
+      });
+      source.addEventListener("done", () => {
+        source.close(); window.wkAtelierEvents = null;
+        const still = document.getElementById("job-live");
+        if (still && still.dataset.run === run)
+          htmx.ajax("GET", "/atelier/" + still.dataset.doc + "?job=" + run,
+                    {target: "#atelier-work", select: "#atelier-work", swap: "outerHTML show:none"});
+      });
+    };
+    if (!window.wkAtelierReady) {
+      window.wkAtelierReady = true;
+      document.addEventListener("htmx:afterSettle", init);
+      // Sélection d'une portion dans un passage → formulaires d'ajout (début et fin dans le texte du passage).
+      document.addEventListener("mouseup", () => {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) return;
+        const range = sel.getRangeAt(0);
+        const box = range.startContainer.parentElement && range.startContainer.parentElement.closest(".passage");
+        if (!box || !box.contains(range.endContainer)) return;
+        const text = box.querySelector(".ptext");
+        const before = document.createRange();
+        before.setStart(text, 0); before.setEnd(range.startContainer, range.startOffset);
+        const start = before.toString().length, chosen = range.toString();
+        const end = start + chosen.length;
+        if (!chosen.trim()) return;
+        document.getElementById("add-passage").value = box.dataset.passage;
+        document.getElementById("add-start").value = start;
+        document.getElementById("add-end").value = end;
+        const label = document.getElementById("add-text");
+        label.textContent = "« " + chosen + " » (p" + box.dataset.passage + ")"; label.classList.remove("muted");
+        const button = document.getElementById("add-button");
+        if (button) { button.disabled = false; button.title = ""; }
+        const notePassage = document.getElementById("note-passage");
+        if (notePassage) {
+          notePassage.value = box.dataset.passage; document.getElementById("note-text").value = chosen;
+          const noteLabel = document.getElementById("note-label");
+          noteLabel.textContent = "« " + chosen + " » (p" + box.dataset.passage + ")"; noteLabel.classList.remove("muted");
+          const noteButton = document.getElementById("note-button"); noteButton.disabled = false; noteButton.title = "";
+        }
+      });
     }
-  });
+    init();
+  })();
 </script>
 {% endblock %}

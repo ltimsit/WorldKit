@@ -107,8 +107,10 @@ def _overlaps(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
     return a_start < b_end and b_start < a_end
 
 
-def run_mentions(world: Any, branch: str, doc_id: str, finder: Any = None, with_signals: bool = False) -> RunReport:
-    """Lance la couche « mentions » sur la dernière version de la source et écrit ses annotations."""
+def run_mentions(world: Any, branch: str, doc_id: str, finder: Any = None, with_signals: bool = False,
+                 on_step: Any = None) -> RunReport:
+    """Lance la couche « mentions » sur la dernière version de la source et écrit ses annotations (à la fin seulement :
+    une passe arrêtée par `on_step` n'écrit rien)."""
     from worldkit.ingest.batch import extraction_context
     from worldkit.periphery.facts import enunciation
     from worldkit.periphery.matching import fold
@@ -121,6 +123,8 @@ def run_mentions(world: Any, branch: str, doc_id: str, finder: Any = None, with_
     meter = getattr(finder, "meter", None) if finder is not None else None
     first = len(meter.calls) if meter is not None else 0
     resolver = Resolver.from_state(context, state)
+    if finder is not None and on_step is not None:
+        on_step("mentions", 0, 1)
     found = finder.find(window, context) if finder is not None else []
     mentions = merge(known_mentions(window, context.entities, resolver.titles), found)
     if with_signals:
@@ -226,8 +230,10 @@ def _span(text: str, evidence: str) -> tuple[int | None, int | None]:
     return (i, i + len(evidence.strip())) if evidence.strip() and i >= 0 else (None, None)
 
 
-def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = None, critic: Any = None) -> FactsReport:
-    """Lance la couche « faits » sur la dernière version de la source ; écrit une annotation par fait, gardé ou non."""
+def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = None, critic: Any = None,
+              on_step: Any = None) -> FactsReport:
+    """Lance la couche « faits » sur la dernière version de la source ; écrit une annotation par fait, gardé ou non
+    (à la fin seulement : une passe arrêtée par `on_step` n'écrit rien)."""
     import json
 
     from worldkit.ingest.batch import extraction_context
@@ -244,7 +250,7 @@ def run_facts(world: Any, branch: str, doc_id: str, finder: Any, probe: Any = No
     first = len(meter.calls) if meter is not None else 0
     window = window_of(doc)
     result = facts_chain(window, entities, context.schema, state, finder, probe, forms, critic, True, {},
-                         {e.id: e.names for e in context.entities})
+                         {e.id: e.names for e in context.entities}, on_step)
     verdicts = {id(f): v for f, v in result.judged}
     texts = window.passage_texts
     every = result.kept + [f for f, _ in result.judged] + [f for f, _ in result.withheld]
@@ -347,7 +353,7 @@ def kept_facts(world: Any, branch: str, doc: Any) -> tuple[list[str], dict[str, 
     return sorted(set(known)), values, evidence
 
 
-def run_notes(world: Any, branch: str, doc_id: str, finder: Any) -> NotesReport:
+def run_notes(world: Any, branch: str, doc_id: str, finder: Any, on_step: Any = None) -> NotesReport:
     """Lance la couche « descriptions » après les faits, entre les entités confirmées ; écrit une annotation par bribe
     (`kind: note`). Relancée, elle ne repropose pas une citation que l'auteur a décidée."""
 
@@ -361,6 +367,8 @@ def run_notes(world: Any, branch: str, doc_id: str, finder: Any) -> NotesReport:
     window = window_of(doc)
     known, values, evidence = kept_facts(world, branch, doc)
     before = len(finder.rejected)
+    if on_step is not None:
+        on_step("notes", 0, 1)
     found = finder.find(window, entities, world.state(branch).world, known, values, evidence)
     report.rejected = len(finder.rejected) - before
     decided = decided_keys(now, "note")  # règle de relance, normalisée (I-ATL-02)

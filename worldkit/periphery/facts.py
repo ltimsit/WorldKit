@@ -13,6 +13,7 @@ les facultatifs du gold sont neutres. Elle n'entre pas dans `pytest` avec un vra
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from dataclasses import dataclass, field, replace
@@ -865,17 +866,25 @@ class ChainResult:
 def facts_chain(window: Window, entities: list[Confirmed], schema: Any, state: Any, finder: FactFinder,
                 probe: RelationProbe | None = None, forms: dict[str, set[str]] | None = None,
                 critic: Critic | None = None, with_enunciation: bool = False, names: dict[str, str] | None = None,
-                other_names: dict[str, tuple[str, ...]] | None = None) -> ChainResult:
+                other_names: dict[str, tuple[str, ...]] | None = None,
+                on_step: Callable[[str, int, int], None] | None = None) -> ChainResult:
     """C5, puis la question ciblée sur les phrases muettes, l'énonciation (rumeur et note de travail retenues), et le
     critique sur ce qui pose une question (pas les supports) : la chaîne du chantier (§6.5), une fenêtre à la fois.
-    Sert à la mesure (`evaluate_facts`) et à l'atelier (couche « faits », I9)."""
+    Sert à la mesure (`evaluate_facts`) et à l'atelier (couche « faits », I9).
+
+    `on_step(étape, fait, total)` est appelé avant chaque appel au modèle (`c5`, `probe`, `critic`) : progression d'une
+    tâche de fond (I-WEB-04) ; il peut lever une exception pour arrêter la chaîne entre deux appels."""
+    step = on_step or (lambda stage, done, total: None)
     out = ChainResult()
     meter = finder.meter
+    step("c5", 0, 1)
     with meter.label(window.doc_id) if meter is not None else nullcontext():
         facts = finder.find(window, entities, schema, state)
     if probe is not None:
         probe_meter = probe.meter
-        for silent in silent_sentences(window, facts, forms or {}, probe.by_pair):
+        silents = silent_sentences(window, facts, forms or {}, probe.by_pair)
+        for i, silent in enumerate(silents):
+            step("probe", i, len(silents))
             out.silents.append(silent)
             with probe_meter.label(f"{window.doc_id} p{silent.passage}") if probe_meter is not None else nullcontext():
                 facts += check_facts(probe.ask(silent, entities, schema), entities, schema, state, finder.rejected)
@@ -893,10 +902,14 @@ def facts_chain(window: Window, entities: list[Confirmed], schema: Any, state: A
         out.kept = facts
         return out
     critic_meter = critic.meter
+    to_judge = sum(1 for f in facts if f.passage is not None and not is_support(key(f.draft, names or {}), state))
+    judged = 0
     for f in facts:
         if f.passage is None or is_support(key(f.draft, names or {}), state):
             out.kept.append(f)  # le critique ne juge que ce qui pose une question
             continue
+        step("critic", judged, to_judge)
+        judged += 1
         with critic_meter.label(f"{window.doc_id} p{f.passage}") if critic_meter is not None else nullcontext():
             verdict = critic.judge(f, window.passage_texts[f.passage], entities, schema, other_names)
         out.judged.append((f, verdict))
